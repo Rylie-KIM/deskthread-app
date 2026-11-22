@@ -32,6 +32,7 @@ ROUTES: dict[str, str] = {
     "GET /api/people": "list[Spellings]",  # other ways the user writes a name (1.15)
     "POST /api/people": "list[Spellings]",  # body: list[Spellings]; replaces the list
     "GET /api/progress": "Progress",  # which step a running question is on
+    "GET /api/preparing": "Preparing",  # the pictures being read after a switch is turned on
     "POST /api/cancel": "Progress",  # stop the running question (contract 1.8)
     "GET /api/items/{item_id}": "ItemView",
     "GET /api/items/{item_id}/image": "bytes",
@@ -133,6 +134,16 @@ class PrepareBody(_Frozen):
 
 class AskBody(_Frozen):
     question: str = Field(min_length=1, max_length=500)
+
+
+class Preparing(_Frozen):
+    """Work done after a source is switched on and before the first question: reading the text
+    of pictures. While `active`, a question would have to wait (contract 1.20)."""
+
+    active: bool = False
+    done: int = 0
+    total: int = 0
+    what: str = ""  # "Reading pictures", or "Looking at pictures without text"
 
 
 class Progress(_Frozen):

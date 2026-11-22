@@ -38,7 +38,6 @@ export default function Access({ sources, folder, demoFolder, onSources, onError
   const [ticked, setTicked] = useState<string[]>([]);
   const [folders, setFolders] = useState<FolderInfo[]>([]);
   const [days, setDays] = useState(30);
-  const [progress, setProgress] = useState("");  // "Reading pictures 3 of 7" while a source is read
   const [exact, setExact] = useState(false);  // false: the most recent stretch; true: from one day to another
   const [since, setSince] = useState("");
   const [until, setUntil] = useState("");
@@ -126,13 +125,6 @@ export default function Access({ sources, folder, demoFolder, onSources, onError
     ["Other formats", folders.reduce((sum, f) => sum + f.other, 0)],
   ];
 
-  // While a source is read (pictures take a moment), ask the backend how far it is.
-  useEffect(() => {
-    if (busy === "") { setProgress(""); return; }
-    const timer = setInterval(() => api.progress().then((p) => setProgress(p.detail ? `${p.step} ${p.detail}` : "")).catch(() => undefined), 400);
-    return () => clearInterval(timer);
-  }, [busy]);
-
   const row = (source: SourceState) => (
     <li key={source.source_id} className={source.status === "on" ? "rowitem on" : "rowitem"}>
       {source.source_id.startsWith("mac:") ? (
@@ -142,7 +134,7 @@ export default function Access({ sources, folder, demoFolder, onSources, onError
       )}
       <span className="who">
         <b>{source.label}</b>
-        <small>{busy === source.source_id ? (progress || "Working…") : source.blocked ? "Not supported by this AI model" : source.status === "on" ? `Reading ${source.items_in_memory} items` : "Off"}</small>
+        <small>{busy === source.source_id ? "Working…" : source.blocked ? "Not supported by this AI model" : source.status === "on" ? `Reading ${source.items_in_memory} items` : "Off"}</small>
       </span>
       <button
         role="switch"

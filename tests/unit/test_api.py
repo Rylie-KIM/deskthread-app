@@ -10,7 +10,7 @@ from app.api import create_app
 from app.runtime import Runtime
 from contracts.api import ROUTES, TOKEN_HEADER
 from contracts.errors import DeskThreadError, ErrorCode
-from tests.fakes import SAM_BRIEF, STORY_NOW, FakeModel
+from tests.fakes import SAM_BRIEF, STORY_NOW, FakeModel, wait_until_prepared
 
 PORT = 8765
 BASE = f"http://127.0.0.1:{PORT}"
@@ -43,6 +43,7 @@ def _work_profile(client: TestClient, demo_laptop: Path) -> None:
         assert client.post(
             f"/api/sources/{source['source_id']}/grant", json={"scope_ids": scopes}
         ).is_success
+    wait_until_prepared(client)  # pictures are read in the background after the switch
 
 
 # ------------------------------------------------------------------ U5: local API protection
@@ -325,27 +326,51 @@ def test_a_question_reads_folders_again_but_not_the_apps(
     assert [name for name, _ in apps.calls if name == "notes.read"] == reads  # not asked again
 
 
-def test_a_question_can_be_stopped_and_long_steps_say_how_far_they_are(
-    client: TestClient, runtime: Runtime, demo_laptop: Path
-) -> None:
+def test_a_question_can_be_stopped(client: TestClient, runtime: Runtime, demo_laptop: Path) -> None:
     _work_profile(client, demo_laptop)
     model = runtime.session.assistant._model
-    seen: list[str] = []
     original = model.complete
 
-    def reading(prompt: str, images: list[bytes] | None = None) -> str:
-        seen.append(client.get("/api/progress").json()["detail"])
-        if len(seen) == 2:
-            client.post("/api/cancel")  # the user presses Stop while pictures are read
+    def pressing_stop(prompt: str, images: list[bytes] | None = None) -> str:
+        client.post("/api/cancel")  # the user presses Stop while the AI is working
         return original(prompt, images)
 
-    model.complete = reading  # type: ignore[method-assign]
+    model.complete = pressing_stop  # type: ignore[method-assign]
     stopped = client.post("/api/ask", json={"question": "What did I promise Sam?"}).json()
     assert stopped["kind"] == "stopped" and stopped["points"] == []
-    assert seen[:2] == ["picture 1 of 5", "picture 2 of 5"] and len(seen) == 2
+    model.complete = original  # type: ignore[method-assign]
     again = client.post("/api/ask", json={"question": "What did I promise Sam?"}).json()
     assert again["kind"] == "brief"  # the next question runs normally
-    assert runtime.session.assistant.readings_held == 5  # pictures already read were kept
+    assert runtime.session.assistant.readings_held == 5  # the pictures were read when switched on
+
+
+def test_the_pictures_are_prepared_in_the_background_and_say_how_far_they_are(
+    client: TestClient, runtime: Runtime, demo_laptop: Path
+) -> None:
+    model = runtime.session.assistant._model
+    seen: list[dict[str, object]] = []
+    original = model.complete
+
+    def watching(prompt: str, images: list[bytes] | None = None) -> str:
+        if images:
+            seen.append(client.get("/api/preparing").json())  # asked while a picture is read
+        return original(prompt, images)
+
+    model.complete = watching  # type: ignore[method-assign]
+    assert client.get("/api/preparing").json() == {
+        "active": False,
+        "done": 0,
+        "total": 0,
+        "what": "",
+    }
+    for source in client.post("/api/folder", json={"path": str(demo_laptop)}).json():
+        if source["source_id"] == "folder:images":
+            client.post("/api/sources/folder:images/grant", json={})  # returns at once
+    wait_until_prepared(client)
+    assert [s["done"] for s in seen] == [1, 2, 3, 4, 5] and all(s["total"] == 5 for s in seen)
+    assert all(s["active"] is True for s in seen)
+    assert client.get("/api/preparing").json()["active"] is False  # then the chat opens
+    assert runtime.session.assistant.readings_held == 5
 
 
 def test_folders_say_what_they_hold_and_what_cannot_be_read(

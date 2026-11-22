@@ -48,6 +48,7 @@ from contracts.api import (
     ItemRef,
     Meeting,
     PointStatus,
+    Preparing,
     Progress,
     RelatedRef,
     Unread,
@@ -83,6 +84,9 @@ class Assistant:
         self.items_given = 0
         self.given_by: dict[str, int] = {}  # source id -> items shown to the AI
         self.progress = Progress()  # which step a running question is on
+        self.preparing = Preparing()  # pictures being read after a switch is turned on
+        self._prep_lock = threading.Lock()
+        self._prep_jobs = 0
         self._stop = threading.Event()  # set when the user stops the running question
 
     def forget(self) -> None:
@@ -171,8 +175,9 @@ class Assistant:
         self._step(1)
         self._store.refresh()  # read again each time: a deleted file is gone at once (U10)
         self._step(2)
-        unread = self._images.read_pending(  # the local model reads pictures it has not read yet
-            lambda done, total: self._step(2, f"picture {done} of {total}"), self._check_stop
+        unread = self._images.read_pending(  # pictures not read yet (normally none: see below)
+            lambda done, total, _phase: self._step(2, f"picture {done} of {total}"),
+            self._check_stop,
         )
         items = self._store.items()
         coverage_note = (
@@ -310,19 +315,30 @@ class Assistant:
         scored.sort(key=lambda pair: (-pair[0], pair[1].item_id))
         return [Candidate(i, score) for score, i in scored[:8] if score >= config.LIKE_WIDER]
 
-    def read_pictures_now(self) -> None:
-        """Read the text of newly allowed pictures right away (macOS text recognition only, no
-        AI), so the first question does not wait for it. The progress shows "3 of 7"."""
+    def begin_preparing(self) -> None:
+        """A picture job is about to start: from now on `preparing` says so."""
+        with self._prep_lock:
+            self._prep_jobs += 1
+            if not self.preparing.active:
+                self.preparing = Preparing(active=True, what="Reading pictures")
 
-        def show(done: int, total: int) -> None:
-            self.progress = Progress(
-                step="Reading pictures", number=0, of=0, detail=f"{done} of {total}"
-            )
+    def read_pictures_now(self) -> None:
+        """Read the text of the pictures that have no reading yet (macOS first, the AI only for
+        pictures without text), and say how far it is in `preparing`. This is the work between
+        switching Pictures on and the first question; the screen keeps the chat closed until
+        it is done."""
+
+        def show(done: int, total: int, phase: str) -> None:
+            what = "Reading pictures" if phase == "text" else "Looking at pictures without text"
+            self.preparing = Preparing(active=True, done=done, total=total, what=what)
 
         try:
-            self._images.read_pending(show, None, use_model=False)
+            self._images.read_pending(show, None, use_model=True)
         finally:
-            self.progress = Progress()
+            with self._prep_lock:
+                self._prep_jobs = max(0, self._prep_jobs - 1)
+                if self._prep_jobs == 0:
+                    self.preparing = Preparing()
 
     # ------------------------------------------------------------ the items behind the numbers
     def _details(self, answer: Answer) -> dict[str, object]:

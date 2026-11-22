@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, clock, day, plain, type Answer, type BriefPoint, type Citation, type ItemRef, type Meeting, type Progress } from "../lib/api";
+import { api, clock, day, plain, type Answer, type BriefPoint, type Citation, type ItemRef, type Meeting, type Preparing, type Progress } from "../lib/api";
 
 // Plain words for the status of something promised or to do.
 const STATUS_TEXT = { done: "Done", open: "Still to do", changed: "Changed", superseded: "No longer valid" } as const;
@@ -273,11 +273,21 @@ export default function Ask({ now, anyOn, visible, thread, onAnswer, onCite, onE
   const [question, setQuestion] = useState("");
   const [asking, setAsking] = useState("");
   const [progress, setProgress] = useState<Progress | null>(null);
+  const [prep, setPrep] = useState<Preparing>({ active: false, done: 0, total: 0, what: "" });
   const [stopping, setStopping] = useState(false);  // Stop was pressed; the question is ending
 
   useEffect(() => {
     if (visible) api.meetings().then(setMeetings).catch(() => setMeetings([]));
   }, [anyOn, visible]);
+
+  // The pictures of a source that was just switched on are read in the background; until
+  // that is done the chat stays closed.
+  useEffect(() => {
+    const look = () => api.preparing().then(setPrep).catch(() => undefined);
+    look();
+    const timer = setInterval(look, 500);
+    return () => clearInterval(timer);
+  }, []);
 
   // While a question runs, ask the backend which step it is on.
   useEffect(() => {
@@ -331,24 +341,31 @@ export default function Ask({ now, anyOn, visible, thread, onAnswer, onCite, onE
                   <span>{new Date(meeting.start).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}, {clock(meeting.start)}</span>
                   {meeting.person && <span>With {meeting.person}</span>}
                 </span>
-                <button className="ghost small" disabled={asking !== ""} onClick={() => run(`Prepare: ${meeting.title}`, () => api.prepare(meeting.meeting_id))}>Prepare</button>
+                <button className="ghost small" disabled={asking !== "" || prep.active} onClick={() => run(`Prepare: ${meeting.title}`, () => api.prepare(meeting.meeting_id))}>Prepare</button>
               </li>
             ))}
           </ul>
         </div>
       )}
 
+      {prep.active && (
+        <div className="card prepare" role="status" aria-live="polite">
+          <div className="row between"><b>{prep.what || "Reading pictures"}</b><span>{prep.total ? `${prep.done} of ${prep.total}` : "Starting"}</span></div>
+          <div className="prepbar" aria-hidden="true"><i style={{ width: `${prep.total ? Math.max(4, Math.round((100 * prep.done) / prep.total)) : 4}%` }} /></div>
+        </div>
+      )}
+
       <form className="card row ask" onSubmit={(e) => { e.preventDefault(); if (question.trim()) void ask(question.trim()); }}>
-        <input aria-label="Your question" placeholder="Ask in your own words" value={question} maxLength={500} disabled={asking !== ""} onChange={(e) => setQuestion(e.target.value)} />
+        <input aria-label="Your question" placeholder={prep.active ? "Getting your pictures ready…" : "Ask in your own words"} value={question} maxLength={500} disabled={asking !== "" || prep.active} onChange={(e) => setQuestion(e.target.value)} />
         {asking !== "" ? (
           <button type="button" className="ghost" disabled={stopping} onClick={() => { setStopping(true); api.cancel().catch(() => undefined); }}>{stopping ? "Stopping…" : "Stop"}</button>
         ) : (
-          <button className="primary" disabled={!question.trim() || !anyOn}>Ask</button>
+          <button className="primary" disabled={!question.trim() || !anyOn || prep.active}>Ask</button>
         )}
       </form>
       {thread.length === 0 && asking === "" && anyOn && (
         <div className="row wrap chips">
-          {examples.map((text) => <button key={text} className="chipbtn" onClick={() => ask(text)}>{text}</button>)}
+          {examples.map((text) => <button key={text} className="chipbtn" disabled={prep.active} onClick={() => ask(text)}>{text}</button>)}
         </div>
       )}
 

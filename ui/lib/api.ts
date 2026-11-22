@@ -72,6 +72,7 @@ export interface Answer {
   off_limits_names: string[];
   instruction_notes: ItemRef[];
 }
+export interface Preparing { active: boolean; done: number; total: number; what: string }
 export interface Progress { step: string; number: number; of: number; detail: string }
 export interface ItemView {
   item_id: string;
@@ -199,6 +200,7 @@ export const api = {
   ask: (question: string) => call<Answer>("POST", "/api/ask", { question }),
   progress: () => call<Progress>("GET", "/api/progress"),
   cancel: () => call<Progress>("POST", "/api/cancel"),
+  preparing: () => call<Preparing>("GET", "/api/preparing"),
   item: (itemId: string) => call<ItemView>("GET", `/api/items/${id(itemId)}`),
   reveal: (itemId: string) => call<ItemView>("POST", `/api/items/${id(itemId)}/reveal`),
   imageUrl: (itemId: string) => `/api/items/${id(itemId)}/image?t=${id(readToken())}`,

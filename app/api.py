@@ -11,6 +11,7 @@ import hashlib
 import hmac
 import mimetypes
 import re
+import threading
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 
@@ -36,6 +37,7 @@ from contracts.api import (
     ItemView,
     Meeting,
     PrepareBody,
+    Preparing,
     Progress,
     SessionInfo,
     Spellings,
@@ -182,7 +184,14 @@ def create_app(runtime: Runtime, ui_dir: Path | None = None) -> FastAPI:
         )
         session.store.load(source_id)
         if session.broker.adapter(source_id).kind is SourceKind.IMAGES:
-            session.assistant.read_pictures_now()  # macOS reads their text now, in memory
+            assistant = session.assistant
+            assistant.begin_preparing()  # the screen sees this at once and keeps the chat closed
+
+            def read_pictures() -> None:
+                with runtime.ask_lock:  # a question waits for the pictures, never the other way
+                    assistant.read_pictures_now()
+
+            threading.Thread(target=read_pictures, name="read pictures", daemon=True).start()
         return next(s for s in session.broker.states() if s.source_id == source_id)
 
     @app.get("/api/sources/{source_id}/icon")
@@ -225,6 +234,10 @@ def create_app(runtime: Runtime, ui_dir: Path | None = None) -> FastAPI:
             if entry.name.strip()
         }
         return people()
+
+    @app.get("/api/preparing")
+    def preparing() -> Preparing:
+        return runtime.session.assistant.preparing if runtime.session else Preparing()
 
     @app.post("/api/cancel")
     def cancel() -> Progress:

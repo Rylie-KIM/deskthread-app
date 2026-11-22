@@ -90,3 +90,15 @@ def open_work(root: Path, model: FakeModel) -> tuple[Session, Assistant]:
 def gate(answer: Answer, which: Gate) -> tuple[Outcome, str]:
     result = next(g for g in answer.gate_trace if g.gate is which)
     return result.outcome, result.detail
+
+
+def wait_until_prepared(client: object, seconds: float = 15.0) -> None:
+    """Wait for the background job that reads the pictures after Pictures is switched on."""
+    import time
+
+    end = time.monotonic() + seconds
+    while time.monotonic() < end:
+        if not client.get("/api/preparing").json()["active"]:  # type: ignore[attr-defined]
+            return
+        time.sleep(0.05)
+    raise AssertionError("the pictures were not prepared in time")

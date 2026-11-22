@@ -51,17 +51,16 @@ class ImageReader:
 
     def read_pending(
         self,
-        progress: Callable[[int, int], None] | None = None,
+        progress: Callable[[int, int, str], None] | None = None,
         check: Callable[[], None] | None = None,
         use_model: bool = True,
     ) -> int:
         """Read allowed pictures that have no reading yet. Returns how many could not be read.
 
         macOS reads each one first. With `use_model`, a picture without any text is then read
-        by the answering AI if it can; without it (when a source is switched on) such a picture
-        stays pending for the first question. `progress(n, total)` is called before each new
-        reading and is where a stopped question ends; `check` is called when an AI reading
-        was cut off.
+        by the answering AI if it can; without it such a picture stays pending. `progress(n,
+        total, phase)` is called before each new reading ('text': macOS, 'look': the AI) and is
+        where a stopped question ends; `check` is called when an AI reading was cut off.
         """
         pending = [
             i
@@ -84,7 +83,7 @@ class ImageReader:
         total = len(todo)
         for done, key in enumerate(todo, 1):  # the first look: macOS text recognition
             if progress:
-                progress(done, total)
+                progress(done, total, "text")
             lines = self._recognise(unique[key])
             if lines:
                 self._readings[key], self._by[key] = tuple(lines), OCR_NAME
@@ -94,7 +93,7 @@ class ImageReader:
             second = [k for k in unique if k not in self._readings]
             for number, key in enumerate(second, 1):  # the second look: the answering AI
                 if progress:
-                    progress(number, len(second))
+                    progress(number, len(second), "look")
                 try:
                     text = self._model.complete(prompts.READ_IMAGE, images=[unique[key]]).strip()
                 except DeskThreadError:

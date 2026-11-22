@@ -17,4 +17,5 @@ package; a change bumps CONTRACT_VERSION (dev rule R14).
 # 1.17 a source can be blocked by the AI model in use (pictures)
 # 1.18 a model states how many parameters it has
 # 1.19 an answer lists the items of each stage and what was left out
-CONTRACT_VERSION = "1.19"
+# 1.20 the pictures are prepared in the background, with progress
+CONTRACT_VERSION = "1.20"

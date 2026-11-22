@@ -11,7 +11,7 @@ from app.model import ModelGateway
 from app.proof.processes import BACKEND, watched
 from app.runtime import Runtime
 from contracts.api import TOKEN_HEADER
-from tests.fakes import SAM_BRIEF, STORY_NOW, FakeModel
+from tests.fakes import SAM_BRIEF, STORY_NOW, FakeModel, wait_until_prepared
 
 PORT = 8765
 
@@ -53,16 +53,19 @@ def client(runtime: Runtime, demo_laptop: Path) -> TestClient:
     client.post("/api/folder", json={"path": str(demo_laptop)})
     for source in ("folder:notes", "folder:mail", "folder:images"):
         client.post(f"/api/sources/{source}/grant", json={})
+    wait_until_prepared(client)  # the pictures are read in the background after the switch
     return client
 
 
 def test_the_panel_shows_what_is_held_right_now(client: TestClient) -> None:
     before = client.get("/api/memory").json()
     assert before["items_by_source"] == {"Note files": 21, "Mail files": 12, "Pictures": 5}
-    assert before["items_held"] == 38 and before["image_readings_held"] == 0
+    assert (
+        before["items_held"] == 38 and before["image_readings_held"] == 5
+    )  # read when switched on
     assert before["model_loaded"] is True
     client.post("/api/ask", json={"question": "What did I promise Sam?"})
-    assert client.get("/api/memory").json()["image_readings_held"] == 5
+    assert client.get("/api/memory").json()["image_readings_held"] == 5  # and not read again
 
 
 def test_forget_now_clears_memory_unloads_the_model_and_the_app_stays_open(

@@ -69,19 +69,25 @@ def test_pictures_are_read_by_macos_when_switched_on_and_the_ai_only_fills_the_g
     original = assistant._images.read_pending
 
     def watching(progress=None, check=None, use_model=True):  # type: ignore[no-untyped-def]
-        return original(lambda done, total: shown.append(f"{done} of {total}"), check, use_model)
+        def note(done: int, total: int, phase: str) -> None:
+            shown.append(f"{phase} {done} of {total}")
+
+        return original(note, check, use_model)
 
     assistant._images.read_pending = watching  # type: ignore[method-assign]
     session.store.refresh()  # the sources are read when they are switched on
-    assistant.read_pictures_now()  # then macOS reads the text of the pictures
-    assert model.calls == calls  # the AI was not asked: macOS read them
+    assistant.begin_preparing()
+    assistant.read_pictures_now()  # then the pictures are read, before the first question
+    assert model.calls == calls + 2  # the AI looked only at the two pictures without text
     images = {i.title: i for i in session.store.items() if i.kind is ItemKind.IMAGE}
     typed = [i for i in images.values() if i.meta["reading"] == "done"]
-    assert len(typed) == 3 and shown == ["1 of 5", "2 of 5", "3 of 5", "4 of 5", "5 of 5"]
+    assert len(typed) == 3
+    assert shown == [f"text {n} of 5" for n in range(1, 6)] + ["look 1 of 2", "look 2 of 2"]
     assert all(i.meta["read_with"] == "macOS text recognition" and i.read_by_model for i in typed)
     assert any("stretch project" in u.text for i in typed for u in i.units)
-    assert sorted(i.meta["reading"] for i in images.values()).count("pending") == 2  # no text
-    assistant.ask("What did I promise Sam?")  # the first question: the AI looks at those two
-    assert sorted(i.meta["reading"] for i in session.store.items() if i.kind is ItemKind.IMAGE) == [
+    assert sorted(i.meta["reading"] for i in images.values()) == [
         "done", "done", "done", "no text found", "no text found"
     ]  # fmt: skip
+    before = model.calls
+    assistant.ask("What did I promise Sam?")  # the first question has no picture left to read
+    assert all("Transcribe" not in p for p in model.prompts[before:])
