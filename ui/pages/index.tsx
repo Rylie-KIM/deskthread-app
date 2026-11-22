@@ -123,7 +123,7 @@ export default function Home() {
               {TABS.map(([key, label]) => (
                 <button key={key} className={tab === key ? "tab active" : "tab"} aria-current={tab === key ? "page" : undefined} onClick={() => setTab(key)}>{label}</button>
               ))}
-              <button className="ghost" onClick={() => setConfirm(true)}>End session</button>
+              <button className="ghost" title="Clears everything, switches everything off and stops DeskThread" onClick={() => setConfirm(true)}>End session</button>
             </nav>
           )}
         </div>
@@ -146,7 +146,7 @@ export default function Home() {
                 onSources={(next, chosen) => { setSources(next); if (chosen !== undefined) setFolder(chosen); }} />
             )}
             {tab === "ask" && info && <Ask now={info.now} anyOn={anyOn} thread={thread} onAnswer={(a) => { setThread((t) => [...t, a]); void refresh(); }} onCite={setCite} onError={setError} first={first} />}
-            {tab === "data" && <MyData onError={setError} onForgot={() => void refresh()} />}
+            {tab === "data" && <MyData onError={setError} onForgot={() => { setThread([]); void refresh(); }} onEnd={() => setConfirm(true)} />}
             {tab === "model" && <Models onError={setError} onChange={loadModel} />}
           </>
         )}
@@ -163,7 +163,7 @@ export default function Home() {
         <div className="scrim" role="dialog" aria-modal="true" aria-labelledby="end-title">
           <div className="dialog">
             <h2 id="end-title">End this session?</h2>
-            <p>Everything from this session is cleared: the answers, what was read, and what the AI was holding. Your own notes are not touched. Afterwards you can start a new session.</p>
+            <p>Clears this conversation, what was read and what the AI holds, switches everything off and stops DeskThread. Your own notes are not touched. Afterwards you can start a new session.</p>
             <div className="row end">
               <button className="ghost" onClick={() => setConfirm(false)}>Cancel</button>
               <button className="primary" onClick={end}>End session</button>

@@ -12,7 +12,7 @@ function Details({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-export function MyData({ onError, onForgot }: { onError: (message: string) => void; onForgot: () => void }) {
+export function MyData({ onError, onForgot, onEnd }: { onError: (message: string) => void; onForgot: () => void; onEnd: () => void }) {
   const [proof, setProof] = useState<Proof | null>(null);
   const [memory, setMemory] = useState<MemoryState | null>(null);
   const [busy, setBusy] = useState(false);
@@ -66,11 +66,17 @@ export function MyData({ onError, onForgot }: { onError: (message: string) => vo
       <div className="card live">
         <div className="row between wrap">
           <h2>Right now</h2>
-          <div className="clear">
+        </div>
+        <div className="actions">
+          <div className="action">
             <button className="primary" disabled={busy} onClick={async () => { setBusy(true); try { setMemory(await api.forget()); onForgot(); } catch { onError("Clear memory did not work."); } finally { setBusy(false); } }}>
               {busy ? "Clearing…" : "Clear memory"}
             </button>
-            <small>Forgets what was read. You can keep working.</small>
+            <small>Clears this conversation, what was read and what the AI holds. Your switches stay on.</small>
+          </div>
+          <div className="action">
+            <button className="ghost" onClick={onEnd}>End session</button>
+            <small>Clears all of that, switches everything off and stops DeskThread.</small>
           </div>
         </div>
         {/* What is where, live: your sources -> DeskThread -> the AI. Nothing leads off this Mac. */}
