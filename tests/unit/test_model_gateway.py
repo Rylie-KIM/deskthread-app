@@ -144,13 +144,20 @@ STORAGE = re.compile(
 
 
 def test_only_the_gateway_may_open_a_connection() -> None:
+    """The full list of network modules in the app, each with its one reason."""
+    allowed = {
+        "app/model.py": {"urllib.request"},  # calls the model server on 127.0.0.1
+        "app/__main__.py": {"socket"},  # asks the OS for a free loopback port; connects nowhere
+    }
     users = {
-        str(p.relative_to(REPO))
+        str(p.relative_to(REPO)): set(NETWORK.findall(p.read_text()))
         for folder in ("app", "contracts")
         for p in (REPO / folder).rglob("*.py")
         if NETWORK.search(p.read_text())
     }
-    assert users == {"app/model.py"}
+    assert users == allowed
+    launcher = (REPO / "app" / "__main__.py").read_text()
+    assert ".connect(" not in launcher and "host=config.LOOPBACK" in launcher
 
 
 def test_u6_no_database_index_or_temp_file_library_is_imported() -> None:
