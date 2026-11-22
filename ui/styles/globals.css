@@ -610,3 +610,7 @@ fieldset.period { display: grid; gap: 14px; padding: 14px 16px 16px; }
 .copyline .cmd { min-width: 240px; }
 .copyline .ghost.small { padding: 9px 16px; white-space: nowrap; }
 .row.end.closing { margin-top: 28px; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, .9); gap: 12px; }
+
+/* the two buttons above the lists are always the same size */
+.twin { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 10px; }
+.twin button { white-space: nowrap; text-align: center; }

@@ -167,7 +167,7 @@ export default function Access({ sources, folder, demoFolder, onSources, onError
 
       <div className="row between wrap bar">
         <p className="seeing bits"><span><b>{on.length}</b> switched on</span><span><b>{held}</b> items being read</span></p>
-        <div className="row">
+        <div className="twin">
           {files.length > 0 && <button className="ghost" disabled={busy !== ""} onClick={() => allWork(sources)}>{busy === "work" ? "Switching on…" : "Turn on all work sources"}</button>}
           <button className="ghost" disabled={busy !== "" || on.length === 0} onClick={() => run("all", async () => onSources(await api.revokeAll()))}>Turn everything off</button>
         </div>
