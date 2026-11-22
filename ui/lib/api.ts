@@ -80,6 +80,7 @@ export interface MemoryState {
   mac_memory_mb: number;
 }
 export interface Connection { process: string; pid: number; remote: string; local_only: boolean }
+export interface ConnectionCheck { command: string; output: string; connections: Connection[]; all_local: boolean; ran_at: string }
 export interface FileChange { name: string; what: "added" | "changed" | "removed"; when: string | null; owner: string }
 export interface FolderHash { label: string; files: number; before: string; now: string; unchanged: boolean; changes: FileChange[]; changes_total: number }
 export interface AuditLine { at: string; action: string; source_id: string; count: number }
@@ -188,6 +189,7 @@ export const api = {
   memory: () => call<MemoryState>("GET", "/api/memory"),
   forget: () => call<MemoryState>("POST", "/api/forget"),
   proof: () => call<Proof>("GET", "/api/proof"),
+  checkConnections: () => call<ConnectionCheck>("GET", "/api/proof/connections"),
   endSession: () => call<Receipt>("POST", "/api/end-session"),
 };
 

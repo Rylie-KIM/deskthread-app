@@ -39,6 +39,7 @@ ROUTES: dict[str, str] = {
     "GET /api/memory": "MemoryState",
     "POST /api/forget": "MemoryState",
     "GET /api/proof": "Proof",
+    "GET /api/proof/connections": "ConnectionCheck",  # the Mac's own listing, run now
     "POST /api/end-session": "Receipt",
 }
 
@@ -252,6 +253,17 @@ class FolderHash(_Frozen):
     unchanged: bool
     changes: tuple[FileChange, ...] = ()  # the newest ones, at most 25 (contract 1.9)
     changes_total: int = 0
+
+
+class ConnectionCheck(_Frozen):
+    """The Mac's own tool `lsof`, run now on DeskThread's programs: the command as a person
+    could type it, what macOS printed, and the same lines read for them. (contract 1.10)"""
+
+    command: str
+    output: str
+    connections: tuple[Connection, ...]
+    all_local: bool
+    ran_at: datetime
 
 
 class Proof(_Frozen):

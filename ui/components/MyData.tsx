@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, clock, day, macWindow, type FolderHash, type MemoryState, type Progress, type Proof, type Receipt } from "../lib/api";
+import { api, clock, day, macWindow, type ConnectionCheck, type FolderHash, type MemoryState, type Progress, type Proof, type Receipt } from "../lib/api";
 
 const WORDS: Record<string, string> = { grant: "You allowed reading", revoke: "You stopped", revoke_all: "You stopped", read: "Read", denied: "Refused" };
 
@@ -32,7 +32,7 @@ function Changes({ folder }: { folder: FolderHash }) {
         </tbody>
       </table>
       {folder.changes_total > folder.changes.length && <p className="fine">The newest {folder.changes.length} of {folder.changes_total} are shown.</p>}
-      <p className="fine">macOS records the account that owns a file, not the app that changed it. DeskThread itself saved 0 files.</p>
+      <p className="fine">DeskThread counts every file it opens for writing, and that count is 0. So these changes were made by you or by another app. macOS keeps the time and the account of a change, not the name of the app, and you and DeskThread use the same account.</p>
     </div>
   );
 }
@@ -75,6 +75,21 @@ export function MyData({ onError, onClear, onEnd }: { onError: (message: string)
   const [proof, setProof] = useState<Proof | null>(null);
   const [memory, setMemory] = useState<MemoryState | null>(null);
   const [running, setRunning] = useState<Progress | null>(null);
+  const [check, setCheck] = useState<ConnectionCheck | null>(null);
+  const [checking, setChecking] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  async function runCheck() {
+    setChecking(true);
+    try { setCheck(await api.checkConnections()); setCopied(false); } catch { onError("The check did not run."); } finally { setChecking(false); }
+  }
+  async function copy(text: string) {
+    try { await navigator.clipboard.writeText(text); } catch {
+      const box = document.createElement("textarea");  // for a window without the clipboard service
+      box.value = text; document.body.appendChild(box); box.select(); document.execCommand("copy"); box.remove();
+    }
+    setCopied(true);
+  }
 
   useEffect(() => {
     const load = () => {
@@ -103,15 +118,7 @@ export function MyData({ onError, onClear, onEnd }: { onError: (message: string)
           <span className={proof.all_local ? "dot" : "dot bad"} />
           <h2>{proof.all_local ? "Nothing was sent to the internet." : "An outside connection was seen."}</h2>
           <p>DeskThread only talks to itself on this Mac.</p>
-          <Details title="Check it yourself">
-            <table>
-              <thead><tr><th>Program</th><th>Talking to</th><th></th></tr></thead>
-              <tbody>{proof.connections.map((c, i) => <tr key={i}><td>{c.process}</td><td>{c.remote}</td><td>{c.local_only ? "this Mac" : "OUTSIDE"}</td></tr>)}</tbody>
-            </table>
-            <p className="fine">This list is read live from macOS. To see it without DeskThread, paste this into Terminal: every line must show 127.0.0.1, which is this Mac.</p>
-            <code className="cmd">lsof -nP -i -a -p {memory.processes.map((p) => p.pid).join(",")}</code>
-            <p className="fine">Or switch Wi-Fi off: DeskThread keeps answering.</p>
-          </Details>
+          <button className="ghost check" disabled={checking} onClick={runCheck}>{checking ? "Checking…" : "Check it now"}</button>
         </div>
         <div className={untouched ? "card fact" : "card fact blink"}>
           <span className="dot" />
@@ -139,7 +146,7 @@ export function MyData({ onError, onClear, onEnd }: { onError: (message: string)
             <button className="primary" onClick={onClear}>Clear memory</button>
             <Help about="Clear memory">
               <b>Removed</b> the files that were read, the AI model in memory, this conversation.<br />
-              <b>Kept</b> your access settings: what you switched on stays on.
+              <b>Kept</b> your access settings: what you switched on stays on. The list under “What happened” also stays until End session: it holds times and counts only, never what was read.
             </Help>
           </div>
           <div className="action">
@@ -203,6 +210,40 @@ export function MyData({ onError, onClear, onEnd }: { onError: (message: string)
           ))}
         </ul>
       </div>
+      {check && (
+        <div className="scrim" role="dialog" aria-modal="true" aria-labelledby="check-title">
+          <div className="dialog wide">
+            <h2 id="check-title">{check.all_local ? "Every connection stays on this Mac." : "A connection leaves this Mac."}</h2>
+            <p className="lead">DeskThread asked macOS which connections its own programs have open, at {clock(check.ran_at)}.</p>
+            <table className="conn">
+              <thead><tr><th>Program</th><th>Talking to</th><th></th></tr></thead>
+              <tbody>
+                {check.connections.map((c, i) => <tr key={i}><td>{c.process}</td><td>{c.remote}</td><td><em className={c.local_only ? "tag" : "tag strong"}>{c.local_only ? "This Mac" : "Outside"}</em></td></tr>)}
+                {check.connections.length === 0 && <tr><td colSpan={3}>No open connection.</td></tr>}
+              </tbody>
+            </table>
+            <h3>How to read it</h3>
+            <ul className="read">
+              <li><b>127.0.0.1</b> is the address a Mac uses to talk to itself. Nothing sent there leaves the Mac.</li>
+              <li><b>listening</b> means a program waits for the DeskThread window on this Mac.</li>
+              <li>Any other address would be a connection to the outside, and is marked Outside.</li>
+            </ul>
+            <h3>What macOS printed</h3>
+            <pre className="printout">{check.output || "(nothing)"}</pre>
+            <h3>Check it without DeskThread</h3>
+            <ol className="read">
+              <li>Open the Terminal app (press Command and Space, type Terminal, press Return).</li>
+              <li>Copy the line below, paste it into Terminal and press Return.</li>
+              <li>Look at the last word of each line: it must contain 127.0.0.1.</li>
+            </ol>
+            <div className="copyline"><code className="cmd">{check.command}</code><button className="ghost small" onClick={() => copy(check.command)}>{copied ? "Copied" : "Copy"}</button></div>
+            <div className="row end">
+              <button className="ghost" disabled={checking} onClick={runCheck}>{checking ? "Checking…" : "Run again"}</button>
+              <button className="primary" onClick={() => setCheck(null)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

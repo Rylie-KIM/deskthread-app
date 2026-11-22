@@ -143,3 +143,15 @@ def test_a_changed_folder_names_the_files_with_time_and_owner_without_opening_th
     }  # fmt: skip
     assert found["edit.txt"].when is not None and found["edit.txt"].owner
     assert found["gone.txt"].when is None
+
+
+def test_the_connection_check_hands_back_the_command_the_print_out_and_its_reading() -> None:
+    import os
+
+    from app.proof.evidence import check
+
+    result = check({os.getpid(): "DeskThread"})
+    assert result.command == f"lsof -nP -iTCP -a -p {os.getpid()}"
+    assert result.all_local == all(c.local_only for c in result.connections)
+    assert len(result.connections) <= max(0, len(result.output.splitlines()) - 1)
+    assert check({}).command == "" and check({}).connections == ()

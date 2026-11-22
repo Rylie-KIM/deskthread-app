@@ -24,7 +24,7 @@ from app import config
 from app.clock import now
 from app.proof.processes import watched
 from app.runtime import Runtime
-from contracts.api import Connection, FileChange, FolderHash, Proof
+from contracts.api import Connection, ConnectionCheck, FileChange, FolderHash, Proof
 
 LIMITS = (
     "This covers DeskThread's own programs only, not other apps on this Mac. Connections are "
@@ -135,16 +135,31 @@ def parse_lsof(text: str, names: dict[int, str]) -> list[Connection]:
     return found
 
 
-def connections(pids: dict[int, str]) -> list[Connection]:
+def _command(pids: dict[int, str]) -> list[str]:
+    return ["/usr/sbin/lsof", "-nP", "-iTCP", "-a", "-p", ",".join(str(p) for p in pids)]
+
+
+def _run(pids: dict[int, str]) -> str:
     if not pids:
-        return []
-    done = subprocess.run(
-        ["/usr/sbin/lsof", "-nP", "-iTCP", "-a", "-p", ",".join(str(p) for p in pids)],
-        capture_output=True,
-        text=True,
-        check=False,
+        return ""
+    return subprocess.run(_command(pids), capture_output=True, text=True, check=False).stdout
+
+
+def connections(pids: dict[int, str]) -> list[Connection]:
+    return parse_lsof(_run(pids), pids)
+
+
+def check(pids: dict[int, str]) -> ConnectionCheck:
+    """Run the listing now and hand back the command, the raw print-out and its reading."""
+    output = _run(pids)
+    found = parse_lsof(output, pids)
+    return ConnectionCheck(
+        command=" ".join(["lsof", *_command(pids)[1:]]) if pids else "",
+        output=output,
+        connections=tuple(found),
+        all_local=all(c.local_only for c in found),
+        ran_at=now(),
     )
-    return parse_lsof(done.stdout, pids)
 
 
 class Evidence:
@@ -203,6 +218,11 @@ SWITCHES = {
 
 def register(app: FastAPI, runtime: Runtime) -> Evidence:
     evidence = Evidence(runtime)
+
+    @app.get("/api/proof/connections")
+    def connection_check() -> ConnectionCheck:
+        processes = watched(runtime.server.pid if runtime.server else None)
+        return check({p.pid: p.name for p in processes})
 
     @app.get("/api/proof")
     def proof() -> Proof:

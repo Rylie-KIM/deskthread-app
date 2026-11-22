@@ -27,7 +27,7 @@ def _item(**changes: object) -> Item:
 
 
 def test_contract_version_is_set() -> None:
-    assert contracts.CONTRACT_VERSION == "1.9"
+    assert contracts.CONTRACT_VERSION == "1.10"
 
 
 def test_item_units_are_numbered_from_one_and_looked_up_by_number() -> None:
