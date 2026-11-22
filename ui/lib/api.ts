@@ -13,6 +13,7 @@ export interface SourceState {
   allowed_scope_ids: string[];
   items_in_memory: number;
 }
+export interface FolderInfo { path: string; name: string }
 export interface Scope { scope_id: string; label: string; item_count: number | null }
 export interface PermissionRequest {
   source_id: string;
@@ -160,7 +161,9 @@ const id = encodeURIComponent;
 export const api = {
   session: () => call<SessionInfo>("GET", "/api/session"),
   sources: () => call<SourceState[]>("GET", "/api/sources"),
+  folders: () => call<FolderInfo[]>("GET", "/api/folders"),
   chooseFolder: (path: string) => call<SourceState[]>("POST", "/api/folder", { path }),
+  removeFolder: (path: string) => call<SourceState[]>("POST", "/api/folder/remove", { path }),
   request: (sourceId: string) => call<PermissionRequest>("GET", `/api/sources/${id(sourceId)}/request`),
   grant: (sourceId: string, scopeIds: string[]) =>
     call<SourceState>("POST", `/api/sources/${id(sourceId)}/grant`, { scope_ids: scopeIds }),

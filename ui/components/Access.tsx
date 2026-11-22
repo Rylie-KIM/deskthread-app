@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { api, ApiError, macWindow, plain, type PermissionRequest, type SourceState } from "../lib/api";
+import { useEffect, useState } from "react";
+import { api, ApiError, macWindow, plain, type FolderInfo, type PermissionRequest, type SourceState } from "../lib/api";
 
 // Anything personal stays Off when "all work sources" is used. It can still be switched on by hand.
 const NOT_WORK = /personal|whatsapp|kakaotalk|line|discord|imessage|messages|telegram|signal/i;
@@ -26,6 +26,12 @@ export default function Access({ sources, folder, demoFolder, onSources, onError
   const [busy, setBusy] = useState("");
   const [request, setRequest] = useState<PermissionRequest | null>(null);
   const [ticked, setTicked] = useState<string[]>([]);
+  const [folders, setFolders] = useState<FolderInfo[]>([]);
+
+  // The folders in use, kept in step with the sources.
+  useEffect(() => {
+    api.folders().then(setFolders).catch(() => setFolders([]));
+  }, [sources]);
 
   async function run(label: string, work: () => Promise<void>) {
     setBusy(label);
@@ -146,23 +152,24 @@ export default function Access({ sources, folder, demoFolder, onSources, onError
       )}
 
       <div className="card list">
-        <h2>Folder</h2>
-        {files.length > 0 && (
-          <ul className="rows one">
-            <li className="rowitem">
-              <span className="tile" aria-hidden="true">▤</span>
-              <span className="who"><b>{folder || "Your folder"}</b><small>{files.length} kinds of files found</small></span>
-              <button className="ghost small" disabled={busy !== ""} onClick={() => choose("")}>Change</button>
-            </li>
+        <h2>Folders</h2>
+        {folders.length > 0 && (
+          <ul className="rows">
+            {folders.map((f) => (
+              <li key={f.path} className="rowitem">
+                <span className="tile" aria-hidden="true">▤</span>
+                <span className="who"><b>{f.name}</b><small title={f.path}>{f.path.replace(/^\/Users\/[^/]+/, "~")}</small></span>
+                <button className="iconbtn" aria-label={`Remove ${f.name}`} title="Stop using this folder" disabled={busy !== ""} onClick={() => run("remove", async () => onSources(await api.removeFolder(f.path)))}>×</button>
+              </li>
+            ))}
           </ul>
         )}
-        {files.length === 0 && (
-          <form className="row wrap pick" onSubmit={(e) => { e.preventDefault(); if (path.trim()) void choose(path.trim()); }}>
-            <button type="button" className="primary" disabled={busy !== ""} onClick={() => choose("")}>{busy === "folder" ? "Waiting for your choice…" : "Choose folder…"}</button>
-            <input aria-label="Folder path" placeholder="or type a folder path" value={path} onChange={(e) => setPath(e.target.value)} />
-            <button className="ghost" disabled={busy !== "" || !path.trim()}>Use</button>
-          </form>
-        )}
+        <form className="row wrap pick" onSubmit={(e) => { e.preventDefault(); if (path.trim()) { void choose(path.trim()); setPath(""); } }}>
+          <button type="button" className={folders.length ? "ghost" : "primary"} disabled={busy !== ""} onClick={() => choose("")}>{busy === "folder" ? "Waiting for your choice…" : folders.length ? "Add another folder…" : "Choose folder…"}</button>
+          <input aria-label="Folder path" placeholder="or type a folder path" value={path} onChange={(e) => setPath(e.target.value)} />
+          <button className="ghost" disabled={busy !== "" || !path.trim()}>Use</button>
+        </form>
+        {files.length > 0 && <h2 className="in">In these folders</h2>}
         {files.length > 0 && <ul className="rows">{files.map(row)}</ul>}
       </div>
 
