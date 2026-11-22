@@ -137,7 +137,7 @@ function Found({ answer, onCite }: { answer: Answer; onCite: (cite: Citation) =>
             <li><b>{answer.coverage.cited}</b><span>{answer.coverage.cited === 1 ? "note quoted" : "notes quoted"}</span></li>
             <li className="last"><b>{sure.length}</b><span>{sure.length === 1 ? "thing found" : "things found"}{maybe.length > 0 ? `, ${maybe.length} possibly related` : ""}</span></li>
           </ol>
-          {answer.model_name && <p className="by"><i className="orb small" aria-hidden="true" />Answered by <b>{answer.model_name}</b>, the AI on this Mac</p>}
+          {answer.model_name && <p className="by"><i className="orb tiny" aria-hidden="true" />Answered by <b>{answer.model_name}</b>, the AI on this Mac</p>}
           <h4>Left out</h4>
           {LEFT.filter(([key]) => (answer.left_out[key] ?? 0) > 0).length === 0 ? (
             <p className="fine">Nothing was left out.</p>

@@ -672,7 +672,7 @@ fieldset.period { display: grid; gap: 14px; padding: 14px 16px 16px; }
 .funnel li.last b, .funnel li.last span { color: #fff; }
 .by { margin: 16px 0 0; font-size: .9rem; color: var(--muted); }
 .by b { color: var(--ink); font-weight: 650; }
-.orb.small { display: inline-block; width: 18px; height: 18px; vertical-align: -4px; margin-right: 8px; }
+.orb.tiny { display: inline-block; width: 18px; height: 18px; vertical-align: -4px; margin-right: 8px; }
 .checked h4 { margin: 18px 0 8px; font-size: .78rem; font-weight: 650; color: var(--royal); }
 .leftout { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .leftout li { display: grid; grid-template-columns: 44px 1fr; align-items: baseline; gap: 10px; font-size: .9rem; color: var(--muted); }
