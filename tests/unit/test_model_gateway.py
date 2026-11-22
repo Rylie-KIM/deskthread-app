@@ -146,7 +146,10 @@ STORAGE = re.compile(
 def test_only_the_gateway_may_open_a_connection() -> None:
     """The full list of network modules in the app, each with its one reason."""
     allowed = {
-        "app/model.py": {"urllib.request"},  # calls the model server on 127.0.0.1
+        # calls the model server on 127.0.0.1 only (the gateway refuses any other address).
+        # http.client makes a request that can be cut off when the user presses Stop; socket is
+        # used only to shut that connection down.
+        "app/model.py": {"urllib.request", "http.client", "socket"},
         "app/__main__.py": {"socket"},  # asks the OS for a free loopback port; connects nowhere
     }
     users = {
@@ -219,3 +222,50 @@ def test_selecting_a_model_needs_it_approved_and_on_this_mac(fake: str) -> None:
             gateway.select(tag)
         assert err.value.code is code
     assert gateway.tag == config.MODEL_TAG  # a refused choice changes nothing
+
+
+def test_abort_cuts_a_request_that_is_with_the_model_and_does_not_retry_it() -> None:
+    import threading
+    import time
+
+    from app.model import complete_json
+
+    seen: list[str] = []
+
+    class Slow(BaseHTTPRequestHandler):
+        def do_POST(self) -> None:
+            seen.append(self.path)
+            time.sleep(3)  # a model that is still thinking
+            try:
+                self.send_response(200)
+                self.end_headers()
+                self.wfile.write(b"{}")
+            except OSError:
+                pass
+
+        def log_message(self, *args: object) -> None:
+            pass
+
+    server = HTTPServer(("127.0.0.1", 0), Slow)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    gateway = ModelGateway(f"http://127.0.0.1:{server.server_port}")
+    gateway._pinned = True  # no digest check against this stand-in
+    outcome: list[object] = []
+
+    def ask() -> None:
+        try:
+            complete_json(gateway, "hello")
+        except DeskThreadError as err:
+            outcome.append(err.code)
+
+    worker = threading.Thread(target=ask)
+    started = time.monotonic()
+    worker.start()
+    time.sleep(0.4)
+    gateway.abort()
+    worker.join(timeout=2.5)
+    elapsed = time.monotonic() - started
+    server.shutdown()
+    assert not worker.is_alive() and elapsed < 2.5  # not the 3 s of the model
+    assert outcome == [ErrorCode.MODEL_UNAVAILABLE]
+    assert seen == ["/api/chat"]  # asked once: a stopped request is not asked again

@@ -9,6 +9,7 @@ from fastapi.testclient import TestClient
 from app.api import create_app
 from app.runtime import Runtime
 from contracts.api import ROUTES, TOKEN_HEADER
+from contracts.errors import DeskThreadError, ErrorCode
 from tests.fakes import SAM_BRIEF, STORY_NOW, FakeModel
 
 PORT = 8765
@@ -451,3 +452,26 @@ def test_a_folder_has_only_the_rows_for_what_it_holds(client: TestClient, tmp_pa
     (other / "a.txt").write_text("text")
     both = {s["source_id"] for s in client.post("/api/folder", json={"path": str(other)}).json()}
     assert both == {"folder:images", "folder:documents"}
+
+
+def test_stop_cuts_the_request_that_is_with_the_ai_and_ends_the_question_as_stopped(
+    client: TestClient, runtime: Runtime, demo_laptop: Path
+) -> None:
+    _work_profile(client, demo_laptop)
+    model = runtime.session.assistant._model
+    aborted: list[bool] = []
+    model.abort = lambda: aborted.append(True)  # type: ignore[attr-defined]
+    original = model.complete
+
+    def stopping(prompt: str, images: list[bytes] | None = None) -> str:
+        client.post("/api/cancel")  # the user presses Stop while the AI is working
+        raise DeskThreadError(ErrorCode.MODEL_UNAVAILABLE)  # the request was cut off
+
+    model.complete = stopping  # type: ignore[method-assign]
+    answer = client.post("/api/ask", json={"question": "What did I promise Sam?"}).json()
+    assert aborted and answer["kind"] == "stopped" and answer["points"] == []
+    model.complete = original  # type: ignore[method-assign]
+    assert (
+        client.post("/api/ask", json={"question": "What did I promise Sam?"}).json()["kind"]
+        == "brief"
+    )

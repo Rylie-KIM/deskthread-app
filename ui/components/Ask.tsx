@@ -184,6 +184,7 @@ export default function Ask({ now, anyOn, visible, thread, onAnswer, onCite, onE
   const [question, setQuestion] = useState("");
   const [asking, setAsking] = useState("");
   const [progress, setProgress] = useState<Progress | null>(null);
+  const [stopping, setStopping] = useState(false);  // Stop was pressed; the question is ending
 
   useEffect(() => {
     if (visible) api.meetings().then(setMeetings).catch(() => setMeetings([]));
@@ -207,6 +208,7 @@ export default function Ask({ now, anyOn, visible, thread, onAnswer, onCite, onE
       onError(plain(err));
     } finally {
       setAsking("");
+      setStopping(false);
     }
   }
   const ask = (text: string) => run(text, () => api.ask(text));
@@ -250,7 +252,7 @@ export default function Ask({ now, anyOn, visible, thread, onAnswer, onCite, onE
       <form className="card row ask" onSubmit={(e) => { e.preventDefault(); if (question.trim()) void ask(question.trim()); }}>
         <input aria-label="Your question" placeholder="Ask in your own words" value={question} maxLength={500} disabled={asking !== ""} onChange={(e) => setQuestion(e.target.value)} />
         {asking !== "" ? (
-          <button type="button" className="ghost" onClick={() => { api.cancel().catch(() => undefined); }}>Stop</button>
+          <button type="button" className="ghost" disabled={stopping} onClick={() => { setStopping(true); api.cancel().catch(() => undefined); }}>{stopping ? "Stopping…" : "Stop"}</button>
         ) : (
           <button className="primary" disabled={!question.trim() || !anyOn}>Ask</button>
         )}

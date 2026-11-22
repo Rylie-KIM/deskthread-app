@@ -30,7 +30,11 @@ class ImageReader:
     def forget(self) -> None:
         self._readings.clear()
 
-    def read_pending(self, progress: Callable[[int, int], None] | None = None) -> int:
+    def read_pending(
+        self,
+        progress: Callable[[int, int], None] | None = None,
+        check: Callable[[], None] | None = None,
+    ) -> int:
         """Read allowed pictures that have no reading yet. Returns how many could not be read.
 
         A picture read earlier in this session is not read again: its reading is kept by
@@ -65,6 +69,8 @@ class ImageReader:
                 try:
                     text = self._model.complete(prompts.READ_IMAGE, images=[data]).strip()
                 except DeskThreadError:
+                    if check:
+                        check()  # cut off by Stop: not a failure of this picture
                     self._readings[key] = None  # remembered, so it is not tried again
                 else:
                     lines = [] if text.upper().strip(". ") == "NONE" else text.splitlines()

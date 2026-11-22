@@ -7,11 +7,14 @@ images and returns text, which is only ever displayed or parsed, never executed 
 
 import base64
 import contextlib
+import http.client
 import json
 import os
 import shutil
 import signal
+import socket
 import subprocess
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -46,8 +49,10 @@ def complete_json(model: Model, prompt: str, tries: int = 2) -> dict[str, Any]:
     for attempt in range(tries):
         try:
             return parse_json_object(model.complete(prompt))
-        except DeskThreadError:
-            if attempt == tries - 1:
+        except DeskThreadError as err:
+            # Only a reply that is not JSON is asked for again; a model that is gone, or a
+            # request that was stopped by the user, is not.
+            if err.code is not ErrorCode.MODEL_BAD_OUTPUT or attempt == tries - 1:
                 raise
     raise DeskThreadError(ErrorCode.MODEL_BAD_OUTPUT)
 
@@ -59,6 +64,9 @@ class ModelGateway:
             # Not "localhost" either: a name can be pointed somewhere else.
             raise DeskThreadError(ErrorCode.MODEL_UNAVAILABLE, "the model must be on 127.0.0.1")
         self._base = base_url.rstrip("/")
+        self._host, self._port = parsed.hostname or config.LOOPBACK, parsed.port or 80
+        self._lock = threading.Lock()
+        self._inflight: set[http.client.HTTPConnection] = set()
         self._pinned = False
         self.calls = 0
         self.tag = config.MODEL_TAG  # the model in use; the user may choose another
@@ -74,15 +82,38 @@ class ModelGateway:
         return choice.reads_pictures if choice else False
 
     def _call(self, path: str, body: dict[str, Any] | None = None, timeout: float = 300) -> Any:
+        """One request to the model server on this Mac. It is made with http.client (never
+        through a proxy, which would carry the prompt off the machine), and its connection
+        is remembered while it runs so that `abort` can cut it off."""
         data = json.dumps(body).encode() if body is not None else None
-        request = urllib.request.Request(self._base + path, data=data)  # noqa: S310
-        # No proxy, ever: a proxy would carry the prompt off the machine.
-        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        conn = http.client.HTTPConnection(self._host, self._port, timeout=timeout)
+        with self._lock:
+            self._inflight.add(conn)
         try:
-            with opener.open(request, timeout=timeout) as response:
-                return json.load(response)
-        except (urllib.error.URLError, TimeoutError, ValueError, OSError) as exc:
+            headers = {"Content-Type": "application/json"} if data is not None else {}
+            conn.request("POST" if data is not None else "GET", path, body=data, headers=headers)
+            response = conn.getresponse()
+            if response.status >= 400:
+                raise DeskThreadError(ErrorCode.MODEL_UNAVAILABLE)
+            return json.load(response)
+        except (http.client.HTTPException, TimeoutError, ValueError, OSError) as exc:
             raise DeskThreadError(ErrorCode.MODEL_UNAVAILABLE) from exc
+        finally:
+            with self._lock:
+                self._inflight.discard(conn)
+            conn.close()
+
+    def abort(self) -> None:
+        """Cut off every request that is running (the user pressed Stop). The model server
+        stops generating when its client goes away; the caller gets MODEL_UNAVAILABLE."""
+        with self._lock:
+            running = list(self._inflight)
+        for conn in running:
+            try:
+                if conn.sock is not None:
+                    conn.sock.shutdown(socket.SHUT_RDWR)
+            except OSError:
+                pass  # already finished
 
     def available(self) -> bool:
         try:

@@ -129,6 +129,13 @@ class Assistant:
         """Stop the running question at its next step. A request already with the AI is
         waited for (it cannot be interrupted), but its answer is thrown away."""
         self._stop.set()
+        abort = getattr(self._model, "abort", None)
+        if callable(abort):
+            abort()  # cut the request that is with the AI right now
+
+    def _check_stop(self) -> None:
+        if self._stop.is_set():
+            raise _StoppedError
 
     def ask(self, question: str, person: str | None = None) -> Answer:
         self._stop.clear()
@@ -158,7 +165,7 @@ class Assistant:
         self._store.refresh()  # read again each time: a deleted file is gone at once (U10)
         self._step(2)
         unread = self._images.read_pending(  # the local model reads pictures it has not read yet
-            lambda done, total: self._step(2, f"picture {done} of {total}")
+            lambda done, total: self._step(2, f"picture {done} of {total}"), self._check_stop
         )
         items = self._store.items()
         coverage_note = (
@@ -220,6 +227,8 @@ class Assistant:
             summary = summarise(question, sure, self._model) if sure else ()
             self._step(5)
         except DeskThreadError as err:
+            if self._stop.is_set():
+                raise _StoppedError from err  # the request was cut off on purpose
             trace.append(_gate(Gate.G3_MODEL, Outcome.FAIL, f"the local model failed ({err.code})"))
             message = "The model on this laptop did not answer. Nothing was sent anywhere else."
             return self._answer(AnswerKind.NOT_FOUND, question, message, [], [], trace, started)
