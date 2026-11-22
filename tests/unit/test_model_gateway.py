@@ -167,3 +167,20 @@ def test_u6_no_database_index_or_temp_file_library_is_imported() -> None:
     declared = (REPO / "pyproject.toml").read_text().split("[dependency-groups]")[0]
     for name in ("sqlite", "chroma", "faiss", "lancedb", "duckdb", "redis", "sqlalchemy"):
         assert name not in declared.lower()
+
+
+def test_a_server_left_over_on_our_port_is_adopted_and_stopped_at_the_end(
+    fake: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.model import ModelServer
+
+    killed: list[tuple[int, int]] = []
+    monkeypatch.setattr(ModelServer, "_listener", staticmethod(lambda: 4242))
+    monkeypatch.setattr("app.model.os.kill", lambda pid, sig: killed.append((pid, sig)))
+    server = ModelServer()
+    assert server.start(ModelGateway(fake)) is True  # something already answers: adopt it
+    assert server.pid == 4242
+    server.stop()
+    assert [pid for pid, _ in killed] == [4242] and server.pid is None
+    server.stop()
+    assert len(killed) == 1  # stopping twice is harmless

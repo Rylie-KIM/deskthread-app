@@ -6,9 +6,11 @@ images and returns text, which is only ever displayed or parsed, never executed 
 """
 
 import base64
+import contextlib
 import json
 import os
 import shutil
+import signal
 import subprocess
 import time
 import urllib.error
@@ -130,18 +132,35 @@ class ModelGateway:
 
 
 class ModelServer:
-    """Our own `ollama serve`, started as a child on 127.0.0.1 and stopped at End session."""
+    """Our own `ollama serve` on 127.0.0.1 and our own port, stopped at End session.
+
+    If a server is already listening on our port (left over from a launch that was killed),
+    it is adopted: the port is ours alone, so End session stops that one too.
+    """
 
     def __init__(self) -> None:
         self._process: subprocess.Popen[bytes] | None = None
+        self._adopted: int | None = None
 
     @property
     def pid(self) -> int | None:
-        return self._process.pid if self._process else None
+        return self._process.pid if self._process else self._adopted
+
+    @staticmethod
+    def _listener() -> int | None:
+        done = subprocess.run(
+            ["/usr/sbin/lsof", "-nP", f"-iTCP:{config.MODEL_PORT}", "-sTCP:LISTEN", "-t"],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        first = done.stdout.split()
+        return int(first[0]) if first and first[0].isdigit() else None
 
     def start(self, gateway: ModelGateway, wait_s: float = 20) -> bool:
-        """True when a server answers. Does nothing if one is already there on our port."""
+        """True when a server answers on our port."""
         if gateway.available():
+            self._adopted = self._listener()
             return True
         binary = shutil.which("ollama")
         if binary is None:
@@ -160,12 +179,15 @@ class ModelServer:
         return False
 
     def stop(self) -> None:
-        if self._process is None:
-            return
-        self._process.terminate()
-        try:
-            self._process.wait(timeout=10)
-        except subprocess.TimeoutExpired:
-            self._process.kill()
-            self._process.wait(timeout=5)
-        self._process = None
+        if self._process is not None:
+            self._process.terminate()
+            try:
+                self._process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                self._process.kill()
+                self._process.wait(timeout=5)
+            self._process = None
+        elif self._adopted is not None:
+            with contextlib.suppress(ProcessLookupError, PermissionError):
+                os.kill(self._adopted, signal.SIGTERM)
+            self._adopted = None
