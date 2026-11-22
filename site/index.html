@@ -230,7 +230,7 @@
   <section class="block" id="install">
     <p class="kicker">Install</p>
     <h2>Three steps. Then it works offline.</h2>
-    <p class="sub">Needs macOS on Apple silicon, Homebrew, Node.js, and about 10 GB of free disk for the model.</p>
+    <p class="sub">Needs macOS on Apple silicon, Homebrew, Node.js, and about 10 GB of free disk for the model. It is a Mac app, not a website: it runs entirely on your Mac.</p>
     <div class="cols">
       <pre><code><span class="c"># 1. get the code and the tools</span>
 git clone https://github.com/Rylie-KIM/deskthread-app.git
@@ -238,7 +238,7 @@ cd deskthread-app
 brew install ollama uv
 make setup ui
 
-<span class="c"># 2. download the model once (about 9 GB)</span>
+<span class="c"># 2. download the model once (about 7 GB)</span>
 OLLAMA_HOST=127.0.0.1:11435 OLLAMA_NO_CLOUD=1 ollama serve &amp;
 OLLAMA_HOST=127.0.0.1:11435 ollama pull gemma4:e4b
 kill %1

@@ -9,13 +9,13 @@ Prototype · tested on macOS (Apple silicon) · Windows: not tested · all sampl
 
 ## Overview
 
-DeskThread helps a manager use the knowledge already on their own computer. You choose what it may read: apps on the Mac (Calendar, Mail, Notes, Reminders) and folders. Everything is Off until you switch it on, and switching on gives **read permission only**: DeskThread cannot change, send or delete anything, and no setting would allow it. When you prepare a meeting, it joins notes, mail, reminders, chat exports, documents and screenshots written weeks apart in different words, and shows where each point came from, with an exact quote and a date. If the answer is not in your files, it says so instead of guessing.
+DeskThread is a native **Mac app** (not a website opened in a browser) that helps a person at work use the knowledge already on their own computer; the demo data is written from a manager's point of view. You choose what it may read: apps on the Mac (Calendar, Mail, Notes, Reminders) and folders. Everything is Off until you switch it on, and switching on gives **read permission only**: DeskThread cannot change, send or delete anything, and no setting would allow it. When you prepare a meeting, it joins notes, mail, reminders, chat exports, documents and screenshots written weeks apart in different words, and shows where each point came from, with an exact quote and a date. If the answer is not in your files, it says so instead of guessing.
 
 It runs on your machine with an open-weight model served locally: no hosted AI, no accounts, no telemetry. It saves no index and no copy of your notes: the app writes nothing to disk.
 
 ### The moment it is built for
 
-Seoyeon manages a team. Tomorrow she has a one-to-one with Sam and wants to remember what she promised. She searches her notes for "development goals" and finds nothing, yet it is all there, in notes, a mail, a reminder, a chat recap and a screenshot written six weeks apart in other words. DeskThread prepares the meeting: five points, each with a status (done, open, superseded), its source, the exact quote and the date, and it marks the one point that was never stated as a clear promise.
+A manager has a one-to-one with Sam tomorrow and wants to remember what was promised. A search of the notes for "development goals" finds nothing, yet it is all there, in notes, a mail, a reminder, a chat recap and a screenshot written six weeks apart in other words. DeskThread prepares the meeting: each point has a status (done, open, no longer valid), its source, the exact quote and the date, and it marks the one point that was never stated as a clear promise.
 
 ## Status (22 November 2026)
 
@@ -23,16 +23,16 @@ This is a work in progress. The table says plainly what exists.
 
 | Part | State |
 |---|---|
-| Reading chosen folders: notes, mail (`.eml`), calendar (`.ics`), reminders, Teams and Slack text exports, `.docx`, `.pdf`, `.csv`, `.txt`, `.md`, images | **Built and tested** |
-| Access rules; consent with instant revoke; any source can be allowed for reading, nothing can be allowed for more | **Built and tested** |
-| Local model gateway, search with no stored index, answer check, coverage, "prepare my next meeting" | **Built and tested**; runs in the terminal (`scripts/ask.py`) |
+| `DeskThread.app`: double-click start in its own Mac window (no browser, nothing kept), first-start setup | **Built**; opened and used on the development Mac; the first-start setup branches were not all exercised |
+| Access: apps on the Mac (Calendar, Mail, Notes, Reminders) and folders, everything Off, read only, a period for Calendar and Mail | **Built and tested**; timed on the real apps (counts only) |
+| Ask: answers with exact quotes, status, "possibly related" notes kept apart, an AI summary checked against the quotes, Stop, Prepare for a meeting, "how this was checked" with every number opening its items | **Built and tested** with a fake model; run with the real model on the invented data |
+| Search: words, meaning (a small local search model, optional), time; dates by the file's own Date Modified | **Built and tested** |
+| My data: connections of its own programs (Check it now), folder comparison, the log, memory by program; Clear memory; End session with a receipt that says how each number is counted | **Built and tested** |
+| Pictures: the text is read by macOS's own text recognition when switched on, the AI only for pictures without text | **Built and tested** on typed pictures; handwriting not tested |
+| AI model page: eight models with parameters and download size, a search helper | **Built**; only three models were run with DeskThread; downloads of the other five were not run |
 | Local API with a per-launch token, Origin and Host checks, strict content-security-policy | **Built and tested** |
-| Browser interface: sources and permission request, Prepare, ask, brief, source viewer, Proof, Memory, End session with a receipt | **Built**; the main click path was checked by hand in the browser (see Tests) |
-| Launcher with a clean stop (`make run`, `DeskThread.command`) | **Built and tested** on the real process |
-| `DeskThread.app`: double-click start in its own Mac window, with first-start setup | **Built**; the window was opened on the development Mac and showed the first screen (checked by asking the web view), and a quit stopped every program; the first-start setup branches were not exercised |
-| `verify` script (an independent check after quitting), canary leak tests, Wi-Fi-off run | **Not built or not run yet** |
-| Connectors to the Mac's own Calendar, Mail, Notes and Reminders apps, read only | **Built**; tested with canned app replies; against the real apps only the listing of calendars, folders, lists and mailboxes was run (names and counts). Reading real content through them has not been run |
-| Choosing the AI model, with download | **Built**; a real download and a real switch have not been run |
+| The tuning evaluation on the invented data | **6 of 8** at the last full run; not re-run after the later changes |
+| `verify` script (an independent check after quitting), canary leak test on the whole flow, Wi-Fi-off run | **Not built or not run yet** |
 | Windows | **Not tested** |
 
 ## The one rule, and what backs it today
@@ -208,7 +208,7 @@ Not written or not run yet: the canary leak tests on the full flow (L-1, L-5, L-
 
 ## Data
 
-All sample content is invented: a fictional company ("UK Pharma"), a fictional manager (Seoyeon) and 65 files on a mock laptop, built by `demo-data/make_demo_data.py`. The expected answers are kept in `eval/`, outside the folder the assistant can read. No real notes were used.
+All sample content is invented: a fictional company ("UK Pharma"), a fictional manager and a team of four. The demo laptop is built by `demo-data/make_demo_data.py`: 65 files in its first layer (`make demo-data-core`, what the tests and the evaluation use) and 143 in its rich version (`make demo-data`). The expected answers are kept in `eval/`, outside the folder the assistant can read. No real notes were used.
 
 ## Limitations
 
