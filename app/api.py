@@ -38,6 +38,7 @@ from contracts.api import (
     PrepareBody,
     Progress,
     SessionInfo,
+    Spellings,
     UnitView,
 )
 from contracts.broker import PermissionRequest, SourceState
@@ -206,6 +207,22 @@ def create_app(runtime: Runtime, ui_dir: Path | None = None) -> FastAPI:
     @app.get("/api/progress")
     def progress() -> Progress:
         return runtime.session.assistant.progress  # never waits for the running question
+
+    @app.get("/api/people")
+    def people() -> list[Spellings]:
+        held = runtime.require().assistant.spellings
+        return [Spellings(name=name, also=also) for name, also in held.items()]
+
+    @app.post("/api/people")
+    def set_people(body: list[Spellings]) -> list[Spellings]:
+        if len(body) > 40:
+            raise DeskThreadError(ErrorCode.BAD_REQUEST)
+        runtime.require().assistant.spellings = {
+            entry.name.strip(): tuple(a.strip()[:60] for a in entry.also if a.strip())
+            for entry in body
+            if entry.name.strip()
+        }
+        return people()
 
     @app.post("/api/cancel")
     def cancel() -> Progress:

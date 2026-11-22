@@ -268,10 +268,19 @@ def time_window(
     return None
 
 
-def build_query(question: str, person: str | None = None) -> Query:
+def build_query(
+    question: str, person: str | None = None, spellings: dict[str, tuple[str, ...]] | None = None
+) -> Query:
+    """`spellings`: a name -> other ways the user writes it ("Sam" -> "Samuel", "Sammy"). If the
+    question uses any of them, all of them count as that person."""
     people = {stem(n.lower()) for n in names_in(question)}
     if person:
         people.add(stem(person.lower()))
+    asked = set(stems(question))
+    for name, others in (spellings or {}).items():
+        group = {s for text in (name, *others) for s in stems(text) if len(s) > 1}
+        if group & (asked | people):
+            people |= group
     when = time_window(question)
     skip = {stem(g) for g in GENERIC} | ({stem(w) for w in (*_WHEN, *_AGENDA)} if when else set())
     focus_words = [

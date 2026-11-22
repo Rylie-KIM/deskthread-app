@@ -72,6 +72,8 @@ class Assistant:
         self._broker, self._store, self._policy, self._model = broker, store, policy, model
         self._images = ImageReader(policy, store, model)
         self._meaning = Meaning(model)
+        # Other ways the user writes a name, set on the Access screen; in memory only.
+        self.spellings: dict[str, tuple[str, ...]] = {}
         self.questions = 0
         self.items_given = 0
         self.given_by: dict[str, int] = {}  # source id -> items shown to the AI
@@ -162,7 +164,7 @@ class Assistant:
         self._left["unreadable"] = len(self._store.uncounted()) + unread
 
         self._step(3)
-        query = build_query(question, person)
+        query = build_query(question, person, self.spellings)
         calls_before = getattr(self._model, "calls", 0)
         try:
             if query.focus:
@@ -179,33 +181,35 @@ class Assistant:
             known = {c.item.item_id for c in candidates}
             by_id = {i.item_id: i for i in items}
             candidates += [Candidate(by_id[i], 0.0) for i in linked if i not in known]
-            read_note = (
-                f"searched {len(items)} items; {len(self._store.uncounted()) + unread} could not "
-                f"be read; {len(candidates)} passed the relevance rule"
-            )
-            trace.append(_gate(Gate.G2_READ, Outcome.PASS, read_note))
+            second = False
             if not candidates:
+                candidates, second = self._wider(query, items, []), True
+
+            def read_note() -> str:
+                return (
+                    f"searched {len(items)} items; {len(self._store.uncounted()) + unread} "
+                    f"could not be read; {len(candidates)} passed the relevance rule"
+                    + ("; a second, wider search was made" if second else "")
+                )
+
+            if not candidates:
+                trace.append(_gate(Gate.G2_READ, Outcome.PASS, read_note()))
                 trace.append(_gate(Gate.G3_MODEL, Outcome.SKIPPED, "no note to show: not asked"))
                 trace.append(_gate(Gate.G4_ANSWER, Outcome.PASS, "nothing relevant: not found"))
                 return self._answer(
                     AnswerKind.NOT_FOUND, question, NOT_FOUND, [], [], trace, started
                 )
 
-            given = self._give(candidates)
-            self._step(4)
-            proposed = parse_points(
-                complete_json(
-                    self._model,
-                    prompts.ANSWER.format(
-                        question=question,
-                        notes=_render(given),
-                        today=now().astimezone().strftime("%A %d %B %Y"),
-                    ),
-                )
-            )
-            self._step(5)
-            points, result = check(query, proposed, given, self._model, linked)
-            self._step(5)  # a question stopped while the AI was answering ends here
+            given, points, result = self._attempt(question, query, candidates, linked)
+            if not points and not second:
+                # Nothing held up: look once more, by meaning, at notes the words missed.
+                more = self._wider(query, items, candidates)
+                if more:
+                    second = True
+                    self._step(3, "second, wider search")
+                    again, points, result = self._attempt(question, query, more, linked)
+                    candidates, given = candidates + more, given + again
+            trace.append(_gate(Gate.G2_READ, Outcome.PASS, read_note()))
             sure = [p for p in points if not p.related]  # the summary rests on these only
             summary = summarise(question, sure, self._model) if sure else ()
             self._step(5)
@@ -231,6 +235,56 @@ class Assistant:
         # A status only means something for things promised or to do.
         commitment = person is not None or bool(COMMITMENT_WORDS & set(stems(question)))
         return answer.model_copy(update={"show_status": commitment})
+
+    # ------------------------------------------------------------------ one try, and a wider one
+    def _attempt(
+        self,
+        question: str,
+        query: Query,
+        candidates: list[Candidate],
+        linked: dict[str, tuple[str, str]],
+    ) -> tuple[list[Given], list[Checked], GateResult]:
+        """Show these notes to the AI, then check what it says."""
+        given = self._give(candidates)
+        self._step(4)
+        if query.people:
+            name = ", ".join(sorted(names_in(question))) or "the person asked about"
+            kind = prompts.KIND_PERSON.format(name=name)
+        elif query.window is not None:
+            kind = prompts.KIND_PERIOD.format(period=query.window_name)
+        else:
+            kind = prompts.KIND_TOPIC
+        prompt = prompts.ANSWER.format(
+            question=question,
+            notes=_render(given, linked),
+            today=now().astimezone().strftime("%A %d %B %Y"),
+            kind=kind,
+        )
+        proposed = parse_points(complete_json(self._model, prompt))
+        self._step(5)
+        points, result = check(query, proposed, given, self._model, linked)
+        self._step(5)  # a question stopped while the AI was answering ends here
+        return given, points, result
+
+    def _wider(self, query: Query, items: list[Item], have: list[Candidate]) -> list[Candidate]:
+        """A second look when the first found nothing: the notes closest in meaning to the
+        question, below the usual bar. For a question about a person only notes that name
+        the person. Empty when meaning search is off."""
+        vectors = self._meaning.of_items(items)
+        asked = self._meaning.of_text(query.question) if vectors else None
+        if not vectors or asked is None:
+            return []
+        seen = {c.item.item_id for c in have}
+        scored = [
+            (likeness(vectors[i.item_id], asked), i)
+            for i in items
+            if i.item_id in vectors
+            and i.item_id not in seen
+            and i.kind is not ItemKind.EVENT
+            and (not query.people or query.people & item_stems(i))
+        ]
+        scored.sort(key=lambda pair: (-pair[0], pair[1].item_id))
+        return [Candidate(i, score) for score, i in scored[:8] if score >= config.LIKE_WIDER]
 
     # ------------------------------------------------------------------ related notes
     def _link(
@@ -384,11 +438,14 @@ def _when(date: datetime | None) -> str:
     return date.strftime("%d %b %Y") if date else "undated"
 
 
-def _render(given: list[Given]) -> str:
-    """The notes as the model sees them: alias, kind, date, title, numbered lines."""
+def _render(given: list[Given], linked: dict[str, tuple[str, str]] | None = None) -> str:
+    """The notes as the model sees them: alias, kind, date, title, numbered lines. A note
+    that was brought in without naming the person is marked "related"."""
     blocks = []
     for g in given:
         head = f"[{g.alias}] {g.item.kind.value} | {_when(g.item.date)} | {g.item.title}"
+        if linked and g.item.item_id in linked:
+            head += " | related"
         lines = [
             f"{u.number}. {prompts.WITHHELD if u.number in g.withheld else u.text}"
             for u in g.item.units

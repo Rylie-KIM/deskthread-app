@@ -29,6 +29,8 @@ ROUTES: dict[str, str] = {
     "GET /api/meetings": "list[Meeting]",
     "POST /api/prepare": "Answer",  # body: PrepareBody
     "POST /api/ask": "Answer",  # body: AskBody
+    "GET /api/people": "list[Spellings]",  # other ways the user writes a name (1.15)
+    "POST /api/people": "list[Spellings]",  # body: list[Spellings]; replaces the list
     "GET /api/progress": "Progress",  # which step a running question is on
     "POST /api/cancel": "Progress",  # stop the running question (contract 1.8)
     "GET /api/items/{item_id}": "ItemView",
@@ -78,6 +80,14 @@ class ModelInfo(_Frozen):
     # "answers": a model that reads and answers. "search": the small model for search by
     # meaning; it is used automatically once it is on this Mac. (contract 1.14)
     role: str = "answers"
+
+
+class Spellings(_Frozen):
+    """One person and the other ways the user writes the name. Held in memory for the
+    session; like the access settings it survives Clear memory and ends with the session."""
+
+    name: str = Field(min_length=1, max_length=60)
+    also: tuple[str, ...] = Field(default=(), max_length=8)
 
 
 class ModelPick(_Frozen):

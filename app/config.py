@@ -75,6 +75,7 @@ SEARCH_MODEL = ModelChoice(
 LIKE_QUESTION = 0.45
 LIKE_NOTES = 0.62  # measured on the demo data: other people's one-to-ones reach 0.60
 RELATED_MAX = 5
+LIKE_WIDER = 0.36  # the lower bar of the second search, tried only when the first found nothing
 
 
 def approved(tag: str) -> bool:
@@ -87,7 +88,7 @@ def model_choice(tag: str) -> ModelChoice | None:
 
 
 # Bump on any change to a prompt in app/prompts.py (R5).
-PROMPT_VERSION = "p5"  # p5: the user is any person at work, not only a manager
+PROMPT_VERSION = "p6"  # p6: one paragraph per kind of question; read every note
 
 LOOPBACK = "127.0.0.1"
 # Our own model server port, so it is never confused with an Ollama the user runs themselves.

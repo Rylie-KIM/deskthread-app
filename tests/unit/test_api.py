@@ -380,3 +380,15 @@ def test_the_original_of_an_item_is_shown_by_its_own_checked_path_only(
     client.post("/api/sources/revoke-all")
     assert client.post(f"/api/items/{note.item_id}/reveal").status_code != 200  # Off: not shown
     assert len(ran) == 1
+
+
+def test_spellings_of_a_name_are_kept_for_the_session_and_survive_clear_memory(
+    client: TestClient, runtime: Runtime, demo_laptop: Path
+) -> None:
+    _work_profile(client, demo_laptop)
+    assert client.get("/api/people").json() == []
+    saved = client.post("/api/people", json=[{"name": " Sam ", "also": ["Sammy", " ", "Samuel"]}])
+    assert saved.json() == [{"name": "Sam", "also": ["Sammy", "Samuel"]}]
+    client.post("/api/forget")
+    assert client.get("/api/people").json() == saved.json()
+    assert client.post("/api/people", json=[{"name": "", "also": []}]).status_code == 422

@@ -27,7 +27,11 @@ its title. Its lines are numbered.
 Today is {today}.
 Question: {question}
 
+{kind}
+
 Rules:
+- Go through EVERY note below, one by one, before you answer. A chat or a meeting recap
+  often holds an agreement; a mail often holds an approval.
 - If the question asks about a day or a period (today, tomorrow, this week), every note
   dated in that period answers it: make one point for each event, reminder or thing to do.
 - Answer with a list of points. A point is one separate thing in the notes that answers
@@ -77,6 +81,23 @@ say. Add nothing that is not in them: no guesses, no advice. Write in the langua
 question. After each sentence, list the numbers of the lines it rests on.
 
 Reply with JSON only: {{"sentences": [{{"text": "...", "lines": [1, 3]}}]}}"""
+
+# One of these goes into ANSWER, chosen by code from the shape of the question.
+KIND_PERSON = """\
+This question is about one person: {name}. Make one point for each separate thing that was
+said to, promised to, agreed with or planned for {name}. Regular agreements count too
+(for example a monthly talk).
+A note marked "related" does not name {name}. Use it only if it clearly continues one of
+the things above, and then make it a point of its own; never mix its lines with lines from
+notes that do name {name}."""
+
+KIND_PERIOD = """\
+This question is about a stretch of time: {period}. Every note dated in it answers the
+question. Make one point for each event, reminder or thing to do, in the order of time."""
+
+KIND_TOPIC = """\
+This question is about a topic. The person may have written about it in other words than
+the ones in the question; a note that says the same thing in other words answers it."""
 
 READ_IMAGE = """\
 Transcribe the text in this image exactly, line by line. Output the text only, with no

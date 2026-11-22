@@ -108,3 +108,23 @@ def test_a_question_about_a_day_shows_what_is_dated_then_whatever_its_words() ->
     start, end, name = time_window("anything next week?", fixed) or (None, None, "")
     assert name == "next week" and start is not None and end is not None
     assert (end - start).days == 6 and start.weekday() == 0
+
+
+def test_other_spellings_of_a_name_count_as_the_same_person() -> None:
+    from contracts.items import Item, ItemKind, Unit
+
+    def note(item_id: str, text: str) -> Item:
+        unit = Unit(number=1, text=text)
+        return Item(item_id=item_id, source_id="x", kind=ItemKind.NOTE, title=text, units=(unit,))
+
+    items = [
+        note("long", "Samuel: course budget"),
+        note("short", "Sam: course budget"),
+        note("other", "Alex: laptop"),
+    ]
+    plain = build_query("What did I promise Sam?")
+    assert [c.item.item_id for c in find(plain, items)] == ["short"]
+    known = build_query("What did I promise Sam?", None, {"Sam": ("Samuel", "Sammy")})
+    assert {c.item.item_id for c in find(known, items)} == {"long", "short"}
+    asked_other_way = build_query("What did I promise Samuel?", None, {"Sam": ("Samuel",)})
+    assert {c.item.item_id for c in find(asked_other_way, items)} == {"long", "short"}
