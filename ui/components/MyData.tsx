@@ -66,9 +66,12 @@ export function MyData({ onError, onForgot }: { onError: (message: string) => vo
       <div className="card live">
         <div className="row between wrap">
           <h2>Right now</h2>
-          <button className="primary" disabled={busy} onClick={async () => { setBusy(true); try { setMemory(await api.forget()); onForgot(); } catch { onError("Forget now did not work."); } finally { setBusy(false); } }}>
-            {busy ? "Forgetting…" : "Forget now"}
-          </button>
+          <div className="clear">
+            <button className="primary" disabled={busy} onClick={async () => { setBusy(true); try { setMemory(await api.forget()); onForgot(); } catch { onError("Clear memory did not work."); } finally { setBusy(false); } }}>
+              {busy ? "Clearing…" : "Clear memory"}
+            </button>
+            <small>Forgets what was read. You can keep working.</small>
+          </div>
         </div>
         {/* What is where, live: your sources -> DeskThread -> the AI. Nothing leads off this Mac. */}
         <div className="flow">

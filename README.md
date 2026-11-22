@@ -51,7 +51,7 @@ This is a work in progress. The table says plainly what exists.
 | In the app | What it shows | Test |
 |---|---|---|
 | **My data**, the three statements | "Nothing was sent to the internet" (the open connections of DeskThread's own programs, from the Mac's `lsof`; anything not on `127.0.0.1` is flagged), "Your files are untouched" (a fingerprint of your folder when you chose it and now: names, sizes, times; no file is opened), "DeskThread saved nothing" (files the backend opened for writing). The tables are under "Details" | connection parsing, fingerprint, write audit (L-4) |
-| **My data**, "holding right now" | Items held, whether the AI is ready, and under "Details" the memory of each program as the operating system reports it. **Forget now** clears the items and unloads the model | memory tests |
+| **My data**, "holding right now" | Items held, whether the AI is ready, and under "Details" the memory of each program as the operating system reports it. **Clear memory** clears the items and unloads the model | memory tests |
 | **End session** | A receipt with counts only, then the programs stop and the address refuses connections | receipt canary test, N-6 on the real process |
 
 The independent `verify` script (a check from outside the app after it has quit) is not built yet. Until then, Activity Monitor is the outside check.
@@ -187,7 +187,7 @@ deskthread-app/
 | Model gateway (U6) | loopback only; pinned digest; unload verified against a fake server; no database or index library | pass |
 | Answer path (U3, U4, U7, U9, U10) | invented citations dropped; injection withheld; superseded and undated handled; coverage adds up; a deleted note is gone at once | pass, with a scripted fake model |
 | Local API (U5) | no token, wrong Origin or wrong Host is refused; replies are not stored; only the page's own start-up script may run | pass |
-| Proof, memory, end session | local-only connections, fingerprint without opening files, zero writes (L-4), Forget now, receipt without note text | pass |
+| Proof, memory, end session | local-only connections, fingerprint without opening files, zero writes (L-4), Clear memory, receipt without note text | pass |
 | Launch (N-6) | the real process listens on `127.0.0.1` only, needs the token, and refuses connections after End session | pass |
 | Evaluation with the real model | tuning set against the ground truth | 7 of 8 |
 | Click path, by hand | earlier design: choose folder, permission request, Prepare, source viewer, Proof, End session, with the real model. Current design: the Access screen and the one-click demo only | the Ask and My data screens, the model card, the end-session pop-up and "Start a new session" have **not** been looked at since the redesign |
