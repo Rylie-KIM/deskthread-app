@@ -36,7 +36,7 @@ def test_u9_out_of_reach_material_is_counts_only(demo_laptop: Path) -> None:
     assert cov.not_accessible == {coverage.OFF_LIMITS_KEY: 4}  # the PRIVATE note, 3 in Personal
     broker.revoke("folder:notes")
     after = coverage.build(broker, store, given=0, cited=0)
-    assert after.not_accessible["Notes"] == 21
+    assert after.not_accessible["Note files"] == 21
     assert after.accessible == cov.accessible - 21 and "folder:notes" not in after.by_source
     broker.revoke_all()
     assert coverage.build(broker, store, given=0, cited=0).accessible == 0

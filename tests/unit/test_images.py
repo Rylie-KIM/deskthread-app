@@ -30,7 +30,7 @@ def test_a_typed_screenshot_is_read_and_can_be_cited(demo_laptop: Path) -> None:
     answer = assistant.ask("What did I promise Sam?")
     cite = answer.points[0].citations[0]
     assert cite.quote == "stretch project: lead the checklist"
-    assert cite.read_by_model is True and cite.source_label == "Images and screenshots"
+    assert cite.read_by_model is True and cite.source_label == "Pictures"
     images = [i for i in session.store.items() if i.kind is ItemKind.IMAGE]
     assert sorted(i.meta["reading"] for i in images) == ["done"] + ["no text found"] * 4
 

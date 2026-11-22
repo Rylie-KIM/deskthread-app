@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { api, clock, type MemoryState, type Proof, type Receipt } from "../lib/api";
+import { api, clock, macWindow, type MemoryState, type Proof, type Receipt } from "../lib/api";
+
+const WORDS: Record<string, string> = { grant: "You allowed reading", revoke: "You stopped", revoke_all: "You stopped", read: "Read", denied: "Refused" };
 
 function Details({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -21,7 +23,7 @@ export function MyData({ onError, onForgot }: { onError: (message: string) => vo
       api.memory().then(setMemory).catch(() => undefined);
     };
     load();
-    const timer = setInterval(load, 4000);
+    const timer = setInterval(load, 2000);
     return () => clearInterval(timer);
   }, []);
 
@@ -61,46 +63,64 @@ export function MyData({ onError, onForgot }: { onError: (message: string) => vo
         </div>
       </div>
 
-      <div className="card holding">
-        <div>
-          <p className="big">{memory.items_held}</p>
-          <p>items it is holding right now · AI: {memory.model_loaded ? "ready" : "resting"}</p>
+      <div className="card live">
+        <div className="row between wrap">
+          <h2>Right now</h2>
+          <button className="primary" disabled={busy} onClick={async () => { setBusy(true); try { setMemory(await api.forget()); onForgot(); } catch { onError("Forget now did not work."); } finally { setBusy(false); } }}>
+            {busy ? "Forgetting…" : "Forget now"}
+          </button>
         </div>
-        <button className="primary" disabled={busy} onClick={async () => { setBusy(true); try { setMemory(await api.forget()); onForgot(); } catch { onError("Forget now did not work."); } finally { setBusy(false); } }}>
-          {busy ? "Forgetting…" : "Forget now"}
-        </button>
+        {/* What is where, live: your sources -> DeskThread -> the AI. Nothing leads off this Mac. */}
+        <div className="flow">
+          <div className="node">
+            <p className="big">{Object.keys(memory.items_by_source).length}</p>
+            <p>sources being read</p>
+          </div>
+          <div className={memory.items_held > 0 ? "pipe moving" : "pipe"} aria-hidden="true" />
+          <div className="node main">
+            <p className="big">{memory.items_held}</p>
+            <p>items held by DeskThread</p>
+          </div>
+          <div className={memory.model_loaded ? "pipe moving" : "pipe"} aria-hidden="true" />
+          <div className="node">
+            <p className="big">{memory.model_loaded ? "On" : "Off"}</p>
+            <p>AI on this Mac</p>
+          </div>
+          <div className="pipe cut" aria-hidden="true" />
+          <div className="node off">
+            <p className="big">0</p>
+            <p>sent to the internet</p>
+          </div>
+        </div>
+        <div className="grid2 dash">
+          <div>
+            <h3>Held from each source</h3>
+            {Object.keys(memory.items_by_source).length === 0 && <p className="fine">Nothing is held.</p>}
+            {Object.entries(memory.items_by_source).sort().map(([name, count]) => (
+              <div key={name} className="bar"><span>{name}</span><div><i style={{ width: `${Math.max(4, Math.round((100 * count) / Math.max(1, memory.items_held)))}%` }} /></div><b>{count}</b></div>
+            ))}
+          </div>
+          <div>
+            <h3>Memory used</h3>
+            {memory.processes.map((p) => (
+              <div key={p.pid} className="bar"><span>{p.name.replace("DeskThread backend", "DeskThread").replace("Model server", "AI server").replace("Model runner", "AI model")}</span><div><i style={{ width: `${Math.max(3, Math.min(100, Math.round(p.memory_mb / 100)))}%` }} /></div><b>{p.memory_mb >= 1024 ? `${(p.memory_mb / 1024).toFixed(1)} GB` : `${Math.round(p.memory_mb)} MB`}</b></div>
+            ))}
+          </div>
+        </div>
+        <h3>What happened</h3>
+        <ul className="timeline">
+          {proof.audit.slice(-8).reverse().map((line, i) => (
+            <li key={i}><span>{clock(line.at)}</span>{WORDS[line.action] ?? line.action} {line.source_id === "*" ? "everything" : line.source_id.replace(/^(mac|folder):/, "")}{line.action === "read" ? ` · ${line.count} items` : ""}</li>
+          ))}
+          {proof.audit.length === 0 && <li>Nothing yet.</li>}
+        </ul>
       </div>
-      <Details title="Details">
-        <div className="grid2">
-          <div className="card">
-            <h3>Programs</h3>
-            <table>
-              <thead><tr><th>Program</th><th>Id</th><th>Memory</th></tr></thead>
-              <tbody>{memory.processes.map((p) => <tr key={p.pid}><td>{p.name}</td><td>{p.pid}</td><td>{Math.round(p.memory_mb)} MB</td></tr>)}</tbody>
-            </table>
-          </div>
-          <div className="card">
-            <h3>What you allowed and when</h3>
-            <ul className="trace">
-              {proof.audit.slice(-10).map((line, i) => <li key={i}>{clock(line.at)} · {line.action} · {line.source_id.replace(/^(mac|folder):/, "")} · {line.count}</li>)}
-              {proof.audit.length === 0 && <li>Nothing yet.</li>}
-            </ul>
-          </div>
-        </div>
-      </Details>
     </section>
   );
 }
 
-// In the Mac window a small bridge lets the page ask the app to start again or to quit.
-type Bridge = { postMessage: (message: string) => void };
-function bridge(): Bridge | null {
-  const w = window as unknown as { webkit?: { messageHandlers?: { deskthread?: Bridge } } };
-  return w.webkit?.messageHandlers?.deskthread ?? null;
-}
-
 export function SessionEnded({ receipt, stopped }: { receipt: Receipt; stopped: boolean }) {
-  const app = typeof window === "undefined" ? null : bridge();
+  const app = macWindow();
   const rows: [string, string][] = [
     ["Questions asked", String(receipt.questions)],
     ["Items read", String(receipt.items_read)],

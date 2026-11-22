@@ -237,3 +237,44 @@ details[open] > summary { margin-bottom: 10px; }
 .models .rows { grid-template-columns: 1fr; }
 .models .who b, .models .who small { white-space: normal; }
 .small { padding: 7px 16px; font-size: .9rem; }
+
+/* ---- round icon button, quiet notice, progress, live picture ---- */
+.iconbtn { width: 36px; height: 36px; border-radius: 50%; border: 0; flex: none; font-size: 1.3rem; line-height: 1; color: var(--royal);
+  background: linear-gradient(160deg, #fff, #e6eeff); box-shadow: inset 0 0 0 1px #fff, 0 8px 16px -8px rgba(40, 70, 160, .6); }
+.iconbtn:hover { background: var(--royal); color: #fff; }
+.notice { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%); z-index: 30; display: flex; align-items: center; gap: 14px;
+  max-width: min(640px, calc(100vw - 32px)); padding: 12px 12px 12px 20px; border-radius: 24px; color: var(--ink);
+  background: var(--glass-2); border: 1px solid var(--edge); -webkit-backdrop-filter: blur(24px) saturate(160%); backdrop-filter: blur(24px) saturate(160%);
+  box-shadow: 0 30px 60px -28px rgba(40, 70, 160, .7), inset 0 1px 0 #fff; }
+.notice p { margin: 0; font-size: .95rem; }
+.notice .dot { position: static; flex: none; }
+.progress { margin: 14px 4px 0; }
+.progress p { margin: 8px 0 0; color: var(--muted); font-size: .9rem; }
+.track { height: 8px; border-radius: 999px; background: rgba(255, 255, 255, .7); box-shadow: inset 0 1px 3px rgba(40, 70, 160, .25); overflow: hidden; }
+.track i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--azure), var(--royal)); transition: width .4s ease; }
+input:disabled { opacity: .6; }
+
+.live h2 { font-size: 1.2rem; font-weight: 650; margin: 0; }
+.live h3 { margin-top: 22px; }
+.flow { display: flex; align-items: center; gap: 0; margin: 18px 0 6px; }
+.node { flex: 1; min-width: 0; text-align: center; padding: 16px 10px; border-radius: 22px; background: rgba(255, 255, 255, .6);
+  box-shadow: inset 0 0 0 1px #fff, 0 10px 22px -16px rgba(40, 70, 160, .6); }
+.node.main { background: linear-gradient(160deg, #1b2be0, var(--royal)); color: #fff; box-shadow: 0 18px 30px -16px var(--royal); }
+.node.main .big { background: none; color: #fff; -webkit-text-fill-color: #fff; }
+.node.off { background: transparent; box-shadow: inset 0 0 0 1.5px rgba(74, 86, 130, .35); }
+.node.off .big { background: none; color: var(--faint); -webkit-text-fill-color: var(--faint); }
+.node .big { font-size: 2.4rem; }
+.node p:last-child { margin: 2px 0 0; font-size: .82rem; color: inherit; opacity: .85; }
+.pipe { width: 44px; height: 4px; flex: none; border-radius: 4px; background: repeating-linear-gradient(90deg, var(--azure) 0 8px, transparent 8px 14px); opacity: .35; }
+.pipe.moving { opacity: 1; background-size: 28px 4px; }
+.pipe.cut { background: none; border-top: 2px dashed rgba(74, 86, 130, .45); height: 0; opacity: 1; }
+@media (prefers-reduced-motion: no-preference) { .pipe.moving { animation: run 1s linear infinite; } @keyframes run { to { background-position: 28px 0; } } }
+.dash { margin-top: 6px; }
+.bar { display: grid; grid-template-columns: minmax(90px, 34%) 1fr auto; align-items: center; gap: 12px; padding: 5px 0; font-size: .9rem; }
+.bar span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
+.bar div { height: 8px; border-radius: 999px; background: rgba(255, 255, 255, .7); box-shadow: inset 0 1px 3px rgba(40, 70, 160, .2); overflow: hidden; }
+.bar i { display: block; height: 100%; border-radius: 999px; background: linear-gradient(90deg, var(--azure), var(--royal)); transition: width .5s ease; }
+.bar b { font-variant-numeric: tabular-nums; font-weight: 650; }
+.timeline { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; font-size: .9rem; color: var(--ink); }
+.timeline span { display: inline-block; width: 52px; color: var(--faint); font-variant-numeric: tabular-nums; }
+@media (max-width: 760px) { .flow { flex-direction: column; gap: 6px; } .node { width: 100%; } .pipe { width: 4px; height: 20px; } .pipe.cut { border-top: 0; border-left: 2px dashed rgba(74, 86, 130, .45); width: 0; } }

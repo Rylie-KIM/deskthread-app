@@ -8,6 +8,7 @@ Closing the window ends the session: sources are revoked, memory is cleared, the
 unloaded and both programs stop.
 """
 
+import json
 import signal
 import sys
 import threading
@@ -26,6 +27,7 @@ from AppKit import (  # noqa: E402
     NSMenu,
     NSMenuItem,
     NSObject,
+    NSOpenPanel,
     NSWindow,
     NSWindowStyleMaskClosable,
     NSWindowStyleMaskMiniaturizable,
@@ -99,10 +101,12 @@ def _menu() -> Any:
 
 
 class Bridge(NSObject):
-    """Receives the two requests the page can make of the window after a session has ended:
-    "restart" (start a new session in this window) and "quit". Nothing else is accepted."""
+    """Receives the three requests the page can make of the window: "choose-folder" (show the
+    Mac's own folder panel), and after a session has ended "restart" (a new session in this
+    window) and "quit". Nothing else is accepted."""
 
     on_restart: Any = None
+    on_choose: Any = None
 
     def userContentController_didReceiveScriptMessage_(
         self, _controller: Any, message: Any
@@ -112,6 +116,8 @@ class Bridge(NSObject):
             NSApplication.sharedApplication().terminate_(None)
         elif request == "restart" and self.on_restart is not None:
             self.on_restart()
+        elif request == "choose-folder" and self.on_choose is not None:
+            self.on_choose()
 
 
 class Window:
@@ -123,7 +129,21 @@ class Window:
         self.delegate.launch = launch
         self.bridge = Bridge.alloc().init()
         self.bridge.on_restart = self.restart
+        self.bridge.on_choose = self.choose_folder
         self.view: Any = None
+
+    def choose_folder(self) -> None:
+        """Show the Mac's folder panel and tell the page which folder was picked. Picking a
+        folder here is the user's own act; the page then asks the backend to use it."""
+        panel = NSOpenPanel.openPanel()
+        panel.setCanChooseDirectories_(True)
+        panel.setCanChooseFiles_(False)
+        panel.setAllowsMultipleSelection_(False)
+        panel.setPrompt_("Choose")
+        panel.setMessage_("Choose the folder DeskThread may read")
+        picked = panel.URLs()[0].path() if panel.runModal() == 1 and panel.URLs() else ""
+        script = f"window.deskthreadFolder && window.deskthreadFolder({json.dumps(str(picked))})"
+        self.view.evaluateJavaScript_completionHandler_(script, None)
 
     def restart(self) -> None:
         """Start a new session in the same window: new programs, new secret address."""

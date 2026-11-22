@@ -24,6 +24,13 @@ export default function Home() {
 
   const refresh = useCallback(async () => setSources(await api.sources()), []);
 
+  // A message closes by itself after a while.
+  useEffect(() => {
+    if (!error) return;
+    const timer = setTimeout(() => setError(""), 9000);
+    return () => clearTimeout(timer);
+  }, [error]);
+
   useEffect(() => {
     if (!readToken()) return setState("locked");
     // The address may name the section to open, e.g. "...#t=<token>&tab=data".
@@ -115,7 +122,6 @@ export default function Home() {
       </header>
 
       <main className="wrap">
-        {error && <p className="error" role="alert">{error} <button className="link" onClick={() => setError("")}>Dismiss</button></p>}
         {state === "loading" && <p className="fine">Starting…</p>}
         {state === "locked" && (
           <section>
@@ -136,6 +142,13 @@ export default function Home() {
           </>
         )}
       </main>
+      {error && (
+        <div className="notice" role="alert">
+          <span className="dot" />
+          <p>{error}</p>
+          <button className="iconbtn" aria-label="Close this message" onClick={() => setError("")}>×</button>
+        </div>
+      )}
       {cite && <Viewer cite={cite} onClose={() => setCite(null)} />}
       {confirm && (
         <div className="scrim" role="dialog" aria-modal="true" aria-labelledby="end-title">

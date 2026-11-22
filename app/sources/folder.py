@@ -19,10 +19,10 @@ from contracts.items import Item, SourceKind, Uncounted
 EXPORTS = "App-exports"
 # Folder name inside App-exports -> (kind, label, reader role)
 KNOWN_EXPORTS: dict[str, tuple[SourceKind, str, str]] = {
-    "notes": (SourceKind.NOTES, "Notes", ""),
-    "mail": (SourceKind.MAIL, "Mail", ""),
-    "calendar": (SourceKind.CALENDAR, "Calendar", ""),
-    "reminders": (SourceKind.REMINDERS, "Reminders", "reminders"),
+    "notes": (SourceKind.NOTES, "Note files", ""),
+    "mail": (SourceKind.MAIL, "Mail files", ""),
+    "calendar": (SourceKind.CALENDAR, "Calendar files", ""),
+    "reminders": (SourceKind.REMINDERS, "Reminder files", "reminders"),
 }
 CHAT_EXPORTS = frozenset({"teams", "slack", "zoom"}) | PERSONAL_CHAT_NAMES
 
@@ -166,7 +166,7 @@ def scan(root: Path, policy: AccessPolicy) -> list[FolderAdapter]:
             FolderAdapter(
                 source_id="folder:chat-exports",
                 kind=SourceKind.CHAT_EXPORT,
-                label="Chat exports",
+                label="Chat files",
                 root=root,
                 scopes=chat,
                 policy=policy,
@@ -191,7 +191,7 @@ def scan(root: Path, policy: AccessPolicy) -> list[FolderAdapter]:
             FolderAdapter(
                 source_id="folder:images",
                 kind=SourceKind.IMAGES,
-                label="Images and screenshots",
+                label="Pictures",
                 root=root,
                 scopes=plain,
                 policy=policy,

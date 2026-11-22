@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, ApiError, type ModelInfo } from "../lib/api";
+import { api, plain, type ModelInfo } from "../lib/api";
 
 // Choose the AI model. One is in use; another can be downloaded once and then switched to.
 export default function Models({ onError }: { onError: (message: string) => void }) {
@@ -21,7 +21,7 @@ export default function Models({ onError }: { onError: (message: string) => void
     try {
       setModels(await work());
     } catch (err) {
-      onError(err instanceof ApiError ? err.message : "Something went wrong.");
+      onError(plain(err));
     } finally {
       setBusy("");
     }

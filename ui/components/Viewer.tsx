@@ -18,7 +18,7 @@ export default function Viewer({ cite, onClose }: { cite: Citation; onClose: () 
       <div className="dialog wide" onClick={(e) => e.stopPropagation()}>
         <div className="row between">
           <p className="fine">Read only</p>
-          <button className="link" onClick={onClose}>Close</button>
+          <button className="iconbtn" aria-label="Close" onClick={onClose}>×</button>
         </div>
         {gone && <p className="empty">Not visible. Its source is Off now, or the file is gone.</p>}
         {item && (

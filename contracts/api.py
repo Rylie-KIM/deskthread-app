@@ -25,6 +25,7 @@ ROUTES: dict[str, str] = {
     "GET /api/meetings": "list[Meeting]",
     "POST /api/prepare": "Answer",  # body: PrepareBody
     "POST /api/ask": "Answer",  # body: AskBody
+    "GET /api/progress": "Progress",  # which step a running question is on
     "GET /api/items/{item_id}": "ItemView",
     "GET /api/items/{item_id}/image": "bytes",
     "GET /api/models": "list[ModelInfo]",
@@ -94,6 +95,14 @@ class PrepareBody(_Frozen):
 
 class AskBody(_Frozen):
     question: str = Field(min_length=1, max_length=500)
+
+
+class Progress(_Frozen):
+    """The step a running question is on, in plain words. Empty when nothing is running."""
+
+    step: str = ""
+    number: int = 0
+    of: int = 0
 
 
 class PointStatus(StrEnum):
@@ -252,6 +261,7 @@ __all__ = [
     "PointStatus",
     "PrepareBody",
     "ProcessInfo",
+    "Progress",
     "Proof",
     "Receipt",
     "SessionInfo",

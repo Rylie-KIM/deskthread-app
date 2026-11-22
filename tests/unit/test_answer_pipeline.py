@@ -44,7 +44,7 @@ def test_the_brief_quotes_are_copied_from_the_notes_with_dates_and_status(
     assert ownership.citations[0].undated is True
     assert ownership.status is PointStatus.OPEN
     assert "not stated as a clear promise" in ownership.note
-    assert intro.citations[0].source_label == "Notes"
+    assert intro.citations[0].source_label == "Note files"
     assert "on this laptop only" in gate(answer, Gate.G3_MODEL)[1]
     assert "no tools" in gate(answer, Gate.G3_MODEL)[1]
 
@@ -170,7 +170,7 @@ def test_revoking_a_source_takes_it_out_of_the_next_answer(demo_laptop: Path) ->
     answer = assistant.ask("What did I promise Sam?")
     assert [p.label for p in answer.points] == ["Online course"]  # only the mail is left
     assert all(c.source_id != "folder:notes" for p in answer.points for c in p.citations)
-    assert answer.coverage.not_accessible["Notes"] == 21
+    assert answer.coverage.not_accessible["Note files"] == 21
     session.broker.revoke_all()
     stopped = assistant.ask("What did I promise Sam?")
     assert stopped.kind is AnswerKind.NO_SOURCES and stopped.coverage.accessible == 0

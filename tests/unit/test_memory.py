@@ -58,7 +58,7 @@ def client(runtime: Runtime, demo_laptop: Path) -> TestClient:
 
 def test_the_panel_shows_what_is_held_right_now(client: TestClient) -> None:
     before = client.get("/api/memory").json()
-    assert before["items_by_source"] == {"Notes": 21, "Mail": 12, "Images and screenshots": 5}
+    assert before["items_by_source"] == {"Note files": 21, "Mail files": 12, "Pictures": 5}
     assert before["items_held"] == 38 and before["image_readings_held"] == 0
     assert before["model_loaded"] is True
     client.post("/api/ask", json={"question": "What did I promise Sam?"})
@@ -81,7 +81,7 @@ def test_forget_now_clears_memory_unloads_the_model_and_the_app_stays_open(
 
 def test_revoking_a_source_shows_in_the_panel_at_once(client: TestClient) -> None:
     client.post("/api/sources/folder:notes/revoke")
-    assert "Notes" not in client.get("/api/memory").json()["items_by_source"]
+    assert "Note files" not in client.get("/api/memory").json()["items_by_source"]
 
 
 def test_the_process_list_names_this_backend_with_its_real_memory() -> None:

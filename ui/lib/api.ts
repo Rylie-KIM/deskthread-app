@@ -55,6 +55,7 @@ export interface Answer {
   given_item_ids: string[];
   seconds: number;
 }
+export interface Progress { step: string; number: number; of: number }
 export interface ItemView {
   item_id: string;
   source_label: string;
@@ -167,6 +168,7 @@ export const api = {
   meetings: () => call<Meeting[]>("GET", "/api/meetings"),
   prepare: (meetingId: string) => call<Answer>("POST", "/api/prepare", { meeting_id: meetingId }),
   ask: (question: string) => call<Answer>("POST", "/api/ask", { question }),
+  progress: () => call<Progress>("GET", "/api/progress"),
   item: (itemId: string) => call<ItemView>("GET", `/api/items/${id(itemId)}`),
   imageUrl: (itemId: string) => `/api/items/${id(itemId)}/image?t=${id(readToken())}`,
   models: () => call<ModelInfo[]>("GET", "/api/models"),
@@ -177,6 +179,26 @@ export const api = {
   proof: () => call<Proof>("GET", "/api/proof"),
   endSession: () => call<Receipt>("POST", "/api/end-session"),
 };
+
+// What to tell a person when something did not work: plain words, never a code.
+export function plain(err: unknown): string {
+  if (!(err instanceof ApiError)) return "That did not work. Please try again.";
+  const byCode: Record<string, string> = {
+    "E-107": "macOS has not allowed DeskThread to read this app yet. Open System Settings, Privacy & Security, Automation, and switch DeskThread on.",
+    "E-202": "That app did not answer. Open it once, then try again.",
+    "E-301": "The AI on this Mac is not ready. Wait a moment, or choose another AI model.",
+    "E-302": "This AI model is not on this Mac yet. Download it first.",
+  };
+  return byCode[err.code] ?? (err.message ? err.message.charAt(0).toUpperCase() + err.message.slice(1) + "." : "That did not work. Please try again.");
+}
+
+// In the Mac window, a small bridge lets the page ask the window for a few things.
+type Bridge = { postMessage: (message: string) => void };
+export function macWindow(): Bridge | null {
+  if (typeof window === "undefined") return null;
+  const w = window as unknown as { webkit?: { messageHandlers?: { deskthread?: Bridge } } };
+  return w.webkit?.messageHandlers?.deskthread ?? null;
+}
 
 export function day(iso: string | null): string {
   if (!iso) return "undated";

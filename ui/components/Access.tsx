@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { api, ApiError, type PermissionRequest, type SourceState } from "../lib/api";
+import { api, ApiError, macWindow, plain, type PermissionRequest, type SourceState } from "../lib/api";
 
 // Anything personal stays Off when "all work sources" is used. It can still be switched on by hand.
 const NOT_WORK = /personal|whatsapp|kakaotalk|line|discord|imessage|messages|telegram|signal/i;
@@ -32,14 +32,23 @@ export default function Access({ sources, folder, demoFolder, onSources, onError
     try {
       await work();
     } catch (err) {
-      onError(err instanceof ApiError ? err.message : "Something went wrong.");
+      if (!(err instanceof ApiError && err.message === "no folder was chosen")) onError(plain(err));
     } finally {
       setBusy("");
     }
   }
 
-  const choose = (chosen: string) =>
-    run("folder", async () => onSources(await api.chooseFolder(chosen), chosen || "the folder you picked"));
+  const use = (chosen: string) =>
+    run("folder", async () => onSources(await api.chooseFolder(chosen), chosen ? chosen.split("/").filter(Boolean).pop() ?? chosen : "your folder"));
+
+  // In the Mac window the window itself shows the folder panel and hands back the path.
+  const choose = (chosen: string) => {
+    const app = macWindow();
+    if (chosen || !app) return use(chosen);
+    (window as unknown as { deskthreadFolder?: (path: string) => void }).deskthreadFolder = (picked) => { if (picked) void use(picked); };
+    app.postMessage("choose-folder");
+    return Promise.resolve();
+  };
 
   // A switch: Off -> ask first (read permission only); On -> stop at once.
   const flip = (source: SourceState) =>
@@ -95,7 +104,7 @@ export default function Access({ sources, folder, demoFolder, onSources, onError
       <span className="tile" aria-hidden="true">{source.label.slice(0, 1)}</span>
       <span className="who">
         <b>{source.label}</b>
-        <small>{source.status === "on" ? `Reading · ${source.items_in_memory} items` : "Off"}</small>
+        <small>{busy === source.source_id ? "Working…" : source.status === "on" ? `Reading · ${source.items_in_memory} items` : "Off"}</small>
       </span>
       <button
         role="switch"
@@ -160,7 +169,6 @@ export default function Access({ sources, folder, demoFolder, onSources, onError
           <div className="dialog">
             <h2 id="ask-title">Allow DeskThread to read {request.label}?</h2>
             <p className="readonly"><b>Read only.</b> DeskThread cannot change, send or delete anything.</p>
-            <p>{request.what_will_be_read}</p>
             <fieldset>
               <legend>Read from</legend>
               {request.scopes.map((scope) => (
@@ -178,7 +186,7 @@ export default function Access({ sources, folder, demoFolder, onSources, onError
             {OS_NOTE[request.os_permission] && <p className="fine">{OS_NOTE[request.os_permission]}</p>}
             <div className="row end">
               <button className="ghost" onClick={() => setRequest(null)}>Not now</button>
-              <button className="primary" disabled={ticked.length === 0 || busy !== ""} onClick={allow}>Allow reading</button>
+              <button className="primary" disabled={ticked.length === 0 || busy !== ""} onClick={allow}>{busy === "allow" ? "Reading…" : "Allow reading"}</button>
             </div>
           </div>
         </div>

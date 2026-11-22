@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, ApiError, clock, day, type Answer, type Citation, type Meeting } from "../lib/api";
+import { api, clock, day, plain, type Answer, type Citation, type Meeting, type Progress } from "../lib/api";
 import Models from "./Models";
 
 const STEP: Record<string, string> = { G1: "Access rules", G2: "Reading", G3: "AI on this Mac", G4: "Answer check", G6: "Record" };
@@ -27,6 +27,14 @@ export default function Ask({ now, anyOn, answer, onAnswer, onCite, onError }: P
   const [question, setQuestion] = useState("");
   const [busy, setBusy] = useState("");
   const [details, setDetails] = useState(false);
+  const [progress, setProgress] = useState<Progress | null>(null);
+
+  // While a question runs, ask the backend which step it is on.
+  useEffect(() => {
+    if (busy === "") return setProgress(null);
+    const timer = setInterval(() => api.progress().then(setProgress).catch(() => undefined), 500);
+    return () => clearInterval(timer);
+  }, [busy]);
 
   useEffect(() => {
     api.meetings().then(setMeetings).catch(() => setMeetings([]));
@@ -37,7 +45,7 @@ export default function Ask({ now, anyOn, answer, onAnswer, onCite, onError }: P
     try {
       onAnswer(await work());
     } catch (err) {
-      onError(err instanceof ApiError ? err.message : "Something went wrong.");
+      onError(plain(err));
     } finally {
       setBusy("");
     }
@@ -66,10 +74,15 @@ export default function Ask({ now, anyOn, answer, onAnswer, onCite, onError }: P
       <h2 className="asktitle">Ask about your notes.</h2>
 
       <form className="card row ask" onSubmit={(e) => { e.preventDefault(); if (question.trim()) void run("ask", () => api.ask(question.trim())); }}>
-        <input aria-label="Your question" placeholder="Ask about your own notes, e.g. What salary did I promise Sam?" value={question} maxLength={500} onChange={(e) => setQuestion(e.target.value)} />
+        <input aria-label="Your question" placeholder="Ask about your own notes, e.g. What salary did I promise Sam?" value={question} maxLength={500} disabled={busy !== ""} onChange={(e) => setQuestion(e.target.value)} />
         <button className="primary" disabled={busy !== "" || !question.trim() || !anyOn}>{busy === "ask" ? "Looking…" : "Ask"}</button>
       </form>
-      {busy !== "" && <p className="fine" role="status">Reading on this Mac… the first answer takes the longest.</p>}
+      {busy !== "" && (
+        <div className="progress" role="status">
+          <div className="track"><i style={{ width: `${progress && progress.of ? Math.round((100 * progress.number) / progress.of) : 6}%` }} /></div>
+          <p>{progress?.step || "Starting"}{progress && progress.of ? ` · step ${progress.number} of ${progress.of}` : ""}</p>
+        </div>
+      )}
 
       {answer && (
         <div className="answer" aria-live="polite">

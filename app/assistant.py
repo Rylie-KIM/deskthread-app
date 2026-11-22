@@ -16,7 +16,15 @@ from app.model import Model, complete_json
 from app.policy import AccessPolicy
 from app.search import Candidate, add_expansion, build_query, find
 from app.store import SessionStore
-from contracts.api import Answer, AnswerKind, BriefPoint, Citation, Meeting, PointStatus
+from contracts.api import (
+    Answer,
+    AnswerKind,
+    BriefPoint,
+    Citation,
+    Meeting,
+    PointStatus,
+    Progress,
+)
 from contracts.broker import SourceStatus
 from contracts.errors import DeskThreadError
 from contracts.gates import Gate, GateResult, Outcome
@@ -34,6 +42,7 @@ class Assistant:
         self._images = ImageReader(policy, store, model)
         self.questions = 0
         self.items_given = 0
+        self.progress = Progress()  # which step a running question is on
 
     def forget(self) -> None:
         """Forget now: drop every item held in memory. The app stays open."""
@@ -56,7 +65,24 @@ class Assistant:
         return self.ask(f"What did I promise {meeting.person}?", person=meeting.person)
 
     # ------------------------------------------------------------------ one question
+    STEPS = (
+        "Reading what you switched on",
+        "Reading pictures",
+        "Finding the right items",
+        "Asking the AI on this Mac",
+        "Checking the answer",
+    )
+
+    def _step(self, number: int) -> None:
+        self.progress = Progress(step=self.STEPS[number - 1], number=number, of=len(self.STEPS))
+
     def ask(self, question: str, person: str | None = None) -> Answer:
+        try:
+            return self._ask(question, person)
+        finally:
+            self.progress = Progress()
+
+    def _ask(self, question: str, person: str | None = None) -> Answer:
         started = time.monotonic()
         self.questions += 1
         trace: list[GateResult] = []
@@ -65,7 +91,9 @@ class Assistant:
             trace.append(_gate(Gate.G1_POLICY, Outcome.PASS, "every source is Off: nothing read"))
             return self._answer(AnswerKind.NO_SOURCES, question, NO_SOURCES, [], [], trace, started)
 
+        self._step(1)
         self._store.refresh()  # read again each time: a deleted file is gone at once (U10)
+        self._step(2)
         unread = self._images.read_pending()  # the local model reads new images
         items = self._store.items()
         coverage_note = (
@@ -74,6 +102,7 @@ class Assistant:
         )
         trace.append(_gate(Gate.G1_POLICY, Outcome.PASS, coverage_note))
 
+        self._step(3)
         query = build_query(question, person)
         calls_before = getattr(self._model, "calls", 0)
         try:
@@ -100,12 +129,14 @@ class Assistant:
                 )
 
             given = self._give(candidates)
+            self._step(4)
             proposed = parse_points(
                 complete_json(
                     self._model,
                     prompts.ANSWER.format(question=question, notes=_render(given)),
                 )
             )
+            self._step(5)
             points, result = check(query, proposed, given, self._model)
         except DeskThreadError as err:
             trace.append(_gate(Gate.G3_MODEL, Outcome.FAIL, f"the local model failed ({err.code})"))

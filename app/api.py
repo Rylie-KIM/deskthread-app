@@ -33,6 +33,7 @@ from contracts.api import (
     ItemView,
     Meeting,
     PrepareBody,
+    Progress,
     SessionInfo,
     UnitView,
 )
@@ -170,6 +171,10 @@ def create_app(runtime: Runtime, ui_dir: Path | None = None) -> FastAPI:
     def prepare(body: PrepareBody) -> Answer:
         with runtime.ask_lock:
             return runtime.require().assistant.prepare(body.meeting_id)
+
+    @app.get("/api/progress")
+    def progress() -> Progress:
+        return runtime.session.assistant.progress  # never waits for the running question
 
     @app.post("/api/ask")
     def ask(body: AskBody) -> Answer:

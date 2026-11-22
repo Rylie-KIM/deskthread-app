@@ -143,7 +143,7 @@ def test_the_viewer_shows_a_cited_note_as_text_and_only_while_its_source_is_on(
     answer = client.post("/api/ask", json={"question": "What did I promise Sam?"}).json()
     cite = answer["points"][1]["citations"][0]
     view = client.get(f"/api/items/{cite['item_id']}").json()
-    assert view["title"] == "follow-ups" and view["source_label"] == "Notes"
+    assert view["title"] == "follow-ups" and view["source_label"] == "Note files"
     assert view["units"][cite["unit"] - 1]["text"] == cite["quote"]
     client.post("/api/sources/folder:notes/revoke")
     gone = client.get(f"/api/items/{cite['item_id']}")
@@ -237,3 +237,23 @@ def test_a_model_that_cannot_read_pictures_leaves_them_unread(demo_laptop: Path)
     client.post("/api/ask", json={"question": "What did I promise Sam?"})
     assert all("Transcribe" not in p for p in model.prompts)  # no picture was sent to the model
     assert runtime.session.assistant.readings_held == 0
+
+
+def test_progress_is_empty_when_nothing_runs_and_names_the_step_while_a_question_runs(
+    client: TestClient, runtime: Runtime, demo_laptop: Path
+) -> None:
+    _work_profile(client, demo_laptop)
+    assert client.get("/api/progress").json() == {"step": "", "number": 0, "of": 0}
+    seen: list[dict[str, object]] = []
+    model = runtime.session.assistant._model
+    original = model.complete
+
+    def watching(prompt: str, images: list[bytes] | None = None) -> str:
+        seen.append(client.get("/api/progress").json())  # asked while the question is running
+        return original(prompt, images)
+
+    model.complete = watching  # type: ignore[method-assign]
+    client.post("/api/ask", json={"question": "What did I promise Sam?"})
+    steps = {str(s["step"]) for s in seen}
+    assert "Asking the AI on this Mac" in steps and all(s["of"] == 5 for s in seen)
+    assert client.get("/api/progress").json()["step"] == ""  # cleared when the answer is back
