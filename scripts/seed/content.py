@@ -824,3 +824,64 @@ EVENTS_THIRD: list[tuple[str, Moment, int, str, str]] = [
         "Year-end review for managers.",
     ),
 ]
+
+
+# Seven more pictures (asked for by the user, so that reading them takes long enough to see):
+# five with text, two "photos" without any (kind "photo": the AI has to look at those).
+SCREENSHOTS_MORE: list[tuple[Moment, str, str, list[str]]] = [
+    (
+        (2026, 11, 11, 10, 14),
+        "chat",
+        "Team chat",
+        [
+            "Jo: QBR deck v1 is in the shared folder",
+            "Jo: slide six needs a second look",
+            "Jo: field training deck on Monday",
+        ],
+    ),
+    (
+        (2026, 11, 12, 9, 2),
+        "browser",
+        "Learning portal",
+        [
+            "Approved courses must be booked by 18 December",
+            "Otherwise the budget returns to the pool",
+            "Booking needs an HR reference",
+        ],
+    ),
+    ((2026, 11, 14, 12, 40), "photo", "Whiteboard photo", []),
+    (
+        (2026, 11, 16, 15, 21),
+        "board",
+        "OFFSITE PLAN",
+        [
+            "09:30  arrival and coffee",
+            "11:00  workshop: drop, keep",
+            "12:30  lunch",
+            "17:30  dinner",
+        ],
+    ),
+    (
+        (2026, 11, 18, 11, 8),
+        "sheet",
+        "Offsite budget",
+        [
+            "Venue            600",
+            "Catering         630",
+            "Materials         80",
+            "Total           1310",
+        ],
+    ),
+    ((2026, 11, 20, 18, 33), "photo", "Venue floor photo", []),
+    (
+        (2026, 11, 22, 15, 24),
+        "list",
+        "Things I owe people",
+        [
+            "Jo: QBR feedback by Tuesday",
+            "A: a deadline for the vendor evaluation",
+            "S: the intro date with Mark",
+            "Lee: a thank you",
+        ],
+    ),
+]

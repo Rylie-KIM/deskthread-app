@@ -1,6 +1,7 @@
 """Put the English demo story into the user's own apps, and take it out again.
 
     uv run python -B -m scripts.seed.seed_demo seed      # write
+    uv run python -B -m scripts.seed.seed_demo pictures-more  # seven more pictures
     uv run python -B -m scripts.seed.seed_demo more      # add the second list of events
     uv run python -B -m scripts.seed.seed_demo notes-more # add the second, more abstract notes
     uv run python -B -m scripts.seed.seed_demo more2     # the third layer: more notes and events
@@ -143,7 +144,21 @@ def font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
 
 
 def draw(kind: str, title: str, lines: list[str]) -> Image.Image:
-    """A screenshot-like picture: a window with a title bar and big, readable text."""
+    """A screenshot-like picture: a window with a title bar and big, readable text. The kind
+    "photo" is a picture without any text (shapes on a gradient), like a photo of a wall."""
+    if kind == "photo":
+        photo = Image.new("RGB", (1280, 760), "#C9D8F0")
+        pen = ImageDraw.Draw(photo)
+        for row in range(760):
+            shade = 200 - row // 8
+            pen.line((0, row, 1280, row), fill=(shade, shade + 14, min(255, shade + 40)))
+        pen.rounded_rectangle(
+            (180, 150, 1100, 560), radius=36, fill="#F3F6FB", outline="#9FB4D6", width=6
+        )
+        pen.ellipse((240, 220, 420, 400), fill="#7FA6E8")
+        pen.rectangle((520, 240, 1020, 270), fill="#B7C6E0")
+        pen.rectangle((520, 320, 900, 350), fill="#B7C6E0")
+        return photo
     paper = {"board": "#F4F6EF", "slide": "#1F2A44", "browser": "#FFFFFF"}.get(kind, "#F7F8FB")
     ink = "#F3F5FA" if kind == "slide" else "#1B1F2A"
     img = Image.new("RGB", (1280, 760), paper)
@@ -208,6 +223,25 @@ def seed() -> None:
         manifest["files"].append(name)
         save(manifest)
     print(f"  {len(manifest['files'])} pictures written")
+
+
+def pictures_more() -> None:
+    """Add the seven more pictures to the Snapshots folder (new files only)."""
+    manifest = load()
+    if not SNAPSHOTS.is_dir():
+        sys.exit("The Snapshots folder does not exist.")
+    for when, kind, title, lines in content.SCREENSHOTS_MORE:
+        stamp = datetime(*when, 11)
+        name = f"Demo Screenshot {stamp:%Y-%m-%d} at {stamp:%H.%M.%S}.png"
+        path = SNAPSHOTS / name
+        with path.open("xb") as handle:  # never replaces a file that is already there
+            draw(kind, title, lines).save(handle, format="PNG")
+        os.utime(path, (stamp.timestamp(), stamp.timestamp()))
+        manifest["files"].append(name)
+        save(manifest)
+    print(
+        f"  {len(content.SCREENSHOTS_MORE)} more pictures written; {len(manifest['files'])} in all"
+    )
 
 
 def more() -> None:
@@ -295,6 +329,7 @@ if __name__ == "__main__":
     {
         "seed": seed,
         "more": more,
+        "pictures-more": pictures_more,
         "notes-more": more_notes,
         "more2": more2,
         "renumber": renumber,
