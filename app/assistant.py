@@ -17,6 +17,7 @@ from app.gate import (
     Given,
     check,
     instruction_units,
+    left_out,
     matched_words,
     parse_points,
     summarise,
@@ -110,9 +111,14 @@ class Assistant:
 
     def ask(self, question: str, person: str | None = None) -> Answer:
         self._stop.clear()
+        self._left: dict[str, int] = {}
         started = time.monotonic()
         try:
-            return self._ask(question, person)
+            answer = self._ask(question, person)
+            choice = config.model_choice(getattr(self._model, "tag", config.MODEL_TAG))
+            named = choice.name if choice else getattr(self._model, "tag", "")
+            kept = {k: v for k, v in self._left.items() if v > 0}
+            return answer.model_copy(update={"model_name": named, "left_out": kept})
         except _StoppedError:
             return self._answer(AnswerKind.STOPPED, question, "Stopped.", [], [], [], started)
         finally:
@@ -139,6 +145,8 @@ class Assistant:
             f"{coverage.off_limits(self._broker)} off-limits files not opened"
         )
         trace.append(_gate(Gate.G1_POLICY, Outcome.PASS, coverage_note))
+        self._left["off_limits"] = coverage.off_limits(self._broker)
+        self._left["unreadable"] = len(self._store.uncounted()) + unread
 
         self._step(3)
         query = build_query(question, person)
@@ -194,6 +202,7 @@ class Assistant:
         )
         trace.append(_gate(Gate.G3_MODEL, Outcome.PASS, model_note))
         trace.append(result)
+        self._left.update(left_out(result))
         self.items_given += len(given)
         for g in given:
             self.given_by[g.item.source_id] = self.given_by.get(g.item.source_id, 0) + 1

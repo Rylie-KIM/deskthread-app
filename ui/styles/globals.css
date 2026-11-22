@@ -660,3 +660,22 @@ fieldset.period { display: grid; gap: 14px; padding: 14px 16px 16px; }
 .origin-bar.still { cursor: default; grid-template-columns: 120px 120px minmax(0, 1fr); }
 .origin-bar.still:hover { background: linear-gradient(180deg, rgba(255, 255, 255, .9), rgba(226, 236, 255, .55)); box-shadow: inset 0 1px 0 #fff, 0 0 0 1px rgba(10, 23, 196, .18); }
 @media (max-width: 620px) { .origin-bar, .origin-bar.still { grid-template-columns: 1fr auto; } .origin-bar .where { grid-column: 1 / -1; } }
+
+/* "How this was checked": a funnel of four numbers, the model, and what was left out */
+.checked { margin-top: 14px; padding: 18px; border-radius: 22px; background: rgba(255, 255, 255, .5); box-shadow: inset 0 1px 0 #fff, inset 0 0 0 1px rgba(255, 255, 255, .9); }
+.funnel { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 26px; }
+.funnel li { position: relative; display: grid; gap: 2px; justify-items: center; text-align: center; padding: 14px 8px; border-radius: 18px; background: rgba(255, 255, 255, .7); box-shadow: inset 0 1px 0 #fff, 0 0 0 1px rgba(255, 255, 255, .9); }
+.funnel li b { font-size: 1.5rem; font-weight: 650; color: var(--royal); font-variant-numeric: tabular-nums; line-height: 1.1; }
+.funnel li span { font-size: .78rem; color: var(--muted); }
+.funnel li:not(.last)::after { content: ""; position: absolute; right: -18px; top: 50%; width: 8px; height: 8px; border-right: 2px solid var(--royal); border-bottom: 2px solid var(--royal); transform: translateY(-50%) rotate(-45deg); opacity: .6; }
+.funnel li.last { color: #fff; background: linear-gradient(180deg, rgba(70, 92, 255, .95), rgba(8, 20, 180, .95)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .6), 0 12px 20px -14px rgba(10, 23, 196, .9); }
+.funnel li.last b, .funnel li.last span { color: #fff; }
+.by { margin: 16px 0 0; font-size: .9rem; color: var(--muted); }
+.by b { color: var(--ink); font-weight: 650; }
+.orb.small { display: inline-block; width: 18px; height: 18px; vertical-align: -4px; margin-right: 8px; }
+.checked h4 { margin: 18px 0 8px; font-size: .78rem; font-weight: 650; color: var(--royal); }
+.leftout { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.leftout li { display: grid; grid-template-columns: 44px 1fr; align-items: baseline; gap: 10px; font-size: .9rem; color: var(--muted); }
+.leftout li b { text-align: right; font-weight: 650; color: var(--ink); font-variant-numeric: tabular-nums; }
+.checked .tech { display: inline-block; margin-top: 16px; font-size: .82rem; }
+@media (max-width: 640px) { .funnel { grid-template-columns: repeat(2, minmax(0, 1fr)); } .funnel li::after { display: none; } }

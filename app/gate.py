@@ -79,6 +79,17 @@ def parse_points(data: dict[str, object]) -> list[ProposedPoint]:
     return points
 
 
+def left_out(result: GateResult) -> dict[str, int]:
+    """The counts written into the answer check's line, read back as numbers. This sits
+    next to `check`, which writes that line, so the two cannot drift apart unnoticed."""
+    found = {
+        "nowhere": re.search(r"(\d+) citations pointed at nothing", result.detail),
+        "dropped": re.search(r"(\d+) quotes were real but not about", result.detail),
+        "instructions": re.search(r"(\d+) note contained instructions", result.detail),
+    }
+    return {name: int(match[1]) for name, match in found.items() if match}
+
+
 def summarise(question: str, points: list["Checked"], model: Model) -> tuple[str, ...]:
     """Up to two sentences by the model over the checked quotes. A sentence is kept only if
     it names lines that exist, every number in it occurs in those lines, and (for notes in

@@ -201,3 +201,14 @@ def test_a_summary_sentence_is_kept_only_when_the_quoted_lines_carry_it() -> Non
         "You promised Sam a data storytelling course with a budget of 800.",
     )
     assert matched_words(build_query(question), points[0].cites) == ("Sam", "course")
+
+
+def test_an_answer_names_its_model_and_counts_what_was_left_out(demo_laptop: Path) -> None:
+    model = FakeModel(lambda _question: SAM_BRIEF)
+    model.raw_cites = [{"id": "A99", "line": 1}]  # a citation of a note that was never given
+    _session, assistant = open_work(demo_laptop, model)
+    answer = assistant.ask("What did I promise Sam?")
+    assert answer.model_name == "Gemma 4"
+    assert answer.left_out["nowhere"] >= 1 and answer.left_out["instructions"] >= 1
+    assert all(count > 0 for count in answer.left_out.values())
+    assert gate(answer, Gate.G4_ANSWER)[1].count("citations pointed at nothing") == 1

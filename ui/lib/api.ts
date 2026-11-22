@@ -57,6 +57,8 @@ export interface Answer {
   seconds: number;
   show_status: boolean;
   summary: string[];
+  model_name: string;
+  left_out: Record<string, number>;
 }
 export interface Progress { step: string; number: number; of: number; detail: string }
 export interface ItemView {

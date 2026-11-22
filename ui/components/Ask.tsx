@@ -7,6 +7,15 @@ const STATUS_TEXT = { done: "Done", open: "Still to do", changed: "Changed", sup
 const STEPS = ["Reading your folders", "Reading pictures", "Finding the right items", "Asking the AI on this Mac", "Checking the answer"];
 const STEP: Record<string, string> = { G1: "Allowed to read", G2: "Searched", G3: "AI used", G4: "Answer check", G6: "Record kept" };
 
+// What was left out on the way to an answer, in plain words (one, many).
+const LEFT: [string, string, string][] = [
+  ["off_limits", "file was skipped because you marked it off-limits", "files were skipped because you marked them off-limits"],
+  ["unreadable", "item could not be read", "items could not be read"],
+  ["dropped", "quote was dropped because it was about something else", "quotes were dropped because they were about something else"],
+  ["nowhere", "reference by the AI pointed at a line that does not exist and was dropped", "references by the AI pointed at lines that do not exist and were dropped"],
+  ["instructions", "note contained instructions to an assistant; they were ignored", "notes contained instructions to an assistant; they were ignored"],
+];
+
 // How long an answer took, in plain words.
 const took = (seconds: number) => (seconds < 60 ? `${Math.max(1, Math.round(seconds))} s` : `${Math.floor(seconds / 60)} min ${Math.round(seconds % 60)} s`);
 
@@ -80,6 +89,7 @@ function Finding({ point, showStatus, first, onCite }: { point: BriefPoint; show
 
 function Found({ answer, onCite }: { answer: Answer; onCite: (cite: Citation) => void }) {
   const [details, setDetails] = useState(false);
+  const [tech, setTech] = useState(false);
   return (
     <div className="reply">
       {answer.kind !== "brief" ? (
@@ -103,19 +113,43 @@ function Found({ answer, onCite }: { answer: Answer; onCite: (cite: Citation) =>
       <p className="looked bits">
         <span>Looked through <b>{answer.coverage.searched}</b> items</span>
         <span className="took">Answered in {took(answer.seconds)}</span>
-        <button className="link" onClick={() => setDetails(!details)}>{details ? "Hide the checks" : "How this was checked"}</button>
+        <button className="link" onClick={() => setDetails(!details)}>{details ? "Hide" : "How this was checked"}</button>
       </p>
       {details && (
-        <table className="checks">
-          <tbody>
-            {answer.gate_trace.map((gate) => (
-              <tr key={gate.gate}>
-                <th scope="row">{STEP[gate.gate] ?? gate.gate}</th>
-                <td>{gate.detail.split(/;\s*/).map((part) => <span key={part}>{part}</span>)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <div className="checked">
+          {/* From everything read down to what is shown: each step keeps fewer items. */}
+          <ol className="funnel">
+            <li><b>{answer.coverage.searched}</b><span>items read</span></li>
+            <li><b>{answer.coverage.given_to_model}</b><span>looked related</span></li>
+            <li><b>{answer.coverage.cited}</b><span>quoted word for word</span></li>
+            <li className="last"><b>{answer.points.length}</b><span>{answer.points.length === 1 ? "thing found" : "things found"}</span></li>
+          </ol>
+          {answer.model_name && <p className="by"><i className="orb small" aria-hidden="true" />Answered by <b>{answer.model_name}</b>, the AI on this Mac</p>}
+          <h4>Left out</h4>
+          {LEFT.filter(([key]) => (answer.left_out[key] ?? 0) > 0).length === 0 ? (
+            <p className="fine">Nothing was left out.</p>
+          ) : (
+            <ul className="leftout">
+              {LEFT.filter(([key]) => (answer.left_out[key] ?? 0) > 0).map(([key, one, many]) => {
+                const count = answer.left_out[key] ?? 0;
+                return <li key={key}><b>{count}</b><span>{count === 1 ? one : many}</span></li>;
+              })}
+            </ul>
+          )}
+          <button className="link tech" onClick={() => setTech(!tech)}>{tech ? "Hide technical details" : "Technical details"}</button>
+          {tech && (
+            <table className="checks">
+              <tbody>
+                {answer.gate_trace.map((gate) => (
+                  <tr key={gate.gate}>
+                    <th scope="row">{STEP[gate.gate] ?? gate.gate}</th>
+                    <td>{gate.detail.split(/;\s*/).map((part) => <span key={part}>{part}</span>)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
       )}
     </div>
   );

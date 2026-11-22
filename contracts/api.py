@@ -192,6 +192,12 @@ class Answer(_Frozen):
     # Up to two sentences by the AI, each resting on quoted lines; a sentence that does not
     # is dropped by code. The quotes stay the proof. (contract 1.9)
     summary: tuple[str, ...] = ()
+    # The AI model that answered, by its plain name, and what was left out on the way, as
+    # counts: "off_limits", "unreadable", "dropped" (real quotes on another subject),
+    # "nowhere" (citations of lines that do not exist), "instructions" (notes holding
+    # orders to an assistant). Only what is above zero is listed. (contract 1.13)
+    model_name: str = ""
+    left_out: dict[str, int] = Field(default_factory=dict)
 
 
 class UnitView(_Frozen):

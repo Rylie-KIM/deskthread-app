@@ -10,4 +10,5 @@ package; a change bumps CONTRACT_VERSION (dev rule R14).
 # 1.10 the connection check, run for the user and shown as macOS printed it
 # 1.11 show the original of an item (in Finder, or its app)
 # 1.12 the Mac's free memory, measured
-CONTRACT_VERSION = "1.12"
+# 1.13 an answer names its AI model and counts what was left out
+CONTRACT_VERSION = "1.13"
