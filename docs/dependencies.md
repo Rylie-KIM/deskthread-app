@@ -24,6 +24,7 @@ package runs a build or install script on the machine.
 | uv | 0.13.5 | MIT or Apache-2.0 | Astral (US) | Installs the locked dependencies with hashes |
 | pytest | 9.2.0 | MIT | pytest-dev (open source) | Test runner |
 | Ruff | 0.17.6 | MIT | Astral (US) | Lint and format |
+| Pillow | 13.0.0 | MIT-CMU (HPND) | Jeffrey A. Clark and contributors (open source) | Draws the invented demo screenshots and test images from typed text. Not used by the app at run time |
 | mypy | 2.4.1 | MIT | mypy contributors / Python community | Static type check |
 
 Transitive packages (for example `anyio`, `h11`, `click`, `typing-extensions`) are pinned in
