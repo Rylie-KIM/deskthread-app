@@ -33,6 +33,7 @@ from AppKit import (  # noqa: E402
     NSWindowStyleMaskMiniaturizable,
     NSWindowStyleMaskResizable,
     NSWindowStyleMaskTitled,
+    NSWorkspace,
 )
 from Foundation import NSURL, NSBundle, NSURLRequest  # noqa: E402
 from PyObjCTools import MachSignals  # noqa: E402
@@ -101,12 +102,14 @@ def _menu() -> Any:
 
 
 class Bridge(NSObject):
-    """Receives the three requests the page can make of the window: "choose-folder" (show the
-    Mac's own folder panel), and after a session has ended "restart" (a new session in this
-    window) and "quit". Nothing else is accepted."""
+    """Receives the four requests the page can make of the window: "choose-folder" (show the
+    Mac's own folder panel), "open-terminal" (bring up the Mac's Terminal app, empty: nothing
+    is typed into it or run in it), and after a session has ended "restart" (a new session
+    in this window) and "quit". Nothing else is accepted."""
 
     on_restart: Any = None
     on_choose: Any = None
+    on_terminal: Any = None
 
     def userContentController_didReceiveScriptMessage_(
         self, _controller: Any, message: Any
@@ -118,6 +121,16 @@ class Bridge(NSObject):
             self.on_restart()
         elif request == "choose-folder" and self.on_choose is not None:
             self.on_choose()
+        elif request == "open-terminal":
+            (self.on_terminal or open_terminal)()
+
+
+def open_terminal() -> None:
+    """Start the Mac's Terminal app, as a double-click in Finder would. DeskThread sends it
+    no command: the user pastes and runs the check themselves."""
+    NSWorkspace.sharedWorkspace().openURL_(
+        NSURL.fileURLWithPath_("/System/Applications/Utilities/Terminal.app")
+    )
 
 
 class Window:

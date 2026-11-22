@@ -232,12 +232,16 @@ export function MyData({ onError, onClear, onEnd }: { onError: (message: string)
             <pre className="printout">{check.output || "(nothing)"}</pre>
             <h3>Check it without DeskThread</h3>
             <ol className="read">
-              <li>Open the Terminal app (press Command and Space, type Terminal, press Return).</li>
-              <li>Copy the line below, paste it into Terminal and press Return.</li>
+              <li>Press Copy, then Open Terminal (or press Command and Space, type Terminal, press Return).</li>
+              <li>Paste the line into Terminal with Command and V, and press Return. DeskThread types nothing there.</li>
               <li>Look at the last word of each line: it must contain 127.0.0.1.</li>
             </ol>
-            <div className="copyline"><code className="cmd">{check.command}</code><button className="ghost small" onClick={() => copy(check.command)}>{copied ? "Copied" : "Copy"}</button></div>
-            <div className="row end">
+            <div className="copyline">
+              <code className="cmd">{check.command}</code>
+              <button className="ghost small" onClick={() => copy(check.command)}>{copied ? "Copied" : "Copy"}</button>
+              {macWindow() && <button className="ghost small" onClick={() => macWindow()?.postMessage("open-terminal")}>Open Terminal</button>}
+            </div>
+            <div className="row end closing">
               <button className="ghost" disabled={checking} onClick={runCheck}>{checking ? "Checking…" : "Run again"}</button>
               <button className="primary" onClick={() => setCheck(null)}>Close</button>
             </div>

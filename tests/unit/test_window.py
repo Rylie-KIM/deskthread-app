@@ -47,10 +47,12 @@ def test_the_web_view_keeps_nothing_on_disk_and_no_browser_is_started() -> None:
     )
 
 
-def test_the_page_can_ask_the_window_for_three_things_only() -> None:
+def test_the_page_can_ask_the_window_for_four_things_only() -> None:
     restarted: list[bool] = []
     chosen: list[bool] = []
+    terminal: list[bool] = []
     bridge = window.Bridge.alloc().init()
+    bridge.on_terminal = lambda: terminal.append(True)
     bridge.on_restart = lambda: restarted.append(True)
     bridge.on_choose = lambda: chosen.append(True)
 
@@ -61,6 +63,14 @@ def test_the_page_can_ask_the_window_for_three_things_only() -> None:
         def body(self) -> str:
             return self.text
 
-    for text in ("restart", "choose-folder", "delete everything", "open https://example.com", ""):
+    texts = (
+        "restart",
+        "choose-folder",
+        "open-terminal",
+        "delete everything",
+        "open https://x.org",
+        "",
+    )
+    for text in texts:
         bridge.userContentController_didReceiveScriptMessage_(None, Message(text))
-    assert restarted == [True] and chosen == [True]  # unknown requests are ignored
+    assert restarted == [True] and chosen == [True] and terminal == [True]  # others are ignored
