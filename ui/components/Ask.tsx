@@ -201,7 +201,7 @@ export default function Ask({ now, anyOn, visible, thread, onAnswer, onCite, onE
     try {
       const answer = await work();
       if (answer.kind === "stopped") return;  // stopped by the user: the question stays in the box
-      onAnswer(answer);
+      onAnswer(shown !== answer.question && !answer.question.startsWith(shown) ? { ...answer, label: shown } : answer);
       setQuestion("");
     } catch (err) {
       onError(plain(err));
@@ -278,7 +278,8 @@ export default function Ask({ now, anyOn, visible, thread, onAnswer, onCite, onE
         )}
         {[...thread].reverse().map((answer, index) => (
           <div className="turn" key={thread.length - index}>
-            <p className="mine">{answer.question}</p>
+            <p className="mine">{answer.label ?? answer.question}</p>
+            {answer.label && <p className="searched">Searched as: “{answer.question}”</p>}
             <Found answer={answer} onCite={onCite} />
           </div>
         ))}

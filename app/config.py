@@ -88,7 +88,7 @@ def model_choice(tag: str) -> ModelChoice | None:
 
 
 # Bump on any change to a prompt in app/prompts.py (R5).
-PROMPT_VERSION = "p6"  # p6: one paragraph per kind of question; read every note
+PROMPT_VERSION = "p7"  # p7: a question may be about several people (a team meeting)
 
 LOOPBACK = "127.0.0.1"
 # Our own model server port, so it is never confused with an Ollama the user runs themselves.

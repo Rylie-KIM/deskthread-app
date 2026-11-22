@@ -58,6 +58,7 @@ export interface Answer {
   seconds: number;
   show_status: boolean;
   summary: string[];
+  label?: string;  // what the user pressed, when the question asked was another (Prepare)
   model_name: string;
   left_out: Record<string, number>;
 }

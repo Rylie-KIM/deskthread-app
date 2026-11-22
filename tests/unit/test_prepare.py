@@ -32,9 +32,9 @@ def test_prepare_builds_the_brief_about_the_person_in_the_meeting(demo_laptop: P
     assert answer.kind is AnswerKind.BRIEF and answer.question == "What did I promise Sam?"
     assert answer.show_status is True  # a question about promises: statuses mean something
     assert all("other single words" not in p for p in model.prompts)  # no topic: no expansion
-    other = assistant.prepare(assistant.meetings()[0].meeting_id)
-    assert other.question == "What do I need to know for Team stand-up?"
-    assert other.show_status is False  # not about promises: no status is shown
+    team = assistant.prepare(assistant.meetings()[0].meeting_id)  # the stand-up has four people
+    assert team.question == "What did I promise Sam, Alex, Jo and Lee?"
+    assert team.show_status is True
     assert len(answer.points) == 4
 
 
@@ -42,3 +42,18 @@ def test_no_meeting_is_shown_when_the_calendar_is_off(demo_laptop: Path) -> None
     session, assistant = open_work(demo_laptop, FakeModel(lambda q: SAM_BRIEF))
     session.broker.revoke("folder:calendar")
     assert assistant.meetings() == []
+
+
+def test_an_entry_without_attendees_whose_notes_list_names_is_prepared_for_those_people() -> None:
+    from app.assistant import _attendees
+    from contracts.items import Item, ItemKind, Unit
+
+    def entry(note: str, **meta: str) -> Item:
+        lines = ["Weekly team meeting - Mon 23 Nov 2026 11:30", f"Notes: {note}"]
+        return Item(source_id="x", item_id="e", kind=ItemKind.EVENT, title="Weekly team meeting",
+                    units=tuple(Unit(number=i, text=t) for i, t in enumerate(lines, 1)),
+                    meta=meta)  # fmt: skip
+
+    assert _attendees(entry("Sam, Alex, Jo and Lee.")) == ["Sam", "Alex", "Jo", "Lee"]
+    assert _attendees(entry("Monthly one-to-one with Sam.")) == []  # a sentence is not a list
+    assert _attendees(entry("Daily standup.", attendees="Sam, Alex")) == ["Sam", "Alex"]

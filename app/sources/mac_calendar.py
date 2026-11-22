@@ -122,7 +122,14 @@ def _item(source_id: str, event: Any) -> Item:
         str(p.name()) for p in (event.attendees() or []) if p.name() and not p.isCurrentUser()
     )
     when = start.astimezone().strftime("%a %d %b %Y %H:%M") if start else "no date"
-    lines = [f"{title} - {when}", *([f"With: {people}"] if people else [])]
+    place = " ".join(str(event.location() or "").split())[:120]
+    about = " ".join(str(event.notes() or "").split())[:300]
+    lines = [
+        f"{title} - {when}",
+        *([f"With: {people}"] if people else []),
+        *([f"Location: {place}"] if place else []),
+        *([f"Notes: {about}"] if about else []),
+    ]
     return Item(
         source_id=source_id,
         item_id=item_id("e", source_id, f"{event.eventIdentifier()}{start}"),

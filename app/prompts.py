@@ -84,12 +84,12 @@ Reply with JSON only: {{"sentences": [{{"text": "...", "lines": [1, 3]}}]}}"""
 
 # One of these goes into ANSWER, chosen by code from the shape of the question.
 KIND_PERSON = """\
-This question is about one person: {name}. Make one point for each separate thing that was
-said to, promised to, agreed with or planned for {name}. Regular agreements count too
-(for example a monthly talk).
-A note marked "related" does not name {name}. Use it only if it clearly continues one of
-the things above, and then make it a point of its own; never mix its lines with lines from
-notes that do name {name}."""
+This question is about {name} (one person, or several). Make one point for each separate
+thing that was said to, promised to, agreed with or planned for any of them, and put whose
+it is in the label. Regular agreements count too (for example a monthly talk).
+A note marked "related" does not name them. Use it only if it clearly continues one of the
+things above, and then make it a point of its own; never mix its lines with lines from
+notes that do name them."""
 
 KIND_PERIOD = """\
 This question is about a stretch of time: {period}. Every note dated in it answers the

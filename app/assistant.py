@@ -5,6 +5,7 @@ answer check (G4) -> brief with quotes, coverage and the gate trace. Nothing is 
 disk at any step.
 """
 
+import re
 import threading
 import time
 from datetime import datetime, timedelta
@@ -99,8 +100,13 @@ class Assistant:
         meeting = next((m for m in self.meetings(days=30) if m.meeting_id == meeting_id), None)
         if meeting is None:
             return self.ask("What is coming up?")
-        if meeting.person:
-            return self.ask(f"What did I promise {meeting.person}?", person=meeting.person)
+        item = self._store.get(meeting_id)
+        people = (_attendees(item) if item else []) or ([meeting.person] if meeting.person else [])
+        if len(people) == 1:
+            return self.ask(f"What did I promise {people[0]}?", person=people[0])
+        if people:  # a team meeting: what was promised to each of them
+            names = f"{', '.join(people[:-1])} and {people[-1]}"
+            return self.ask(f"What did I promise {names}?")
         return self.ask(f"What do I need to know for {meeting.title}?")
 
     # ------------------------------------------------------------------ one question
@@ -411,6 +417,20 @@ class Assistant:
             given_item_ids=tuple(g.item.item_id for g in given),
             seconds=round(time.monotonic() - started, 2),
         )
+
+
+_TEAM_LIST = re.compile(r"^[A-Z][a-z]+(?:(?:,\s*|\s+and\s+)[A-Z][a-z]+)+\.?$")
+
+
+def _attendees(item: Item) -> list[str]:
+    """The people of a calendar entry: its attendees, and the names of an entry whose own
+    notes are just a list of names ("Sam, Alex, Jo and Lee."). Nothing is guessed from text."""
+    people = [p.strip() for p in item.meta.get("attendees", "").split(",") if p.strip()]
+    for unit in item.units[1:]:
+        body = unit.text[6:].strip() if unit.text.startswith("Notes:") else ""
+        if _TEAM_LIST.match(body):
+            people += [n for n in re.split(r",\s*|\s+and\s+", body.rstrip(".")) if n]
+    return list(dict.fromkeys(people))
 
 
 def _aware(moment: datetime) -> datetime:

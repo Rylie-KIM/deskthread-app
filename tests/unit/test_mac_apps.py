@@ -233,6 +233,12 @@ class _Event:
     def attendees(self) -> list[object]:
         return []
 
+    def location(self) -> str:
+        return "Room 3"
+
+    def notes(self) -> str:
+        return "Monthly one-to-one."
+
     def eventIdentifier(self) -> str:  # noqa: N802
         return self._title
 
