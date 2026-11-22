@@ -39,6 +39,41 @@ MODELS: tuple[ModelChoice, ...] = (
         "Smallest and quickest. Does not read pictures.",
         "78fad5d182a7c33065e153a5f8ba210754207ba9d91973f57dffa7f487363753",
     ),
+    # The other families discussed in the plan (5k). Offered for download, NOT tested with
+    # DeskThread: no digest is pinned, and none of them reads pictures here. Names and sizes
+    # were read from the public model registry on 2026-11-22. No model from a Chinese lab.
+    ModelChoice(
+        "llama3.1:8b", "Llama 3.1 8B", "Meta", 4.9, False,
+        "The well-known reference family.",
+    ),
+    ModelChoice(
+        "llama3.2:3b", "Llama 3.2 3B", "Meta", 2.0, False,
+        "A small model of the reference family.",
+    ),
+    ModelChoice(
+        "ministral-3:8b", "Ministral 3 8B", "Mistral AI", 6.0, False,
+        "A European model of medium size.",
+    ),
+    ModelChoice(
+        "gpt-oss:20b", "gpt-oss 20B", "OpenAI", 13.8, False,
+        "The largest here. Slow on a laptop.",
+    ),
+    ModelChoice(
+        "granite4:tiny-h", "Granite 4 Tiny", "IBM", 4.2, False,
+        "Made for business documents.",
+    ),
+    ModelChoice(
+        "olmo-3:7b", "OLMo 3 7B", "Allen Institute for AI", 4.5, False,
+        "An open research model.",
+    ),
+    ModelChoice(
+        "nemotron-mini:4b", "Nemotron Mini", "NVIDIA", 2.7, False,
+        "A small, quick model.",
+    ),
+    ModelChoice(
+        "smollm2:1.7b", "SmolLM2", "Hugging Face", 1.8, False,
+        "The smallest. Answers may be weak.",
+    ),
 )  # fmt: skip
 
 

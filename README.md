@@ -153,7 +153,7 @@ Time per question: about 4 to 28 seconds; the first is slowest because the five 
 | Page | React 19 and Next.js 16, built once into static files | Meta and Vercel (US), MIT; served by the local backend, nothing loaded from outside |
 | Backend | Python 3.13, FastAPI, Pydantic | Open source; typed data shapes between every part; bound to `127.0.0.1` |
 | Model runtime | Ollama server 0.40.9 on `127.0.0.1:11435` | Ollama Inc. (US), MIT; runs the model on the laptop |
-| Model | `gemma4:e4b` by default, digest `eb2177adf7646d15faead94fdad6d3e170dc8015653418a3b7d5d52a6380be5b` | Google (US), Apache-2.0; answers and picture reading; a different digest is refused. Two more can be chosen in the app (Gemma 4 small, Google; Phi-4 mini, Microsoft): they are offered **untested**, see Limitations |
+| Model | `gemma4:e4b` by default, digest `eb2177adf7646d15faead94fdad6d3e170dc8015653418a3b7d5d52a6380be5b` | Google (US), Apache-2.0; answers and picture reading; a different digest is refused. Ten more can be downloaded in the app. Gemma 4 small (Google) and Phi-4 mini (Microsoft) passed a short smoke test and are pinned to a digest; Llama 3.1 8B and 3.2 3B (Meta), Ministral 3 8B (Mistral AI), gpt-oss 20B (OpenAI), Granite 4 Tiny (IBM), OLMo 3 (Allen Institute for AI), Nemotron Mini (NVIDIA) and SmolLM2 (Hugging Face) are marked "Not tested": never run with DeskThread and not pinned. No model from a Chinese lab is offered; a test enforces the list of makers |
 
 Every dependency, with its licence and the reason it is used, is in [docs/dependencies.md](docs/dependencies.md).
 

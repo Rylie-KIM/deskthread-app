@@ -191,7 +191,15 @@ def test_a_server_left_over_on_our_port_is_adopted_and_stopped_at_the_end(
 
 def test_only_approved_models_and_no_chinese_developed_one_is_offered() -> None:
     makers = {m.maker for m in config.MODELS}
-    assert makers <= {"Google", "Microsoft", "IBM", "Meta", "Mistral AI"}
+    # The families discussed in the plan (5k): labs in the US and Europe only.
+    assert makers <= {
+        "Google", "Microsoft", "IBM", "Meta", "Mistral AI", "OpenAI", "NVIDIA", "Hugging Face",
+        "Allen Institute for AI",
+    }  # fmt: skip
+    assert [m.tag for m in config.MODELS if m.digest] == [
+        "gemma4:e4b", "gemma4:e2b", "phi4-mini:latest"
+    ]  # fmt: skip  # only these were run; the others are offered untested and unpinned
+    assert all(not m.reads_pictures for m in config.MODELS if not m.digest)
     assert (
         config.MODELS[0].tag == config.MODEL_TAG and config.MODELS[0].digest == config.MODEL_DIGEST
     )

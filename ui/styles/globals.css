@@ -622,3 +622,10 @@ fieldset.period { display: grid; gap: 14px; padding: 14px 16px 16px; }
 
 .copyline .primary.small { padding: 9px 16px; white-space: nowrap; font-size: .9rem; min-width: 84px; }
 .copyline .ghost.small { min-width: 84px; }
+
+/* model rows: the maker first, then what it is for, with room between */
+.modeltable td .about { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 8px; }
+.modeltable td .about small { margin: 0; }
+.modeltable td .about .tag { margin: 0; }
+.tag.plain { color: var(--muted); box-shadow: inset 0 1px 0 #fff, 0 0 0 1px rgba(74, 86, 130, .2); }
+.modeltable tbody td { padding-top: 16px; padding-bottom: 16px; }
