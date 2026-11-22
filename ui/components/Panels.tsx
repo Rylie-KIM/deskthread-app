@@ -23,7 +23,6 @@ export function ProofPanel({ onError }: { onError: (message: string) => void }) 
               ))}
             </tbody>
           </table>
-          <p className="fine">Open connections of DeskThread's programs. 127.0.0.1 is this Mac talking to itself.</p>
         </div>
         <div className="card">
           <h3>Your files <span className={`chip ${proof.folders.every((f) => f.unchanged) ? "pass" : "warn"}`}>{proof.folders.every((f) => f.unchanged) ? "unchanged" : "changed since you chose it"}</span></h3>
@@ -36,19 +35,15 @@ export function ProofPanel({ onError }: { onError: (message: string) => void }) 
             </dl>
           ))}
           <h3>What DeskThread saved <span className={`chip ${proof.files_written_by_app === 0 ? "pass" : "fail"}`}>{proof.files_written_by_app} files</span></h3>
-          <p className="fine">Counted by the backend every time it opens a file for writing. There is no settings file, no database, no index and no log file.</p>
         </div>
       </div>
       <div className="card">
-        <h3>Switches</h3>
-        <p className="row wrap">{Object.entries(proof.telemetry_off).map(([name, off]) => <span key={name} className={`chip ${off ? "pass" : "warn"}`}>{name} {off ? "off" : "not set"}</span>)}</p>
         <h3>Access log (in memory only, counts and ids)</h3>
         <ul className="trace">
           {proof.audit.slice(-12).map((line, i) => <li key={i}><code>{clock(line.at)}</code> {line.action} · {line.source_id} · {line.count}</li>)}
           {proof.audit.length === 0 && <li>Nothing yet.</li>}
         </ul>
       </div>
-      <p className="limits"><b>What this cannot prove.</b> {proof.limits}</p>
     </section>
   );
 }
@@ -77,7 +72,6 @@ export function MemoryPanel({ onError, onForgot }: { onError: (message: string) 
           <button className="primary" disabled={busy} onClick={async () => { setBusy(true); try { setMemory(await api.forget()); onForgot(); } catch { onError("Forget now failed."); } finally { setBusy(false); } }}>
             {busy ? "Forgetting…" : "Forget now"}
           </button>
-          <p className="fine">Clears the items and unloads the model. DeskThread stays open and your access choices stay.</p>
         </div>
         <div className="card">
           <h3>Programs <span className="chip">{Math.round(total)} MB</span></h3>
@@ -85,7 +79,6 @@ export function MemoryPanel({ onError, onForgot }: { onError: (message: string) 
             <thead><tr><th>Program</th><th>Process id</th><th>Memory</th></tr></thead>
             <tbody>{memory.processes.map((p) => <tr key={p.pid}><td>{p.name}</td><td><code>{p.pid}</code></td><td>{Math.round(p.memory_mb)} MB</td></tr>)}</tbody>
           </table>
-          <p className="fine">The same numbers Activity Monitor shows for these process ids. Between questions the items stay in memory until you revoke a source, forget, or end the session.</p>
         </div>
       </div>
     </section>
@@ -113,7 +106,6 @@ export function ReceiptScreen({ receipt, stopped }: { receipt: Receipt; stopped:
         ))}
         <p><span className={`chip ${stopped ? "pass" : "warn"}`}>{stopped ? "The server has stopped: this address no longer answers" : "Stopping the programs…"}</span></p>
       </div>
-      <p className="limits"><b>Check it without us.</b> Open Activity Monitor: the DeskThread and model programs are gone. Reload this page: the browser cannot connect. {receipt.limits}</p>
     </section>
   );
 }

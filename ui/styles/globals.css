@@ -161,7 +161,7 @@ legend { font-size: .8rem; color: var(--muted); padding: 0 6px; }
 table { width: 100%; border-collapse: collapse; font-size: .92rem; margin: 6px 0 10px; }
 th { text-align: left; font-weight: 600; color: var(--faint); font-size: .74rem; text-transform: uppercase; letter-spacing: .08em; }
 td, th { padding: 8px 8px 8px 0; border-bottom: 1px solid var(--hair); }
-code { font: .86em ui-monospace, "SF Mono", Menlo, monospace; overflow-wrap: anywhere; }
+code { font: inherit; overflow-wrap: anywhere; }  /* one typeface everywhere */
 dl { margin: 0 0 16px; } dt { font-weight: 650; } dd { margin: 2px 0 0; color: var(--muted); font-size: .9rem; }
 .big { font-size: 5rem; font-weight: 700; line-height: 1; margin: 0 0 4px; letter-spacing: -.04em; font-variant-numeric: tabular-nums;
   background: linear-gradient(180deg, var(--royal), var(--azure)); -webkit-background-clip: text; background-clip: text; color: transparent; }

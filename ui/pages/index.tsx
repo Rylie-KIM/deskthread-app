@@ -117,11 +117,6 @@ export default function Home() {
         )}
       </main>
       {cite && <Viewer cite={cite} onClose={() => setCite(null)} />}
-      {info && !receipt && (
-        <footer className="wrap fine">
-          Model {info.model_tag} · {info.model_digest.slice(0, 12)} · prompt {info.prompt_version} · runs on this laptop · no account, no telemetry
-        </footer>
-      )}
     </>
   );
 }

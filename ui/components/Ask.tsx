@@ -72,7 +72,7 @@ export default function Ask({ now, anyOn, answer, onAnswer, onCite, onError }: P
       {answer && (
         <div className="answer" aria-live="polite">
           <p className="asked">{answer.question}</p>
-          {answer.kind !== "brief" && <div className="notfound"><b>{answer.message}</b><p>Nothing was invented, and no near-miss is offered as an answer.</p></div>}
+          {answer.kind !== "brief" && <div className="notfound"><b>{answer.message}</b></div>}
           {answer.points.map((point, index) => (
             <article key={index} className="point">
               <header className="row wrap">
