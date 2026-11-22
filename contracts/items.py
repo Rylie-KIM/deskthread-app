@@ -19,7 +19,6 @@ class SourceKind(StrEnum):
     CHAT_EXPORT = "chat_export"
     DOCUMENTS = "documents"
     IMAGES = "images"
-    PRIVATE_APP = "private_app"  # WhatsApp, KakaoTalk, ...: detected, locked off, never read
 
 
 class ItemKind(StrEnum):

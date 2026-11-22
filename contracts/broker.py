@@ -17,8 +17,7 @@ from contracts.items import SourceKind
 
 class SourceStatus(StrEnum):
     OFF = "off"
-    ON = "on"
-    LOCKED = "locked"  # private apps: shown as detected, can never be turned on
+    ON = "on"  # read permission for this session; there is no other kind of permission
 
 
 class PermissionRequest(BaseModel):
@@ -71,7 +70,7 @@ class PermissionBroker(Protocol):
     def request(self, source_id: str) -> PermissionRequest: ...
 
     def grant(self, source_id: str, scope_ids: frozenset[str]) -> SourceState:
-        """Allow for this session. Raises SOURCE_LOCKED for a private app."""
+        """Allow reading for this session. Reading is the only permission there is."""
         ...
 
     def revoke(self, source_id: str) -> SourceState:

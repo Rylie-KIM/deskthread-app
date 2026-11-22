@@ -1,5 +1,5 @@
 """Coverage for every answer (FT-36): what was within reach, what was searched, what the
-model was shown, what was cited, and what was out of reach. Counts only.
+model was shown, what was cited, and what was not allowed. Counts only.
 
 accessible = searched + unsupported, and cited is never more than given_to_model (test U9).
 """
@@ -32,9 +32,7 @@ def build(broker: Broker, store: SessionStore, given: int, cited: int) -> Covera
         by_source[miss.source_id] = by_source.get(miss.source_id, 0) + 1
     not_accessible: dict[str, int | None] = {}
     for state in broker.states():
-        if state.status is SourceStatus.LOCKED:
-            not_accessible[state.label] = None  # locked: not even counted
-        elif state.status is SourceStatus.OFF:
+        if state.status is SourceStatus.OFF:
             scopes = broker.adapter(state.source_id).list_scopes()  # names and counts only
             not_accessible[state.label] = sum(s.item_count or 0 for s in scopes)
     not_accessible[OFF_LIMITS_KEY] = off_limits(broker)

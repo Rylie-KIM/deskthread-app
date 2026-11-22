@@ -32,10 +32,11 @@ def client(runtime: Runtime) -> TestClient:
 
 def _work_profile(client: TestClient, demo_laptop: Path) -> None:
     for source in client.post("/api/folder", json={"path": str(demo_laptop)}).json():
-        if source["status"] == "locked":
-            continue
         request = client.get(f"/api/sources/{source['source_id']}/request").json()
-        scopes = [s["scope_id"] for s in request["scopes"] if "personal" not in s["scope_id"]]
+        skip = ("personal", "WhatsApp", "KakaoTalk")
+        scopes = [
+            s["scope_id"] for s in request["scopes"] if not any(w in s["scope_id"] for w in skip)
+        ]
         assert client.post(
             f"/api/sources/{source['source_id']}/grant", json={"scope_ids": scopes}
         ).is_success
@@ -116,9 +117,7 @@ def test_choose_folder_work_profile_prepare_and_revoke(
     client: TestClient, demo_laptop: Path
 ) -> None:
     states = client.post("/api/folder", json={"path": str(demo_laptop)}).json()
-    assert {s["status"] for s in states} == {"off", "locked"}  # everything starts Off
-    locked = client.post("/api/sources/private:whatsapp/grant", json={})
-    assert (locked.status_code, locked.json()["code"]) == (403, "E-102")
+    assert {s["status"] for s in states} == {"off"}  # everything starts Off, chat apps too
 
     _work_profile(client, demo_laptop)
     meeting = client.get("/api/meetings").json()[0]

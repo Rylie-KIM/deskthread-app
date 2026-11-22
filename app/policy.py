@@ -1,12 +1,13 @@
 """Gate G1: what may be read. Enforced in code before any file is opened, never in a prompt.
 
-Three rules, checked on the real path of a file (symlinks and ".." resolved first):
+Two rules, checked on the real path of a file (symlinks and ".." resolved first):
 1. Path confinement (FT-43): the file must be inside a folder the user chose.
 2. Off-limits (FT-03): a folder holding a file named .deskthread-off-limits, a folder named
    Personal or Private, a file whose name starts with PRIVATE, or anything the user marked
    in this session. Off-limits files are never opened, also when asked for by name.
-3. Private apps (FT-02): WhatsApp, KakaoTalk and the like are locked off and cannot be
-   turned on.
+
+No app is closed for good: the user may allow reading of any source (user, 2026-11-22).
+Reading is the only permission there is.
 """
 
 import unicodedata
@@ -17,7 +18,8 @@ from contracts.errors import DeskThreadError, ErrorCode
 OFF_LIMITS_MARKER = ".deskthread-off-limits"
 OFF_LIMITS_FOLDER_NAMES = frozenset({"personal", "private"})
 OFF_LIMITS_FILE_PREFIX = "private"
-PRIVATE_APP_NAMES = frozenset(
+# Personal chat apps. They can be allowed like anything else; presets leave them Off.
+PERSONAL_CHAT_NAMES = frozenset(
     {"whatsapp", "kakaotalk", "line", "discord", "imessage", "messages", "telegram", "signal"}
 )
 
@@ -53,12 +55,6 @@ class AccessPolicy:
             raise DeskThreadError(ErrorCode.PATH_OUTSIDE_ALLOWED)
         return real
 
-    def is_private_app(self, path: Path) -> bool:
-        real = path.resolve()
-        root = self._root_of(real)
-        parts = real.relative_to(root).parts if root else real.parts
-        return any(norm(p).lower() in PRIVATE_APP_NAMES for p in parts)
-
     def is_off_limits(self, path: Path) -> bool:
         real = path.resolve()
         root = self._root_of(real)
@@ -83,8 +79,6 @@ class AccessPolicy:
     def check_read(self, path: Path) -> Path:
         """The one call every reader makes before opening a file."""
         real = self.confine(path)
-        if self.is_private_app(real):
-            raise DeskThreadError(ErrorCode.SOURCE_LOCKED)
         if self.is_off_limits(real):
             raise DeskThreadError(ErrorCode.ITEM_OFF_LIMITS)
         return real

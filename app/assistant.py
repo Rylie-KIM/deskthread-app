@@ -70,7 +70,7 @@ class Assistant:
         items = self._store.items()
         coverage_note = (
             f"{len(items)} items readable in {len(allowed)} allowed sources; "
-            f"{coverage.off_limits(self._broker)} off-limits files not opened; private apps locked"
+            f"{coverage.off_limits(self._broker)} off-limits files not opened"
         )
         trace.append(_gate(Gate.G1_POLICY, Outcome.PASS, coverage_note))
 

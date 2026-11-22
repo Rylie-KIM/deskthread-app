@@ -7,9 +7,9 @@ from pathlib import Path
 import pytest
 
 from app.policy import AccessPolicy
-from app.sources.folder import FolderAdapter, LockedSource, scan
+from app.sources.folder import FolderAdapter, scan
 from contracts.errors import DeskThreadError, ErrorCode
-from contracts.items import Item, SourceKind, Uncounted
+from contracts.items import Item, Uncounted
 
 
 class OpenGrant:
@@ -17,7 +17,7 @@ class OpenGrant:
 
     cancelled = False
 
-    def __init__(self, adapter: FolderAdapter | LockedSource) -> None:
+    def __init__(self, adapter: FolderAdapter) -> None:
         self.source_id = adapter.source_id
         self.scope_ids = frozenset(s.scope_id for s in adapter.list_scopes())
 
@@ -43,7 +43,6 @@ def test_the_scanner_recognises_sources_by_folder_name_only(demo_laptop: Path) -
     assert set(found) == {
         "folder:notes", "folder:mail", "folder:calendar", "folder:reminders",
         "folder:chat-exports", "folder:documents", "folder:images",
-        "private:whatsapp", "private:kakaotalk",
     }  # fmt: skip
     notes = found["folder:notes"].list_scopes()
     assert [(s.label, s.item_count) for s in notes] == [("Notes", 21)]  # PRIVATE one not counted
@@ -51,14 +50,10 @@ def test_the_scanner_recognises_sources_by_folder_name_only(demo_laptop: Path) -
     assert calendars == {"work", "personal"}  # one scope per calendar
 
 
-def test_private_apps_are_detected_and_can_never_be_read(demo_laptop: Path) -> None:
+def test_chat_apps_are_ordinary_sources_one_scope_each(demo_laptop: Path) -> None:
     found = {a.source_id: a for a in scan(demo_laptop, AccessPolicy([demo_laptop]))}
-    whatsapp = found["private:whatsapp"]
-    assert isinstance(whatsapp, LockedSource) and whatsapp.kind is SourceKind.PRIVATE_APP
-    assert whatsapp.list_scopes() == []  # not even counted
-    with pytest.raises(DeskThreadError) as err:
-        whatsapp.read(OpenGrant(whatsapp))
-    assert err.value.code is ErrorCode.SOURCE_LOCKED
+    chats = {s.label: s.item_count for s in found["folder:chat-exports"].list_scopes()}
+    assert chats == {"KakaoTalk": 1, "Slack": 1, "Teams": 2, "WhatsApp": 1, "Zoom": 1}
 
 
 def test_u1_off_limits_files_are_never_read_even_with_everything_allowed(
@@ -67,11 +62,11 @@ def test_u1_off_limits_files_are_never_read_even_with_everything_allowed(
     things = _read_all(demo_laptop)
     text = _text(things)
     assert "Budget approved up to 800" in text  # an allowed mail is there
-    for words in ("performance plan", "Tax return", "Landlord", "are you coming on Sunday"):
+    for words in ("performance plan", "Tax return", "Landlord"):
         assert words not in text
     locations = {t.location for t in things}
     assert not any("PRIVATE" in loc or "Personal/" in loc for loc in locations)
-    assert not any("WhatsApp" in loc or "KakaoTalk" in loc for loc in locations)
+    assert any("WhatsApp" in loc for loc in locations)  # an allowed chat app is read like the rest
 
 
 def test_u1_asking_for_an_off_limits_file_by_name_is_refused(demo_laptop: Path) -> None:
@@ -79,7 +74,6 @@ def test_u1_asking_for_an_off_limits_file_by_name_is_refused(demo_laptop: Path) 
     for rel, code in [
         ("App-exports/Notes/PRIVATE-alex-concerns.md", ErrorCode.ITEM_OFF_LIMITS),
         ("Documents/Personal/gp-appointment.txt", ErrorCode.ITEM_OFF_LIMITS),
-        ("App-exports/WhatsApp/Family.txt", ErrorCode.SOURCE_LOCKED),
     ]:
         with pytest.raises(DeskThreadError) as err:
             policy.check_read(demo_laptop / rel)

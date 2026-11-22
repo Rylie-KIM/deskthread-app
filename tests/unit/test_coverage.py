@@ -7,7 +7,6 @@ from app.broker import Broker
 from app.policy import AccessPolicy
 from app.sources.folder import scan
 from app.store import SessionStore
-from contracts.broker import SourceStatus
 
 
 def _session(root: Path) -> tuple[Broker, SessionStore]:
@@ -16,9 +15,8 @@ def _session(root: Path) -> tuple[Broker, SessionStore]:
         broker.register(adapter)
     store = SessionStore(broker)
     for state in broker.states():
-        if state.status is not SourceStatus.LOCKED:
-            broker.grant(state.source_id, frozenset())
-            store.load(state.source_id)
+        broker.grant(state.source_id, frozenset())
+        store.load(state.source_id)
     return broker, store
 
 
@@ -35,11 +33,7 @@ def test_u9_accessible_is_searched_plus_unsupported(demo_laptop: Path) -> None:
 def test_u9_out_of_reach_material_is_counts_only(demo_laptop: Path) -> None:
     broker, store = _session(demo_laptop)
     cov = coverage.build(broker, store, given=0, cited=0)
-    assert cov.not_accessible == {
-        "WhatsApp": None,  # locked: not even counted
-        "KakaoTalk": None,
-        coverage.OFF_LIMITS_KEY: 4,  # the PRIVATE note and three files in Personal
-    }
+    assert cov.not_accessible == {coverage.OFF_LIMITS_KEY: 4}  # the PRIVATE note, 3 in Personal
     broker.revoke("folder:notes")
     after = coverage.build(broker, store, given=0, cited=0)
     assert after.not_accessible["Notes"] == 21

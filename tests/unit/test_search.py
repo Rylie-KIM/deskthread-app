@@ -7,7 +7,6 @@ from app.policy import AccessPolicy
 from app.search import add_expansion, build_query, find, keyword_floor, names_in, stem
 from app.sources.folder import scan
 from app.store import SessionStore
-from contracts.broker import SourceStatus
 from contracts.items import Item, ItemKind
 
 
@@ -17,9 +16,8 @@ def _items(root: Path) -> list[Item]:
         broker.register(adapter)
     store = SessionStore(broker)
     for state in broker.states():
-        if state.status is not SourceStatus.LOCKED:
-            broker.grant(state.source_id, frozenset())
-            store.load(state.source_id)
+        broker.grant(state.source_id, frozenset())
+        store.load(state.source_id)
     return store.items()
 
 

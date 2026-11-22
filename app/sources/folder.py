@@ -10,7 +10,7 @@ from collections.abc import Iterator
 from pathlib import Path
 
 from app.clock import now
-from app.policy import PRIVATE_APP_NAMES, AccessPolicy, norm
+from app.policy import PERSONAL_CHAT_NAMES, AccessPolicy, norm
 from app.readers.files import IMAGE_SUFFIXES, read_file, supported
 from contracts.adapters import OsPermission, ReadGrant, Scope
 from contracts.errors import DeskThreadError, ErrorCode
@@ -24,7 +24,7 @@ KNOWN_EXPORTS: dict[str, tuple[SourceKind, str, str]] = {
     "calendar": (SourceKind.CALENDAR, "Calendar", ""),
     "reminders": (SourceKind.REMINDERS, "Reminders", "reminders"),
 }
-CHAT_EXPORTS = frozenset({"teams", "slack", "zoom"})
+CHAT_EXPORTS = frozenset({"teams", "slack", "zoom"}) | PERSONAL_CHAT_NAMES
 
 
 def _visible_files(folder: Path) -> list[Path]:
@@ -134,47 +134,17 @@ class FolderAdapter:
                     yield Uncounted(source_id=self._source_id, location=key, reason=err.code.value)
 
 
-class LockedSource:
-    """A private app that was noticed by its folder name. It can never be read."""
-
-    def __init__(self, source_id: str, label: str) -> None:
-        self._source_id, self._label = source_id, label
-
-    @property
-    def source_id(self) -> str:
-        return self._source_id
-
-    @property
-    def kind(self) -> SourceKind:
-        return SourceKind.PRIVATE_APP
-
-    @property
-    def label(self) -> str:
-        return self._label
-
-    def os_permission(self) -> OsPermission:
-        return OsPermission.NOT_NEEDED
-
-    def list_scopes(self) -> list[Scope]:
-        return []  # not even counted
-
-    def read(self, grant: ReadGrant) -> Iterator[Item | Uncounted]:
-        raise DeskThreadError(ErrorCode.SOURCE_LOCKED)
-
-
-def scan(root: Path, policy: AccessPolicy) -> list[FolderAdapter | LockedSource]:
+def scan(root: Path, policy: AccessPolicy) -> list[FolderAdapter]:
     """Recognise the sources under a chosen folder by folder names. Reads no content."""
     root = policy.confine(root)
-    found: list[FolderAdapter | LockedSource] = []
+    found: list[FolderAdapter] = []
     chat: list[Path] = []
     exports = root / EXPORTS
     top = sorted(p for p in root.iterdir() if p.is_dir() and not p.name.startswith("."))
     app_folders = sorted(p for p in exports.iterdir() if p.is_dir()) if exports.is_dir() else []
     for folder in [*app_folders, *top]:
         name = norm(folder.name).lower()
-        if name in PRIVATE_APP_NAMES:
-            found.append(LockedSource(f"private:{name}", folder.name))
-        elif folder.parent == exports and name in KNOWN_EXPORTS:
+        if folder.parent == exports and name in KNOWN_EXPORTS:
             kind, label, role = KNOWN_EXPORTS[name]
             # A calendar is allowed one calendar at a time, so each file is its own scope.
             scopes = _visible_files(folder) if kind is SourceKind.CALENDAR else [folder]
@@ -196,14 +166,14 @@ def scan(root: Path, policy: AccessPolicy) -> list[FolderAdapter | LockedSource]
             FolderAdapter(
                 source_id="folder:chat-exports",
                 kind=SourceKind.CHAT_EXPORT,
-                label="Teams and Slack exports",
+                label="Chat exports",
                 root=root,
                 scopes=chat,
                 policy=policy,
                 role="chat",
             )
         )
-    plain = [p for p in top if p != exports and norm(p.name).lower() not in PRIVATE_APP_NAMES]
+    plain = [p for p in top if p != exports]
     if plain:
         found.append(
             FolderAdapter(

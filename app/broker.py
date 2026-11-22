@@ -26,11 +26,10 @@ WHAT_IS_READ: dict[SourceKind, str] = {
     SourceKind.MAIL: "Sender, date, subject and text of messages in the mailbox you tick. "
     "Mail is shown as plain text; pictures in a mail are never fetched.",
     SourceKind.REMINDERS: "Reminders in the lists you tick: title, due date, done or open.",
-    SourceKind.CHAT_EXPORT: "Text files you exported from Teams, Slack or Zoom.",
+    SourceKind.CHAT_EXPORT: "Chat text files in the folders you tick.",
     SourceKind.DOCUMENTS: "Documents (.docx, .pdf, .csv, .txt, .md) in the folders you tick.",
     SourceKind.IMAGES: "Pictures and screenshots in the folders you tick. The model on this "
     "laptop reads their text, in memory only.",
-    SourceKind.PRIVATE_APP: "Nothing. Private apps are locked off and cannot be turned on.",
 }
 
 
@@ -103,10 +102,7 @@ class Broker:
     def _state(self, source_id: str) -> SourceState:
         adapter = self.adapter(source_id)
         grant = self._grants.get(source_id)
-        if adapter.kind is SourceKind.PRIVATE_APP:
-            status = SourceStatus.LOCKED
-        else:
-            status = SourceStatus.ON if grant else SourceStatus.OFF
+        status = SourceStatus.ON if grant else SourceStatus.OFF
         return SourceState(
             source_id=source_id,
             kind=adapter.kind,
@@ -123,21 +119,16 @@ class Broker:
 
     def request(self, source_id: str) -> PermissionRequest:
         adapter = self.adapter(source_id)
-        locked = adapter.kind is SourceKind.PRIVATE_APP
         return PermissionRequest(
             source_id=source_id,
             label=adapter.label,
             what_will_be_read=WHAT_IS_READ[adapter.kind],
-            scopes=() if locked else tuple(adapter.list_scopes()),
+            scopes=tuple(adapter.list_scopes()),
             os_permission=adapter.os_permission(),
         )
 
     def grant(self, source_id: str, scope_ids: frozenset[str]) -> SourceState:
         adapter = self.adapter(source_id)
-        if adapter.kind is SourceKind.PRIVATE_APP:
-            with self._lock:
-                self._note(AuditAction.DENIED, source_id)
-            raise DeskThreadError(ErrorCode.SOURCE_LOCKED)
         known = {s.scope_id for s in adapter.list_scopes()}
         chosen = (scope_ids & known) if scope_ids else known
         if not chosen:

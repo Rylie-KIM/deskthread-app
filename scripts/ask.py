@@ -40,8 +40,7 @@ def show(answer: Answer) -> None:
         f"unreadable, {cov.given_to_model} shown to the model, {cov.cited} cited"
     )
     out_of_reach = ", ".join(
-        f"{name}: {'locked' if count is None else count}"
-        for name, count in cov.not_accessible.items()
+        f"{name}: {'?' if count is None else count}" for name, count in cov.not_accessible.items()
     )
     print(f"  Out of reach: {out_of_reach}")
     for gate in answer.gate_trace:
@@ -71,8 +70,7 @@ def main() -> int:
         session = open_folder(folder, gateway)
         work_profile(session)
         on = [s.label for s in session.broker.states() if s.status.value == "on"]
-        locked = [s.label for s in session.broker.states() if s.status.value == "locked"]
-        print(f"On: {', '.join(on)}\nLocked off: {', '.join(locked) or 'none'}")
+        print(f"On: {', '.join(on)}")
         if args.question:
             show(session.assistant.ask(" ".join(args.question)))
             return 0

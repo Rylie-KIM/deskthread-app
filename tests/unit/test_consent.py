@@ -1,5 +1,6 @@
 """Consent and instant revoke (FT-53, FT-15, FT-02, R15): the permission broker."""
 
+import re
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -25,16 +26,15 @@ def _session(root: Path) -> tuple[Broker, SessionStore]:
 
 def _all_on(broker: Broker, store: SessionStore) -> None:
     for state in broker.states():
-        if state.status is not SourceStatus.LOCKED:
-            broker.grant(state.source_id, frozenset())
-            store.load(state.source_id)
+        broker.grant(state.source_id, frozenset())
+        store.load(state.source_id)
 
 
 def test_every_source_starts_off_and_cannot_be_read_before_it_is_allowed(
     demo_laptop: Path,
 ) -> None:
     broker, store = _session(demo_laptop)
-    assert all(s.status in {SourceStatus.OFF, SourceStatus.LOCKED} for s in broker.states())
+    assert all(s.status is SourceStatus.OFF for s in broker.states())
     with pytest.raises(DeskThreadError) as err:
         store.load("folder:notes")
     assert err.value.code is ErrorCode.SOURCE_NOT_ALLOWED
@@ -50,15 +50,25 @@ def test_the_request_says_in_plain_words_what_will_be_read(demo_laptop: Path) ->
     assert [(s.label, s.item_count) for s in request.scopes] == [("Mail", 12)]
 
 
-def test_private_apps_show_as_locked_and_cannot_be_turned_on(demo_laptop: Path) -> None:
-    broker, _ = _session(demo_laptop)
-    locked = [s for s in broker.states() if s.status is SourceStatus.LOCKED]
-    assert sorted(s.label for s in locked) == ["KakaoTalk", "WhatsApp"]
-    assert broker.request("private:whatsapp").scopes == ()
-    with pytest.raises(DeskThreadError) as err:
-        broker.grant("private:whatsapp", frozenset())
-    assert err.value.code is ErrorCode.SOURCE_LOCKED
-    assert broker.audit()[-1].action is AuditAction.DENIED
+def test_no_app_is_closed_for_good_a_chat_app_starts_off_and_can_be_allowed_for_reading(
+    demo_laptop: Path,
+) -> None:
+    broker, store = _session(demo_laptop)
+    scopes = {s.label: s.scope_id for s in broker.request("folder:chat-exports").scopes}
+    assert {"WhatsApp", "KakaoTalk", "Teams", "Slack", "Zoom"} == set(scopes)
+    assert not broker.is_allowed("folder:chat-exports") and store.items() == []  # Off until allowed
+    broker.grant("folder:chat-exports", frozenset({scopes["WhatsApp"]}))
+    assert store.load("folder:chat-exports") == 1
+    assert "are you coming on Sunday" in store.items()[0].units[0].text
+    broker.revoke("folder:chat-exports")
+    assert store.items() == []
+
+
+def test_reading_is_the_only_permission_there_is() -> None:
+    """The broker has grant and revoke, and nothing that writes, sends or deletes."""
+    public = {name for name in dir(Broker) if not name.startswith("_")}
+    assert not {n for n in public if re.search("write|delete|send|modify|update|create", n)}
+    assert {s.value for s in SourceStatus} == {"off", "on"}
 
 
 def test_grant_then_revoke_leaves_zero_items_of_that_source(demo_laptop: Path) -> None:
@@ -134,7 +144,7 @@ def test_u1_with_every_source_on_private_material_is_still_not_in_memory(
     _all_on(broker, store)
     text = "\n".join(u.text for item in store.items() for u in item.units)
     assert "Budget approved up to 800" in text
-    for words in ("performance plan", "Tax return", "are you coming on Sunday"):
+    for words in ("performance plan", "Tax return", "Landlord"):
         assert words not in text
 
 
