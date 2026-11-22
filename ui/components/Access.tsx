@@ -197,7 +197,14 @@ export default function Access({ sources, folder, demoFolder, onSources, onError
                 </label>
               ))}
             </fieldset>
-            {OS_NOTE[request.os_permission] && <p className="fine">{OS_NOTE[request.os_permission]}</p>}
+            {request.source_id.startsWith("mac:") && request.os_permission !== "missing" && (
+              <p className="fine">
+                {request.source_id === "mac:calendar"
+                  ? "macOS has no read-only choice for calendars: its own question says “Full Access”. DeskThread still only reads."
+                  : "macOS words its own question as “control”. It has no read-only choice. DeskThread still only reads."}
+              </p>
+            )}
+            {request.os_permission === "missing" && <p className="fine">{OS_NOTE.missing}</p>}
             <div className="row end">
               <button className="ghost" onClick={() => setRequest(null)}>Not now</button>
               <button className="primary" disabled={ticked.length === 0 || busy !== ""} onClick={allow}>{busy === "allow" ? "Reading…" : "Allow reading"}</button>
