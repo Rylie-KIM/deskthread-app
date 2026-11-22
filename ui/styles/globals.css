@@ -560,3 +560,14 @@ fieldset.period { display: grid; gap: 14px; padding: 14px 16px 16px; }
 .changes .fine { margin: 8px 0 0; }
 .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; max-width: 640px; margin-top: 18px; }
 .pair button { padding-top: 15px; padding-bottom: 15px; }
+
+/* ---- an upcoming entry: hover shows all of it, a click opens it; Prepare stays its own button ---- */
+.coming li { position: relative; }
+.coming .entry { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; border: 0; background: none; padding: 4px 0; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.coming .entry b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 650; }
+.coming .entry:hover b, .coming .entry:focus-visible b { color: var(--royal); }
+.peek { display: none; position: absolute; z-index: 15; left: 8px; top: calc(100% + 6px); width: max-content; max-width: min(420px, 80vw); padding: 14px 16px; border-radius: 18px; gap: 4px;
+  background: rgba(255, 255, 255, .94); backdrop-filter: blur(22px); -webkit-backdrop-filter: blur(22px); box-shadow: inset 0 1px 0 #fff, 0 0 0 1px rgba(255, 255, 255, .9), 0 22px 40px -22px rgba(10, 23, 196, .55); }
+.peek b { font-weight: 650; white-space: normal; }
+.peek span { color: var(--muted); font-size: .86rem; }
+.coming .entry:hover + .peek, .coming .entry:focus-visible + .peek { display: grid; }

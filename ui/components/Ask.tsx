@@ -19,6 +19,12 @@ function byNote(cites: Citation[]): { head: Citation; cites: Citation[] }[] {
   return [...groups.values()].sort((x, y) => time(y.head) - time(x.head));
 }
 
+// An entry opened in the source viewer: the same viewer that shows a quoted note.
+const open = (meeting: Meeting): Citation => ({
+  item_id: meeting.meeting_id, unit: 0, quote: "", source_id: "", source_label: "", title: meeting.title,
+  date: meeting.start, undated: false, read_by_model: false,
+});
+
 function when(meeting: Meeting, nowIso: string): string {
   const start = new Date(meeting.start);
   const now = new Date(nowIso);
@@ -162,8 +168,16 @@ export default function Ask({ now, anyOn, visible, thread, onAnswer, onCite, onE
           <ul>
             {meetings.map((meeting) => (
               <li key={meeting.meeting_id}>
-                <span className="time">{when(meeting, now)}</span>
-                <b>{meeting.title}</b>
+                <button type="button" className="entry" title="Open this entry" onClick={() => onCite(open(meeting))}>
+                  <span className="time">{when(meeting, now)}</span>
+                  <b>{meeting.title}</b>
+                </button>
+                {/* The whole entry, shown while the pointer or the keyboard is on it. */}
+                <span className="peek" role="tooltip">
+                  <b>{meeting.title}</b>
+                  <span>{new Date(meeting.start).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}, {clock(meeting.start)}</span>
+                  {meeting.person && <span>With {meeting.person}</span>}
+                </span>
                 <button className="ghost small" disabled={asking !== ""} onClick={() => run(`Prepare: ${meeting.title}`, () => api.prepare(meeting.meeting_id))}>Prepare</button>
               </li>
             ))}
