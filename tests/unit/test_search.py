@@ -75,3 +75,36 @@ def test_suggested_words_widen_the_search_but_weigh_less(demo_laptop: Path) -> N
     add_expansion(query, ["course", "career chat", "ownership"])
     after = {c.item.location for c in find(query, items)}
     assert before < after and "App-exports/Notes/sam-fragment.md" in after
+
+
+def test_a_question_about_a_day_shows_what_is_dated_then_whatever_its_words() -> None:
+    from datetime import UTC, datetime, timedelta
+
+    from app.clock import now
+    from app.search import time_window
+    from contracts.items import Item, ItemKind, Unit
+
+    today = now().astimezone().replace(hour=19, minute=0)
+
+    def make(item_id: str, kind: ItemKind, title: str, date: datetime | None, **meta: str) -> Item:
+        unit = Unit(number=1, text=title)
+        return Item(item_id=item_id, source_id="mac:x", kind=kind, title=title, units=(unit,),
+                    date=date, meta=meta)  # fmt: skip
+
+    items = [
+        make("film", ItemKind.EVENT, "Cinema booking", today),
+        make("old", ItemKind.EVENT, "Dentist", today - timedelta(days=9)),
+        make("next", ItemKind.EVENT, "Team offsite", today + timedelta(days=1)),
+        make("milk", ItemKind.REMINDER, "Buy milk", None, status="open"),
+        make("done", ItemKind.REMINDER, "Pay rent", None, status="done"),
+        make("note", ItemKind.NOTE, "todo: call the bank about today", None),
+    ]
+    query = build_query("What is my todo for today?")
+    assert query.focus == set() and query.window_name == "today"
+    assert [c.item.item_id for c in find(query, items)] == ["milk", "film", "note"]
+    assert [c.item.item_id for c in find(build_query("What is on tomorrow?"), items)] == ["next"]
+    assert find(build_query("What did I promise Sam?"), items) == []  # no day named: as before
+    fixed = datetime(2026, 11, 22, 23, 30, tzinfo=UTC)  # a Sunday
+    start, end, name = time_window("anything next week?", fixed) or (None, None, "")
+    assert name == "next week" and start is not None and end is not None
+    assert (end - start).days == 6 and start.weekday() == 0

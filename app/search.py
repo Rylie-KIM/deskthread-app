@@ -9,7 +9,9 @@ asked to answer: when nothing passes it, the answer is "not found" and no model 
 import math
 import re
 from dataclasses import dataclass, field
+from datetime import datetime, time, timedelta
 
+from app.clock import now
 from contracts.items import Item, ItemKind
 
 STOP = frozenset(
@@ -219,27 +221,89 @@ class Query:
     focus: set[str] = field(default_factory=set)  # stems of the topic words
     extra: set[str] = field(default_factory=set)  # stems of model-suggested words (P3)
     focus_words: list[str] = field(default_factory=list)  # the topic words as written
+    # The stretch of time the question names ("today", "this week"), in local time. Items
+    # dated inside it are shown whatever their words are: a calendar entry for tonight
+    # does not contain the word "today".
+    window: tuple[datetime, datetime] | None = None
+    window_name: str = ""
 
     @property
     def topic(self) -> set[str]:
         return self.focus | self.extra
 
 
+# Words that name a stretch of time, and words that only mean "what is on" once one is named.
+_WHEN = ("today", "tonight", "tomorrow", "yesterday", "week", "weekend", "now", "morning",
+         "afternoon", "evening", "day", "next", "upcoming", "coming")  # fmt: skip
+_AGENDA = ("todo", "todos", "do", "schedule", "scheduled", "agenda", "calendar", "plan", "plans",
+           "meeting", "meetings", "event", "events", "task", "tasks", "appointment",
+           "appointments",
+           "reminder", "reminders", "due", "list", "have", "got", "need", "tell",
+           "show")  # fmt: skip
+
+
+def time_window(
+    question: str, moment: datetime | None = None
+) -> tuple[datetime, datetime, str] | None:
+    """The stretch of time a question names, as local day bounds, or None."""
+    local = (moment or now()).astimezone()
+    words = set(_WORD.findall(question.lower()))
+    start = datetime.combine(local.date(), time.min, local.tzinfo)
+
+    def days(first: int, count: int, name: str) -> tuple[datetime, datetime, str]:
+        begin = start + timedelta(days=first)
+        return begin, begin + timedelta(days=count) - timedelta(microseconds=1), name
+
+    if "tomorrow" in words:
+        return days(1, 1, "tomorrow")
+    if "yesterday" in words:
+        return days(-1, 1, "yesterday")
+    if "week" in words:
+        monday = -local.weekday()
+        return days(monday + 7, 7, "next week") if "next" in words else days(monday, 7, "this week")
+    if "weekend" in words:
+        return days(5 - local.weekday(), 2, "the weekend")
+    if words & {"today", "tonight"}:
+        return days(0, 1, "today")
+    return None
+
+
 def build_query(question: str, person: str | None = None) -> Query:
     people = {stem(n.lower()) for n in names_in(question)}
     if person:
         people.add(stem(person.lower()))
+    when = time_window(question)
+    skip = {stem(g) for g in GENERIC} | ({stem(w) for w in (*_WHEN, *_AGENDA)} if when else set())
     focus_words = [
         w
         for w in dict.fromkeys(_WORD.findall(question.lower()))
-        if w not in STOP and stem(w) not in people and stem(w) not in {stem(g) for g in GENERIC}
+        if w not in STOP and stem(w) not in people and stem(w) not in skip
     ]
     return Query(
         question=question,
         people=people,
         focus={stem(w) for w in focus_words},
         focus_words=focus_words,
+        window=(when[0], when[1]) if when else None,
+        window_name=when[2] if when else "",
     )
+
+
+def in_window(query: Query, item: Item) -> bool:
+    """Is the item dated inside the time the question names? An open reminder with no date
+    counts for a stretch that includes today: it is still to do."""
+    if query.window is None:
+        return False
+    start, end = query.window
+    if item.date is None:
+        today = now().astimezone()
+        return (
+            item.kind is ItemKind.REMINDER
+            and item.meta.get("status") == "open"
+            and start <= today <= end
+        )
+    moment = item.date if item.date.tzinfo else item.date.replace(tzinfo=start.tzinfo)
+    return start <= moment <= end
 
 
 def add_expansion(query: Query, words: list[str]) -> None:
@@ -279,6 +343,18 @@ def find(query: Query, items: list[Item], limit: int | None = None) -> list[Cand
     commitment = {stem(w) for w in COMMITMENT}
     out: list[Candidate] = []
     for item, bag in bags:
+        if in_window(query, item):
+            # Named by its date: shown first, in the order of the day.
+            order = item.date.timestamp() if item.date else 0.0
+            out.append(Candidate(item, 1e6 - order / 1e6))
+            continue
+        if query.window is not None and not query.topic and not query.people:
+            # "What is on today?" has no topic: only what is dated then, plus, when the
+            # question asks what is to do, undated notes that are marked as a to-do list.
+            asks_todo = bool({"todo", "todos", "do", "task", "tasks"} & set(stems(query.question)))
+            if asks_todo and item.date is None and {"todo", "task"} & bag:
+                out.append(Candidate(item, 1.0))
+            continue
         on_person = bool(query.people & bag)
         on_focus = bool(query.focus & bag)
         on_extra = bool(query.extra & bag)

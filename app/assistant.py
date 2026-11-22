@@ -11,6 +11,7 @@ from datetime import datetime
 
 from app import config, coverage, meetings, prompts
 from app.broker import Broker
+from app.clock import now
 from app.gate import (
     Checked,
     Given,
@@ -170,7 +171,11 @@ class Assistant:
             proposed = parse_points(
                 complete_json(
                     self._model,
-                    prompts.ANSWER.format(question=question, notes=_render(given)),
+                    prompts.ANSWER.format(
+                        question=question,
+                        notes=_render(given),
+                        today=now().astimezone().strftime("%A %d %B %Y"),
+                    ),
                 )
             )
             self._step(5)

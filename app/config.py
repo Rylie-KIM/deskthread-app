@@ -82,7 +82,7 @@ def model_choice(tag: str) -> ModelChoice | None:
 
 
 # Bump on any change to a prompt in app/prompts.py (R5).
-PROMPT_VERSION = "p3"  # p3: a short summary resting on the quoted lines
+PROMPT_VERSION = "p4"  # p4: the prompt says what day it is and how to answer "today"
 
 LOOPBACK = "127.0.0.1"
 # Our own model server port, so it is never confused with an Ollama the user runs themselves.
