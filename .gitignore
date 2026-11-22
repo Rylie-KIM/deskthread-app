@@ -40,3 +40,6 @@ htmlcov/
 # Local assistant settings
 .claude/settings.local.json
 next-env.d.ts
+
+# Ids of what the seeder wrote into the user's own apps, so unseed removes only that
+scripts/seed/.manifest.json

@@ -691,3 +691,8 @@ fieldset.period { display: grid; gap: 14px; padding: 14px 16px 16px; }
 .searchmodel .about small { color: var(--muted); font-size: .86rem; white-space: normal; }
 .searchmodel .size { color: var(--muted); font-size: .9rem; white-space: nowrap; }
 @media (max-width: 700px) { .searchmodel { grid-template-columns: auto 1fr; } }
+
+/* the permission pop-up's list: its header row (title left, button right) sits above the rows */
+fieldset.choose { padding: 12px 16px 8px; }
+.choosehead { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 8px; margin-bottom: 4px; border-bottom: 1px solid rgba(255, 255, 255, .9); font-size: .86rem; font-weight: 600; color: var(--muted); }
+.choosehead .ghost.small { padding: 6px 14px; font-size: .82rem; }

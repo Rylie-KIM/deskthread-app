@@ -229,10 +229,13 @@ export default function Access({ sources, folder, demoFolder, onSources, onError
             <h2 id="ask-title">Allow DeskThread to read {request.label}?</h2>
             <p className="readonly"><b>Read only.</b> DeskThread cannot change, send or delete anything.</p>
             <fieldset className="choose">
-              <legend>Read from</legend>
-              <button type="button" className="ghost small corner" onClick={() => setTicked(ticked.length === request.scopes.length ? [] : request.scopes.map((s) => s.scope_id))}>
-                {ticked.length === request.scopes.length ? "Clear all" : "Select all"}
-              </button>
+              {/* A header row of its own, so the button never lies over a row of the list. */}
+              <div className="choosehead">
+                <span>Read from</span>
+                <button type="button" className="ghost small" onClick={() => setTicked(ticked.length === request.scopes.length ? [] : request.scopes.map((s) => s.scope_id))}>
+                  {ticked.length === request.scopes.length ? "Clear all" : "Select all"}
+                </button>
+              </div>
               {request.scopes.map((scope) => (
                 <label key={scope.scope_id} className="tick">
                   <input

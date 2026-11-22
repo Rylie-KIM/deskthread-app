@@ -44,9 +44,9 @@ class FakeApps:
             "calendar.read": _record("", "1:1 Sam", "2026-11-23T10:00:00", "", "", "Work")
             + _record("", "Team stand-up", "2026-11-23T09:30:00", "", "", "Work"),
             "notes.list": _record("DeskThread Demo", "2") + _record("Private", "9"),
-            "notes.read": _record("n1", "follow-ups", "2026-11-20T08:00:00",
+            "notes.read": _record("n1", "follow-ups", "2026-11-20T08:00:00", "2026-11-12T09:30:00",
                                   "follow-ups\n23/10 - after 1:1 w/ Sam\n- intro to Mark (Dev lead)", "DeskThread Demo")
-            + _record("n2", "Sam - more ownership??", "2026-11-20T08:00:00", "Sam - more ownership?? course??", "DeskThread Demo"),
+            + _record("n2", "Sam - more ownership??", "2026-11-20T08:00:00", "2026-11-15T16:45:00", "Sam - more ownership?? course??", "DeskThread Demo"),
             "reminders.list": _record("Work", "2"),
             "reminders.read": _record("r1", "Intro Sam to Mark", "false", "2026-11-27T09:00:00", "", "Work")
             + _record("r2", "Email Sam about the course budget", "true", "", "", "Work"),
@@ -123,19 +123,18 @@ def test_calendar_only_the_ticked_calendar_and_a_one_to_one_names_its_person(
     assert [(m.title, m.person) for m in meetings] == [("Team stand-up", ""), ("1:1 Sam", "Sam")]
 
 
-def test_notes_are_dated_by_the_time_the_app_says_they_were_changed(apps: FakeApps) -> None:
+def test_notes_are_dated_by_the_time_the_app_says_they_were_created(apps: FakeApps) -> None:
     adapter = MacAppAdapter("notes", SourceKind.NOTES, "Notes", "/", apps)
     scopes = {s.label: s.item_count for s in adapter.list_scopes()}
     assert scopes == {"DeskThread Demo": 2, "Private": 9}
     notes = _on(adapter, {"DeskThread Demo"}).items()
     assert apps.calls[-1] == ("notes.read", ["DeskThread Demo"])
     follow, fragment = notes
-    assert follow.date is not None and follow.meta["modified"].startswith(
-        follow.date.date().isoformat()
-    )
+    assert follow.date is not None and (follow.date.month, follow.date.day) == (11, 12)
+    assert follow.meta["modified"].startswith("2026-11-20")  # last changed: kept beside it
     assert follow.meta.get("written") == "2026-10-23"  # the date written in the note is kept
-    assert fragment.date is not None and fragment.meta["modified"].startswith("2026-11-20")
-    assert (fragment.date.month, fragment.date.day) == (11, 20) and "written" not in fragment.meta
+    assert fragment.date is not None and (fragment.date.month, fragment.date.day) == (11, 15)
+    assert "written" not in fragment.meta
     assert follow.location == "Notes: DeskThread Demo" and len(follow.units) == 3
 
 

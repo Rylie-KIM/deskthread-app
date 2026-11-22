@@ -57,6 +57,7 @@ ignore = [
 "tests/**" = ["S105", "S106", "S108"]
 "tests/unit/test_mac_apps.py" = ["S105", "S106", "S108", "E501"]  # canned app replies, kept on one line each
 "app/sources/mac.py" = ["E501"]  # AppleScript text is kept one statement per line
+"scripts/seed/*.py" = ["E501", "S603", "S607", "UP031"]  # demo text is one line per note line; fixed osascript calls
 "app/icons.py" = ["E501"]  # one very long method name from Apple's frameworks
 "app/window.py" = ["N802"]  # method names are dictated by Apple's frameworks
 "demo-data/content.py" = ["E501"]  # invented note text is kept as written

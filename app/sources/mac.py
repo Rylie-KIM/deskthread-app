@@ -101,11 +101,12 @@ SCRIPTS: dict[str, str] = {
                 set gotIds to id of (notes of f whose password protected is false)
                 set gotNames to name of (notes of f whose password protected is false)
                 set gotDates to modification date of (notes of f whose password protected is false)
+                set gotMade to creation date of (notes of f whose password protected is false)
                 set gotBodies to plaintext of (notes of f whose password protected is false)
                 repeat with i from 1 to (count of gotIds)
                     set out to out & my txt(item i of gotIds) & FS & my txt(item i of gotNames) & FS ¬
-                        & my stamp(item i of gotDates) & FS & my txt(item i of gotBodies) & FS ¬
-                        & (wanted as text) & RS
+                        & my stamp(item i of gotDates) & FS & my stamp(item i of gotMade) & FS ¬
+                        & my txt(item i of gotBodies) & FS & (wanted as text) & RS
                 end repeat
             end repeat
         end repeat
@@ -337,14 +338,15 @@ def _event(source_id: str, r: list[str]) -> Item | None:
 
 
 def _note(source_id: str, r: list[str]) -> Item | None:
-    if len(r) < 5:
+    if len(r) < 6:
         return None
-    uid, title, modified, text, folder = r[:5]
+    uid, title, modified, created, text, folder = r[:6]
     units = to_units(text.splitlines())
     if not units:
         return None
-    # The date is the time the Notes app says the note was last changed (user, 2026-11-22).
-    # A date written at the top of the note is kept beside it, as "written".
+    # The date is the time the Notes app says the note was created (user, 2026-11-22: the
+    # time the written note itself carries). The last-changed time and a date written at the
+    # top of the note are kept beside it.
     head = "\n".join(u.text for u in units[:3])
     written = find_date(head, now().year)
     return Item(
@@ -353,7 +355,7 @@ def _note(source_id: str, r: list[str]) -> Item | None:
         kind=ItemKind.NOTE,
         title=title or units[0].text,
         units=units,
-        date=_when(modified) or written,
+        date=_when(created) or _when(modified) or written,
         location=f"Notes: {folder}",
         meta={
             "modified": modified,
