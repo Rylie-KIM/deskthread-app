@@ -60,7 +60,7 @@ export default function Models({ onError, onChange }: { onError: (message: strin
                 <td>{m.download_gb} GB</td>
                 <td className="act">
                   {m.selected ? (
-                    <span className="status done">In use</span>
+                    <span className="status done live">In use</span>
                   ) : m.installed ? (
                     <button className="ghost small" disabled={busy !== ""} onClick={() => run(m.tag, () => api.selectModel(m.tag))}>Use</button>
                   ) : m.downloading !== null ? (
@@ -98,7 +98,7 @@ export default function Models({ onError, onChange }: { onError: (message: strin
             <div className="helperfoot">
               <span><em className="tag">{m.maker}</em><span className="size">{m.download_gb} GB</span></span>
               {m.installed ? (
-                <span className="status done">On</span>
+                <span className="status done live">In use</span>
               ) : m.downloading !== null ? (
                 <span className="dl"><span className="track"><i style={{ width: `${m.downloading}%` }} /></span>{m.downloading}%</span>
               ) : (
