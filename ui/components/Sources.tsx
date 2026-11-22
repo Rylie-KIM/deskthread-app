@@ -121,7 +121,7 @@ export default function Sources({ sources, folder, onSources, onError, refresh, 
         <>
           <div className="row wrap between bar">
             <p className="seeing">
-              Reading from <b>{folder}</b>. <b>{on.length}</b> of {sources.filter((s) => s.status !== "locked").length} sources On, <b>{held}</b> items in memory.
+              Reading from <b>{folder || "the folder you chose"}</b>. <b>{on.length}</b> of {sources.filter((s) => s.status !== "locked").length} sources On, <b>{held}</b> items in memory.
             </p>
             <div className="row">
               <button className="ghost" disabled={busy !== ""} onClick={workProfile}>{busy === "profile" ? "Switching on…" : "Work profile"}</button>

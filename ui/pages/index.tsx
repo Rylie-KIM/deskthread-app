@@ -49,8 +49,32 @@ export default function Home() {
         <meta name="referrer" content="no-referrer" />
       </Head>
       <div className="scene" aria-hidden="true">
-        <i className="blob a" /><i className="blob b" /><i className="blob c" />
-        <i className="sphere" /><i className="sphere small" /><i className="ring" />
+        {/* Flowing glass ribbons, drawn here as vector paths: no image file is loaded. */}
+        <svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice">
+          <defs>
+            <linearGradient id="ribbonA" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stopColor="#ffffff" stopOpacity=".95" />
+              <stop offset=".45" stopColor="#9fd2ff" stopOpacity=".5" />
+              <stop offset="1" stopColor="#0a17c4" stopOpacity=".3" />
+            </linearGradient>
+            <linearGradient id="ribbonB" x1="1" y1="0" x2="0" y2="1">
+              <stop offset="0" stopColor="#0a17c4" stopOpacity=".34" />
+              <stop offset=".5" stopColor="#6fb8ff" stopOpacity=".36" />
+              <stop offset="1" stopColor="#ffffff" stopOpacity=".9" />
+            </linearGradient>
+            <linearGradient id="ribbonC" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" stopColor="#2f9bff" stopOpacity=".34" />
+              <stop offset="1" stopColor="#ffffff" stopOpacity=".7" />
+            </linearGradient>
+            <filter id="soften" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="1.2" /></filter>
+          </defs>
+          <g className="ribbons" filter="url(#soften)" stroke="#ffffff" strokeOpacity=".95" strokeWidth="2">
+            <path fill="url(#ribbonB)" d="M760 -90 C1080 150 640 400 1000 620 S1500 760 1560 990 L1380 990 C1320 820 900 800 770 560 S840 130 590 -90 Z" />
+            <path fill="url(#ribbonA)" d="M-120 110 C300 -70 520 420 900 250 S1480 20 1600 210 L1600 420 C1400 250 1180 520 880 470 S320 150 -120 390 Z" />
+            <path fill="url(#ribbonC)" d="M-120 540 C260 380 520 780 900 580 S1380 320 1600 540 L1600 650 C1380 480 1150 830 900 720 S300 540 -120 710 Z" />
+          </g>
+        </svg>
+        <i className="s1" /><i className="s2" /><i className="s3" />
       </div>
       <header className="top">
         <div className="wrap row between">
