@@ -7,6 +7,7 @@ Nothing is written to disk: no settings, no log file, no bytecode. End session i
 
 import argparse
 import os
+import signal
 import socket
 import subprocess
 import sys
@@ -117,6 +118,9 @@ def main() -> int:
         print("The page is not built yet (ui/out is missing): run `make ui` once.", flush=True)
     if not args.no_browser:
         open_page(launch.address, args.window)
+    # A plain `kill` must also stop the model server: the web server hands the signal back
+    # when it has shut down, and this turns it into a normal exit so the clean-up below runs.
+    signal.signal(signal.SIGTERM, lambda *_: sys.exit(0))
     try:
         launch.web.run()
     finally:
