@@ -82,8 +82,7 @@ def register(app: FastAPI, runtime: Runtime) -> Downloads:
         if runtime.gateway is None:
             raise DeskThreadError(ErrorCode.MODEL_UNAVAILABLE)
         with runtime.ask_lock:  # never in the middle of an answer
-            runtime.gateway.select(body.tag)
-            runtime.session.assistant.forget()  # readings made by the old model are dropped
+            runtime.gateway.select(body.tag)  # what was read stays in memory (user, 2026-11-22)
         return listing(runtime, downloads)
 
     @app.post("/api/models/download")

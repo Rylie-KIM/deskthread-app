@@ -49,15 +49,30 @@ class SessionStore:
         is gone (U10). Apps on the Mac are slow to ask (Mail needs over a second per
         message), so they are read when switched on and keep what was read then."""
         for state in self._broker.states():
-            if self._broker.is_allowed(state.source_id) and state.source_id.startswith("folder:"):
+            if not self._broker.is_allowed(state.source_id):
+                continue
+            with self._lock:
+                empty = state.source_id not in self._items  # On, but cleared from memory
+            if empty or state.source_id.startswith("folder:"):
                 self.load(state.source_id)
 
+    def _forget_adapter(self, source_id: str) -> None:
+        try:
+            forget = getattr(self._broker.adapter(source_id), "forget", None)
+        except DeskThreadError:
+            return
+        if callable(forget):
+            forget()  # the source's own copy of what it read
+
     def drop(self, source_id: str) -> None:
+        self._forget_adapter(source_id)
         with self._lock:
             self._items.pop(source_id, None)
             self._uncounted.pop(source_id, None)
 
     def forget(self) -> None:
+        for state in self._broker.states():
+            self._forget_adapter(state.source_id)
         with self._lock:
             self._items.clear()
             self._uncounted.clear()

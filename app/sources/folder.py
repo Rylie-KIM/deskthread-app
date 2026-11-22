@@ -62,6 +62,10 @@ class FolderAdapter:
         self._role = role
         self._want_images = want_images  # True: images only; False: no images; None: all
 
+        # Read once per session: (changed time, size) and the items, by real path. In memory
+        # only; dropped on revoke, Clear memory and End session.
+        self._parsed: dict[str, tuple[tuple[int, int], list[Item]]] = {}
+
     @property
     def source_id(self) -> str:
         return self._source_id
@@ -92,6 +96,10 @@ class FolderAdapter:
             if root in path.parents:
                 return norm(prefix + str(path.relative_to(root)))
         raise DeskThreadError(ErrorCode.PATH_OUTSIDE_ALLOWED)
+
+    def forget(self) -> None:
+        """Drop what was read from this source (revoke, Clear memory, End session)."""
+        self._parsed.clear()
 
     def _mine(self, path: Path) -> bool:
         is_image = path.suffix.lower() in IMAGE_SUFFIXES
@@ -126,6 +134,7 @@ class FolderAdapter:
         if grant.source_id != self._source_id:
             raise DeskThreadError(ErrorCode.SOURCE_NOT_ALLOWED)
         year = now().year
+        seen: set[str] = set()
         for scope in self._scopes:
             if self._key(scope) not in grant.scope_ids:
                 continue
@@ -144,11 +153,44 @@ class FolderAdapter:
                     )
                     continue
                 try:
-                    for item in read_file(real, self._source_id, key, year, self._role):
+                    stamp = real.stat()
+                    mark = (stamp.st_mtime_ns, stamp.st_size)
+                    held = self._parsed.get(str(real))
+                    if held is None or held[0] != mark:  # new or changed: read it
                         # The viewer and the image reader open the file again by this path.
-                        yield item.model_copy(update={"meta": {**item.meta, "path": str(real)}})
+                        fresh = [
+                            item.model_copy(update={"meta": {**item.meta, "path": str(real)}})
+                            for item in read_file(real, self._source_id, key, year, self._role)
+                        ]
+                        held = self._parsed[str(real)] = (mark, fresh)
+                    seen.add(str(real))
+                    yield from held[1]
+                except OSError:
+                    continue  # deleted between listing and reading: simply gone
                 except DeskThreadError as err:
                     yield Uncounted(source_id=self._source_id, location=key, reason=err.code.value)
+        for gone in set(self._parsed) - seen:
+            del self._parsed[gone]  # a deleted file leaves memory at the next question
+
+
+VIDEO_SUFFIXES = frozenset({".mov", ".mp4", ".m4v", ".avi", ".mkv", ".webm"})
+
+
+def kinds_in(root: Path) -> dict[str, int]:
+    """What a folder holds, by file name only: files that can be read, pictures, videos and
+    recordings (cannot be read), and other formats (cannot be read). No file is opened."""
+    counts = {"files": 0, "pictures": 0, "videos": 0, "other": 0}
+    for path in _visible_files(root):
+        suffix = path.suffix.lower()
+        if suffix in IMAGE_SUFFIXES:
+            counts["pictures"] += 1
+        elif suffix in VIDEO_SUFFIXES:
+            counts["videos"] += 1
+        elif supported(path):
+            counts["files"] += 1
+        else:
+            counts["other"] += 1
+    return counts
 
 
 def scan_all(roots: list[Path], policy: AccessPolicy) -> list[FolderAdapter]:
@@ -220,7 +262,7 @@ def scan(root: Path, policy: AccessPolicy, prefix: str = "") -> list[FolderAdapt
             FolderAdapter(
                 source_id="folder:documents",
                 kind=SourceKind.DOCUMENTS,
-                label="Documents",
+                label="Files",
                 root=root,
                 prefix=prefix,
                 scopes=plain,

@@ -162,3 +162,43 @@ def test_the_connector_never_changes_the_folder(demo_laptop: Path) -> None:
     before = digest()
     assert len(_read_all(demo_laptop)) > 60
     assert digest() == before
+
+
+def test_an_unchanged_file_is_read_once_and_a_changed_or_deleted_one_is_noticed(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import os
+
+    from app.broker import Broker
+    from app.policy import AccessPolicy
+    from app.sources import folder
+    from app.store import SessionStore
+
+    (tmp_path / "a.txt").write_text("alpha line\n")
+    (tmp_path / "b.txt").write_text("beta line\n")
+    opened: list[str] = []
+    real_read = folder.read_file  # type: ignore[attr-defined]
+
+    def counting(path: Path, *args: object) -> object:
+        opened.append(path.name)
+        return real_read(path, *args)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(folder, "read_file", counting)
+    broker = Broker()
+    store = SessionStore(broker)
+    for adapter in folder.scan(tmp_path, AccessPolicy([tmp_path])):
+        broker.register(adapter)
+    sources = [s.source_id for s in broker.states()]
+    for source in sources:
+        broker.grant(source, frozenset())
+        store.load(source)
+    store.refresh()
+    store.refresh()
+    assert sorted(opened) == ["a.txt", "b.txt"]  # each file was opened once, not three times
+    (tmp_path / "a.txt").write_text("alpha changed, and longer\n")
+    os.utime(tmp_path / "a.txt", ns=(1, 1))
+    (tmp_path / "b.txt").unlink()
+    store.refresh()
+    assert opened.count("a.txt") == 2 and len(store.items()) == 1  # changed: read; deleted: gone
+    store.forget()
+    assert all(getattr(broker.adapter(s), "_parsed", None) == {} for s in sources)
