@@ -134,7 +134,7 @@ function Found({ answer, onCite }: { answer: Answer; onCite: (cite: Citation) =>
           <ol className="funnel">
             <li><b>{answer.coverage.searched}</b><span>items read</span></li>
             <li><b>{answer.coverage.given_to_model}</b><span>looked related</span></li>
-            <li><b>{answer.coverage.cited}</b><span>quoted word for word</span></li>
+            <li><b>{answer.coverage.cited}</b><span>{answer.coverage.cited === 1 ? "note quoted" : "notes quoted"}</span></li>
             <li className="last"><b>{sure.length}</b><span>{sure.length === 1 ? "thing found" : "things found"}{maybe.length > 0 ? `, ${maybe.length} possibly related` : ""}</span></li>
           </ol>
           {answer.model_name && <p className="by"><i className="orb small" aria-hidden="true" />Answered by <b>{answer.model_name}</b>, the AI on this Mac</p>}
