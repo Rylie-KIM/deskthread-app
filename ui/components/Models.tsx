@@ -46,7 +46,7 @@ export default function Models({ onError, onChange }: { onError: (message: strin
       <p className="sub">Every model runs on this Mac. Pick one for what you need.</p>
       <div className="card modeltable">
         <table>
-          <thead><tr><th>Model</th><th>Text</th><th>Pictures</th><th>Speed</th><th>Download</th><th></th></tr></thead>
+          <thead><tr><th>Model</th><th>Text</th><th>Pictures</th><th><span className="thhelp">Parameters<Help about="parameters">The number of values the model learned in training, a rough measure of its size. More usually means more capable but slower and heavier on memory. It is not a promise: how well a model was trained, and its design, matter as much. The note in brackets says how large it computes as.</Help></span></th><th>Speed</th><th>Download</th><th></th></tr></thead>
           <tbody>
             {models.filter((m) => m.role !== "search").map((m) => (
               <tr key={m.tag} className={m.selected ? "current" : ""}>
@@ -56,6 +56,7 @@ export default function Models({ onError, onChange }: { onError: (message: strin
                 </td>
                 <td><Mark yes /></td>
                 <td><Mark yes={m.reads_pictures} /></td>
+                <td className="params"><b>{m.parameters.split(" (")[0]}</b>{m.parameters.includes(" (") && <small>{m.parameters.slice(m.parameters.indexOf("(") + 1, -1)}</small>}</td>
                 <td><Speed level={LINE[m.tag]?.[1] ?? (m.download_gb <= 3 ? 3 : m.download_gb <= 7 ? 2 : 1)} /></td>
                 <td>{m.download_gb} GB</td>
                 <td className="act">
@@ -96,7 +97,7 @@ export default function Models({ onError, onChange }: { onError: (message: strin
               <li className="step"><b>{answering?.name ?? "Answering AI"}</b><span>Answering AI: reads them and writes the answer</span></li>
             </ol>
             <div className="helperfoot">
-              <span><em className="tag">{m.maker}</em><span className="size">{m.download_gb} GB</span></span>
+              <span><em className="tag">{m.maker}</em><span className="size">{m.parameters} parameters, {m.download_gb} GB download</span></span>
               {m.installed ? (
                 <span className="status done live">In use</span>
               ) : m.downloading !== null ? (

@@ -80,6 +80,7 @@ class ModelInfo(_Frozen):
     # "answers": a model that reads and answers. "search": the small model for search by
     # meaning; it is used automatically once it is on this Mac. (contract 1.14)
     role: str = "answers"
+    parameters: str = ""  # how many parameters it has, e.g. "7.5B (computes like 4B)" (1.18)
 
 
 class Spellings(_Frozen):

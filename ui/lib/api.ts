@@ -134,6 +134,7 @@ export interface ModelInfo {
   selected: boolean;
   tested: boolean;
   role: "answers" | "search";
+  parameters: string;
   downloading: number | null;
   failed: boolean;
 }

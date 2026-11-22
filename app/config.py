@@ -1,6 +1,6 @@
 """Fixed settings. They live in code and the README, never in a file the app writes (R4)."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 # The one model (FT-45): pinned by tag and by digest. A different digest is refused.
 MODEL_TAG = "gemma4:e4b"
@@ -22,6 +22,9 @@ class ModelChoice:
     # (2026-11-22: Gemma 4 small read the picture and gave valid ids; Phi-4 mini gave valid
     # JSON and, as a text-only model, is never sent pictures). None would mean "not tried".
     digest: str | None = None
+    # How many numbers the model learned, as the model registry states it (read on 2026-11-22),
+    # with a note where the size it computes with is smaller. Not a promise of quality.
+    parameters: str = ""
 
 
 MODELS: tuple[ModelChoice, ...] = (
@@ -76,6 +79,20 @@ LIKE_QUESTION = 0.45
 LIKE_NOTES = 0.62  # measured on the demo data: other people's one-to-ones reach 0.60
 RELATED_MAX = 5
 LIKE_WIDER = 0.36  # the lower bar of the second search, tried only when the first found nothing
+
+
+_PARAMETERS = {
+    "gemma4:e4b": "7.5B (computes like 4B)",
+    "gemma4:e2b": "4.6B (computes like 2B)",
+    "phi4-mini:latest": "3.8B",
+    "llama3.1:8b": "8.0B",
+    "llama3.2:3b": "3.2B",
+    "gpt-oss:20b": "20.9B (3.6B active)",
+    "nemotron-mini:4b": "4.2B",
+    "smollm2:1.7b": "1.7B",
+}
+MODELS = tuple(replace(m, parameters=_PARAMETERS[m.tag]) for m in MODELS)
+SEARCH_MODEL = replace(SEARCH_MODEL, parameters="308M")
 
 
 def approved(tag: str) -> bool:
