@@ -311,6 +311,21 @@ def supported(path: Path) -> bool:
     return path.suffix.lower() in READERS
 
 
+# Kinds whose date is the file's own changed-time (user, 2026-11-22). A mail, a calendar
+# entry and a reminder carry their own date and keep it.
+_DATED_BY_FILE = frozenset({ItemKind.NOTE, ItemKind.DOCUMENT, ItemKind.IMAGE, ItemKind.CHAT})
+
+
+def _file_dated(item: Item, path: Path) -> Item:
+    """A note, document or picture is dated by its file: when the file was last written.
+    A date written at the top of the text is kept beside it, as "written"."""
+    if item.kind not in _DATED_BY_FILE:
+        return item
+    meta = {**item.meta, **({"written": item.date.date().isoformat()} if item.date else {})}
+    changed = datetime.fromtimestamp(path.stat().st_mtime).astimezone()
+    return item.model_copy(update={"date": changed, "meta": meta})
+
+
 def read_file(path: Path, source_id: str, key: str, year: int, role: str = "") -> list[Item]:
     """Read one file that already passed the access policy."""
     suffix = path.suffix.lower()
@@ -324,7 +339,7 @@ def read_file(path: Path, source_id: str, key: str, year: int, role: str = "") -
             data = handle.read(MAX_BYTES + 1)
         if len(data) > MAX_BYTES:
             raise DeskThreadError(ErrorCode.UNSUPPORTED_TYPE)
-        return reader(data, source_id, key, path.name, year)
+        return [_file_dated(item, path) for item in reader(data, source_id, key, path.name, year)]
     except DeskThreadError:
         raise
     except (OSError, ValueError, KeyError, zipfile.BadZipFile, ElementTree.ParseError) as exc:

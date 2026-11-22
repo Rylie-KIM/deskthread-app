@@ -21,7 +21,10 @@ def test_u8_notes_carry_the_writers_date_or_are_undated(demo_laptop: Path) -> No
     assert [u.number for u in recap.units] == list(range(1, len(recap.units) + 1))
     follow = _read(demo_laptop, "App-exports/Notes/follow-ups.md")[0]
     assert follow.date is not None and (follow.date.month, follow.date.day) == (10, 23)
-    assert _read(demo_laptop, "App-exports/Notes/sam-fragment.md")[0].undated
+    # A note with no date written in it is dated by its file, like every note (user rule).
+    fragment = _read(demo_laptop, "App-exports/Notes/sam-fragment.md")[0]
+    assert not fragment.undated and "written" not in fragment.meta
+    assert recap.meta["written"] == "2026-11-06"
 
 
 def test_dates_come_only_from_what_the_writer_wrote() -> None:

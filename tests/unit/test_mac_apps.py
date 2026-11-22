@@ -123,15 +123,19 @@ def test_calendar_only_the_ticked_calendar_and_a_one_to_one_names_its_person(
     assert [(m.title, m.person) for m in meetings] == [("Team stand-up", ""), ("1:1 Sam", "Sam")]
 
 
-def test_notes_keep_the_writers_date_and_undated_stays_undated(apps: FakeApps) -> None:
+def test_notes_are_dated_by_the_time_the_app_says_they_were_changed(apps: FakeApps) -> None:
     adapter = MacAppAdapter("notes", SourceKind.NOTES, "Notes", "/", apps)
     scopes = {s.label: s.item_count for s in adapter.list_scopes()}
     assert scopes == {"DeskThread Demo": 2, "Private": 9}
     notes = _on(adapter, {"DeskThread Demo"}).items()
     assert apps.calls[-1] == ("notes.read", ["DeskThread Demo"])
     follow, fragment = notes
-    assert follow.date is not None and (follow.date.month, follow.date.day) == (10, 23)
-    assert fragment.undated and fragment.meta["modified"].startswith("2026-11-20")
+    assert follow.date is not None and follow.meta["modified"].startswith(
+        follow.date.date().isoformat()
+    )
+    assert follow.meta.get("written") == "2026-10-23"  # the date written in the note is kept
+    assert fragment.date is not None and fragment.meta["modified"].startswith("2026-11-20")
+    assert (fragment.date.month, fragment.date.day) == (11, 20) and "written" not in fragment.meta
     assert follow.location == "Notes: DeskThread Demo" and len(follow.units) == 3
 
 

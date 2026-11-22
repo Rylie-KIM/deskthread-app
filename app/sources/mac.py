@@ -343,18 +343,19 @@ def _note(source_id: str, r: list[str]) -> Item | None:
     units = to_units(text.splitlines())
     if not units:
         return None
-    # The date is the one the writer wrote in the note. The app's own "modified" time is
-    # kept beside it but is not treated as when the note was written.
+    # The date is the time the Notes app says the note was last changed (user, 2026-11-22).
+    # A date written at the top of the note is kept beside it, as "written".
     head = "\n".join(u.text for u in units[:3])
+    written = find_date(head, now().year)
     return Item(
         source_id=source_id,
         item_id=item_id("n", source_id, uid or title),
         kind=ItemKind.NOTE,
         title=title or units[0].text,
         units=units,
-        date=find_date(head, now().year),
+        date=_when(modified) or written,
         location=f"Notes: {folder}",
-        meta={"modified": modified},
+        meta={"modified": modified, **({"written": written.date().isoformat()} if written else {})},
     )
 
 

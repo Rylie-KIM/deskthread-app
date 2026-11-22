@@ -25,8 +25,10 @@ from PIL import Image, ImageDraw, ImageFont
 sys.path.insert(0, str(Path(__file__).parent))
 import content
 
-# Exported app data carries the export time, so nothing can lean on file times (plan 33.4).
-EXPORT_TIME = datetime(2026, 11, 22, 18, 0, tzinfo=UTC).timestamp()
+# A file is dated by its own changed-time (user, 2026-11-22). Each demo file gets the time
+# of the date written in it; a file with no date in it gets this one, two days before the
+# day the demo plays on, so it does not turn up under "today".
+EXPORT_TIME = datetime(2026, 11, 20, 18, 0, tzinfo=UTC).timestamp()
 CANARY_NOTE = f"{content.NOTES}/qbr-prep.md"
 CANARY_MAIL = "2026-11-04_expenses_approved.eml"
 FONT_PATHS = ("/System/Library/Fonts/Helvetica.ttc", "/Library/Fonts/Arial.ttf")
@@ -197,6 +199,20 @@ def files(canary: str | None = None) -> dict[str, bytes]:
     return dict(sorted(out.items()))
 
 
+def _written(path: Path) -> float | None:
+    """Noon of the date written at the top of a note or document, as the app's own reader
+    finds it; None when the file names no date or is not a note or document."""
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+    from app.readers.files import read_file
+
+    try:
+        items = read_file(path, "demo", path.name, 2026)
+    except Exception:  # noqa: BLE001  # a format the reader does not take: no date
+        return None
+    day = next((i.meta["written"] for i in items if i.meta.get("written")), None)
+    return datetime.fromisoformat(f"{day}T12:00:00+00:00").timestamp() if day else None
+
+
 def build(root: Path, canary: str | None = None) -> dict[str, str]:
     """Write the folder (replacing an earlier build) and return path -> sha256."""
     if root.exists():
@@ -213,7 +229,8 @@ def build(root: Path, canary: str | None = None) -> dict[str, str]:
         path = root / rel
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
-        os.utime(path, (EXPORT_TIME, EXPORT_TIME))
+        stamp = _written(path) or EXPORT_TIME
+        os.utime(path, (stamp, stamp))
         hashes[rel] = hashlib.sha256(data).hexdigest()
     return hashes
 

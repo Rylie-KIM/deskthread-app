@@ -212,6 +212,8 @@ All sample content is invented: a fictional company ("UK Pharma"), a fictional m
 
 ## Limitations
 
+- **Dates.** A note, document, PDF, chat export or picture file is dated by the file's own "Date Modified"; a note in the Notes app by the time the app says it was last changed. A mail keeps its header date, a calendar entry its start and a reminder its due date. A file that was copied or re-saved therefore carries the time of that copy, not the day it was first written. Dates written in Korean are not recognised in questions; "today", "tomorrow", "this week" and similar English words are.
+
 - The answer check proves that a quote exists in the cited note and is on the subject. It cannot prove the quote means what the writer meant.
 - A quote from an image matches the **model's reading** of the image, not the pixels. Typed screenshots were tested; handwriting and poor photos were not.
 - The model suggests search words and can miss a line (see the failing question above).

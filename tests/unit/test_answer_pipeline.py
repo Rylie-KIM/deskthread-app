@@ -38,10 +38,11 @@ def test_the_brief_quotes_are_copied_from_the_notes_with_dates_and_status(
     dates = [c.date for c in conference.citations]
     assert dates[0] is not None and dates[1] is not None and dates[0] < dates[1]
 
-    # U7: a cited line that says "approved" makes the point done; an undated note is labelled;
-    # a point made only of question marks is never "done".
+    # U7: a cited line that says "approved" makes the point done; a note with no date written
+    # in it is dated by its file (user rule); a point made only of question marks is never
+    # "done".
     assert course.status is PointStatus.DONE
-    assert ownership.citations[0].undated is True
+    assert ownership.citations[0].undated is False
     assert ownership.status is PointStatus.OPEN
     assert "not stated as a clear promise" in ownership.note
     assert intro.citations[0].source_label == "Note files"

@@ -50,8 +50,10 @@ class Item(BaseModel):
     kind: ItemKind
     title: str
     units: tuple[Unit, ...]
-    # The date the writer gave (note text, mail header, event start). None means "undated":
-    # file times are not used, because a file time says when a file was copied, not written.
+    # When the item is from: a mail's header date, an event's start, a reminder's due date;
+    # for a note, document or picture file the file's own changed-time; for a note in the
+    # Notes app the time the app says it was last changed (user, 2026-11-22). None means
+    # "undated".
     date: datetime | None = None
     # Where the item lives, for the viewer: a path for files, an app label otherwise.
     location: str = ""
