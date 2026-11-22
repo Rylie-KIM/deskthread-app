@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react";
 import { api, day, type Citation, type ItemView } from "../lib/api";
 
+// The place of an item without repeating its source: "Calendar: Work" becomes "Work".
+const place = (item: ItemView) => item.location.replace(new RegExp(`^${item.source_label}:\\s*`), "") || item.source_label;
+
 // Read-only view of one source. Text is rendered as text: React escapes it, so a note that
 // contains markup or a script is shown as characters and never runs.
 export default function Viewer({ cite, onClose }: { cite: Citation; onClose: () => void }) {
@@ -24,15 +27,19 @@ export default function Viewer({ cite, onClose }: { cite: Citation; onClose: () 
         {item && (
           <>
             <h2>{item.title}</h2>
-            <p className="fine bits"><em className="tag">{item.source_label}</em><span>{day(item.date)}</span><span>{item.location}</span></p>
-            {item.origin !== "" && (
-              <div className="original">
-                <button className="ghost small" onClick={() => { api.reveal(item.item_id).catch(() => setFailed(true)); }}>
-                  {item.origin === "file" ? "Show in Finder" : `Show in ${item.source_label}`}
+            {/* Three fixed columns: where it is from, its date, its place (a link to the original). */}
+            <div className="origin-row">
+              <em className="tag">{item.source_label}</em>
+              <span className="when">{day(item.date)}</span>
+              {item.origin !== "" ? (
+                <button className="place" title={item.origin === "file" ? "Show in Finder" : `Show in ${item.source_label}`} onClick={() => { api.reveal(item.item_id).catch(() => setFailed(true)); }}>
+                  <span>{place(item)}</span><i aria-hidden="true">↗</i>
                 </button>
-                {failed && <span className="fine">It could not be shown.</span>}
-              </div>
-            )}
+              ) : (
+                <span className="place plain"><span>{place(item)}</span></span>
+              )}
+            </div>
+            {failed && <p className="fine">It could not be shown.</p>}
             <div className={item.has_image ? "sidebyside" : ""}>
               {item.has_image && <img src={api.imageUrl(item.item_id)} alt="The image this text was read from" />}
               <div>

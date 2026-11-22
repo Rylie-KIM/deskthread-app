@@ -201,7 +201,7 @@ export function MyData({ onError, onClear, onEnd }: { onError: (message: string)
         </div>
         <div className="card part">
           <h2>Memory used</h2>
-          <p className="basis">A full bar would be all {size(mac)} of this Mac.</p>
+          <p className="basis">A full bar would be all {size(mac)} of this Mac. {size(memory.mac_free_mb)} is free right now.</p>
           {memory.processes.map((p) => {
             const share = (100 * p.memory_mb) / mac;
             return <div key={p.pid} className="meter"><span>{p.name.replace("DeskThread backend", "DeskThread").replace("Model server", "AI server").replace("Model runner", "AI model")}</span><div><i style={{ width: `${Math.max(2, Math.min(100, Math.round(share)))}%` }} /></div><b>{size(p.memory_mb)}</b><em>{share < 1 ? "<1" : Math.round(share)}%</em></div>;

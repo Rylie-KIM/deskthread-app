@@ -353,7 +353,8 @@ def test_folders_say_what_they_hold_and_what_cannot_be_read(
     client.post("/api/folder", json={"path": str(tmp_path)})
     (info,) = client.get("/api/folders").json()
     assert (info["files"], info["pictures"], info["videos"], info["other"]) == (2, 1, 2, 1)
-    assert client.get("/api/memory").json()["mac_memory_mb"] > 1000
+    memory = client.get("/api/memory").json()
+    assert memory["mac_memory_mb"] > 1000 and 0 < memory["mac_free_mb"] < memory["mac_memory_mb"]
 
 
 def test_the_original_of_an_item_is_shown_by_its_own_checked_path_only(

@@ -229,6 +229,9 @@ class MemoryState(_Frozen):
     model_loaded: bool
     processes: tuple[ProcessInfo, ...]
     mac_memory_mb: float = 0  # all the memory this Mac has, to compare against (contract 1.8)
+    # Memory other programs could still take right now, as macOS counts it: free, inactive,
+    # speculative and purgeable pages. Measured each time, like the total. (contract 1.12)
+    mac_free_mb: float = 0
 
 
 class Connection(_Frozen):

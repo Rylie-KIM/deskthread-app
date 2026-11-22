@@ -25,6 +25,29 @@ def _table() -> list[tuple[int, int, int]]:
     return rows
 
 
+def mac_memory() -> tuple[float, float]:
+    """(all memory of this Mac, memory still available now), in MB, asked from the system
+    each time: nothing here is a fixed number. Available = free + inactive + speculative +
+    purgeable pages, as the Mac's own `vm_stat` reports them."""
+    total = os.sysconf("SC_PHYS_PAGES") * os.sysconf("SC_PAGE_SIZE") / 1048576
+    done = subprocess.run(["/usr/bin/vm_stat"], capture_output=True, text=True, check=False)
+    page, pages = 16384, 0
+    for line in done.stdout.splitlines():
+        name, _, value = line.partition(":")
+        if "page size of" in line:
+            digits = "".join(c for c in line.split("page size of")[1] if c.isdigit())
+            page = int(digits) if digits else page
+        elif name.strip() in (
+            "Pages free",
+            "Pages inactive",
+            "Pages speculative",
+            "Pages purgeable",
+        ):
+            number = value.strip().rstrip(".")
+            pages += int(number) if number.isdigit() else 0
+    return round(total), round(pages * page / 1048576)
+
+
 def listener_pid(port: int = config.MODEL_PORT) -> int | None:
     """The process listening on a local port, or None."""
     done = subprocess.run(

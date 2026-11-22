@@ -79,6 +79,7 @@ export interface MemoryState {
   model_loaded: boolean;
   processes: ProcessInfo[];
   mac_memory_mb: number;
+  mac_free_mb: number;
 }
 export interface Connection { process: string; pid: number; remote: string; local_only: boolean }
 export interface ConnectionCheck { command: string; output: string; connections: Connection[]; all_local: boolean; ran_at: string }

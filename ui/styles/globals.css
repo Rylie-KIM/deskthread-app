@@ -635,3 +635,15 @@ fieldset.period { display: grid; gap: 14px; padding: 14px 16px 16px; }
 .looked .took { font-size: .78rem; color: var(--faint); margin-right: auto; font-variant-numeric: tabular-nums; }
 .looked.bits { justify-content: flex-start; }
 .looked.bits .link { margin-left: auto; }
+
+/* the source viewer's header: three fixed columns; the place is the way to the original */
+.origin-row { display: grid; grid-template-columns: 112px 112px minmax(0, 1fr); align-items: center; gap: 12px; margin: 10px 0 16px; font-size: .86rem; color: var(--muted); }
+.origin-row .tag { justify-self: start; max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.origin-row .when { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.place { display: inline-flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; justify-self: start; border: 0; background: none; padding: 0; font: inherit; color: var(--royal); cursor: pointer; text-align: left; }
+.place span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(10, 23, 196, .35); }
+.place i { font-style: normal; flex: none; }
+.place:hover span { text-decoration-color: var(--royal); }
+.place.plain { color: var(--muted); cursor: default; }
+.place.plain span { text-decoration: none; }
+@media (max-width: 620px) { .origin-row { grid-template-columns: auto auto; } .origin-row .place { grid-column: 1 / -1; } }

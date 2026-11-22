@@ -6,11 +6,9 @@ stays open. It cannot prove that the bytes were erased: freed memory belongs to 
 operating system. The panel shows numbers a user can compare with Activity Monitor.
 """
 
-import os
-
 from fastapi import FastAPI
 
-from app.proof.processes import watched
+from app.proof.processes import mac_memory, watched
 from app.runtime import Runtime
 from contracts.api import MemoryState
 from contracts.broker import SourceStatus
@@ -24,13 +22,15 @@ def state(runtime: Runtime) -> MemoryState:
             if source.status is SourceStatus.ON and source.items_in_memory:
                 by_source[source.label] = source.items_in_memory
         readings = runtime.session.assistant.readings_held
+    total, free = mac_memory()
     return MemoryState(
         items_held=sum(by_source.values()),
         items_by_source=by_source,
         image_readings_held=readings,
         model_loaded=runtime.gateway.loaded() if runtime.gateway else False,
         processes=tuple(watched(runtime.server.pid if runtime.server else None)),
-        mac_memory_mb=round(os.sysconf("SC_PHYS_PAGES") * os.sysconf("SC_PAGE_SIZE") / 1048576),
+        mac_memory_mb=total,
+        mac_free_mb=free,
     )
 
 

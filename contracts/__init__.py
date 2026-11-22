@@ -9,4 +9,5 @@ package; a change bumps CONTRACT_VERSION (dev rule R14).
 # 1.9 an exact date range for app sources, a summary and "matched" words on answers
 # 1.10 the connection check, run for the user and shown as macOS printed it
 # 1.11 show the original of an item (in Finder, or its app)
-CONTRACT_VERSION = "1.11"
+# 1.12 the Mac's free memory, measured
+CONTRACT_VERSION = "1.12"
