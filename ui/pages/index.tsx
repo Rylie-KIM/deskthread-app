@@ -26,6 +26,9 @@ export default function Home() {
 
   useEffect(() => {
     if (!readToken()) return setState("locked");
+    // The address may name the section to open, e.g. "...#t=<token>&tab=data".
+    const wanted = new URLSearchParams(window.location.hash.slice(1)).get("tab");
+    if (wanted === "access" || wanted === "ask" || wanted === "data") setTab(wanted);
     api.session().then((session) => { setInfo(session); setState("ready"); return refresh(); }).catch(() => setState("locked"));
   }, [refresh]);
 
