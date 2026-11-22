@@ -46,7 +46,7 @@ export default function Models({ onError, onChange }: { onError: (message: strin
       <p className="sub">Every model runs on this Mac. Pick one for what you need.</p>
       <div className="card modeltable">
         <table>
-          <thead><tr><th>Model</th><th>Text</th><th>Pictures</th><th>Speed</th><th>Size</th><th></th></tr></thead>
+          <thead><tr><th>Model</th><th>Text</th><th>Pictures</th><th>Speed</th><th>Download</th><th></th></tr></thead>
           <tbody>
             {models.filter((m) => m.role !== "search").map((m) => (
               <tr key={m.tag} className={m.selected ? "current" : ""}>
@@ -86,7 +86,7 @@ export default function Models({ onError, onChange }: { onError: (message: strin
               <Help about="the search helper">
                 <b>Not the same AI.</b> It is a separate, small model of a different kind: an embedding model, not a chat model (LLM). It cannot write, answer or hold a conversation; it only produces numbers.<br />
                 <b>What it does.</b> It turns each note into a list of numbers. Notes that mean something similar get similar numbers, even in other words, so it can offer notes that do not name the person you ask about.<br />
-                <b>Where it runs.</b> On this Mac, next to the answering AI, using about {m.download_gb} GB more memory while it works.<br />
+                <b>Where it runs.</b> On this Mac, next to the answering AI, using roughly its download size ({m.download_gb} GB) of memory while it works.<br />
                 <b>Without it,</b> notes are matched by their words only. It works with any answering AI.
               </Help>
             </div>
