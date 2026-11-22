@@ -45,9 +45,11 @@ class SessionStore:
         return len(items)
 
     def refresh(self) -> None:
-        """Read every allowed source again, so a file deleted meanwhile is gone (U10)."""
+        """Before each question: read the allowed folders again, so a file deleted meanwhile
+        is gone (U10). Apps on the Mac are slow to ask (Mail needs over a second per
+        message), so they are read when switched on and keep what was read then."""
         for state in self._broker.states():
-            if self._broker.is_allowed(state.source_id):
+            if self._broker.is_allowed(state.source_id) and state.source_id.startswith("folder:"):
                 self.load(state.source_id)
 
     def drop(self, source_id: str) -> None:

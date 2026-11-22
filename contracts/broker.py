@@ -69,7 +69,9 @@ class PermissionBroker(Protocol):
 
     def request(self, source_id: str) -> PermissionRequest: ...
 
-    def grant(self, source_id: str, scope_ids: frozenset[str]) -> SourceState:
+    def grant(
+        self, source_id: str, scope_ids: frozenset[str], days: int | None = None
+    ) -> SourceState:
         """Allow reading for this session. Reading is the only permission there is."""
         ...
 

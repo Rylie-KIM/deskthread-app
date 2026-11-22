@@ -165,8 +165,9 @@ export const api = {
   chooseFolder: (path: string) => call<SourceState[]>("POST", "/api/folder", { path }),
   removeFolder: (path: string) => call<SourceState[]>("POST", "/api/folder/remove", { path }),
   request: (sourceId: string) => call<PermissionRequest>("GET", `/api/sources/${id(sourceId)}/request`),
-  grant: (sourceId: string, scopeIds: string[]) =>
-    call<SourceState>("POST", `/api/sources/${id(sourceId)}/grant`, { scope_ids: scopeIds }),
+  grant: (sourceId: string, scopeIds: string[], days?: number) =>
+    call<SourceState>("POST", `/api/sources/${id(sourceId)}/grant`, { scope_ids: scopeIds, days: days ?? null }),
+  iconUrl: (sourceId: string) => `/api/sources/${id(sourceId)}/icon?t=${id(readToken())}`,
   revoke: (sourceId: string) => call<SourceState>("POST", `/api/sources/${id(sourceId)}/revoke`),
   revokeAll: () => call<SourceState[]>("POST", "/api/sources/revoke-all"),
   meetings: () => call<Meeting[]>("GET", "/api/meetings"),

@@ -36,8 +36,9 @@ WHAT_IS_READ: dict[SourceKind, str] = {
 class Grant:
     """Proof that a read is allowed right now. Cancelled the moment access is revoked."""
 
-    def __init__(self, source_id: str, scope_ids: frozenset[str]) -> None:
+    def __init__(self, source_id: str, scope_ids: frozenset[str], days: int | None = None) -> None:
         self._source_id, self._scope_ids = source_id, scope_ids
+        self.days = days  # how far back to read, where time matters; None = the default
         self._cancel = threading.Event()
 
     @property
@@ -140,7 +141,9 @@ class Broker:
             os_permission=adapter.os_permission(),
         )
 
-    def grant(self, source_id: str, scope_ids: frozenset[str]) -> SourceState:
+    def grant(
+        self, source_id: str, scope_ids: frozenset[str], days: int | None = None
+    ) -> SourceState:
         adapter = self.adapter(source_id)
         known = {s.scope_id for s in adapter.list_scopes()}
         chosen = (scope_ids & known) if scope_ids else known
@@ -148,7 +151,7 @@ class Broker:
             raise DeskThreadError(ErrorCode.BAD_REQUEST)
         self.revoke(source_id, quiet=True)  # a new choice of scopes replaces the old one
         with self._lock:
-            self._grants[source_id] = Grant(source_id, frozenset(chosen))
+            self._grants[source_id] = Grant(source_id, frozenset(chosen), days)
             self._note(AuditAction.GRANT, source_id, len(chosen))
             return self._state(source_id)
 

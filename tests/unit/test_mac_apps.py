@@ -85,9 +85,11 @@ def test_r2_no_script_contains_a_command_that_writes_sends_or_deletes() -> None:
             if re.match(r"\s*set\b", line):
                 # "set" may only fill one of the script's own variables, never an app's property
                 assert re.match(r"\s*set [A-Za-z][A-Za-z0-9]* to ", line), f"{name}: {line.strip()}"
-                own = "FS|RS|out|d1|d2|total|m|names|sums|starts|ids|dates|bodies|dones|dues"
+                own = "FS|RS|out|d1|d2|total|got[A-Z][a-z]+"
                 assert re.match(rf"\s*set ({own}) to ", line), line.strip()
         assert code.count("tell application") == 1
+        # a plain plural ("dates", "names") would be read as "every date": never use one
+        assert not re.search(r"\bset (names|dates|ids|bodies|sums|starts|notes|events) to\b", code)
 
 
 def test_r2_names_chosen_by_the_user_are_arguments_never_part_of_a_script(apps: FakeApps) -> None:

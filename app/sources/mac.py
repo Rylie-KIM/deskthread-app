@@ -15,7 +15,7 @@ import atexit
 import subprocess
 import threading
 from collections.abc import Callable, Iterator
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -28,6 +28,8 @@ from contracts.items import Item, ItemKind, SourceKind, Uncounted
 FS, RS = "\x1f", "\x1e"  # field and record separators in what a script returns
 Runner = Callable[[str, list[str], float], str]
 
+# Variable names in the scripts start with "got": AppleScript reads a plain plural such as
+# "dates" as "every date" and then refuses the assignment (error -10006).
 _HEAD = """
 on txt(v)
     if v is missing value then return ""
@@ -52,9 +54,9 @@ SCRIPTS: dict[str, str] = {
     "calendar.list": _HEAD
     + """
     tell application "Calendar"
-        set names to name of calendars
+        set gotNames to name of calendars
     end tell
-    repeat with n in names
+    repeat with n in gotNames
         set out to out & (n as text) & FS & "" & RS
     end repeat
 """
@@ -68,11 +70,11 @@ SCRIPTS: dict[str, str] = {
     tell application "Calendar"
         repeat with wanted in argv
             repeat with c in (calendars whose name is (wanted as text))
-                set sums to summary of (every event of c whose start date ≥ d1 and start date ≤ d2)
-                set starts to start date of (every event of c whose start date ≥ d1 and start date ≤ d2)
-                repeat with i from 1 to (count of sums)
-                    set out to out & "" & FS & my txt(item i of sums) & FS ¬
-                        & my stamp(item i of starts) & FS & "" & FS & "" & FS & (wanted as text) & RS
+                set gotSums to summary of (every event of c whose start date ≥ d1 and start date ≤ d2)
+                set gotStarts to start date of (every event of c whose start date ≥ d1 and start date ≤ d2)
+                repeat with i from 1 to (count of gotSums)
+                    set out to out & "" & FS & my txt(item i of gotSums) & FS ¬
+                        & my stamp(item i of gotStarts) & FS & "" & FS & "" & FS & (wanted as text) & RS
                 end repeat
             end repeat
         end repeat
@@ -83,9 +85,9 @@ SCRIPTS: dict[str, str] = {
     "notes.list": _HEAD
     + """
     tell application "Notes"
-        set names to name of folders
-        repeat with i from 1 to (count of names)
-            set out to out & (item i of names as text) & FS & ((count of notes of folder i) as text) & RS
+        set gotNames to name of folders
+        repeat with i from 1 to (count of gotNames)
+            set out to out & (item i of gotNames as text) & FS & ((count of notes of folder i) as text) & RS
         end repeat
     end tell
 """
@@ -95,13 +97,13 @@ SCRIPTS: dict[str, str] = {
     tell application "Notes"
         repeat with wanted in argv
             repeat with f in (folders whose name is (wanted as text))
-                set ids to id of (notes of f whose password protected is false)
-                set names to name of (notes of f whose password protected is false)
-                set dates to modification date of (notes of f whose password protected is false)
-                set bodies to plaintext of (notes of f whose password protected is false)
-                repeat with i from 1 to (count of ids)
-                    set out to out & my txt(item i of ids) & FS & my txt(item i of names) & FS ¬
-                        & my stamp(item i of dates) & FS & my txt(item i of bodies) & FS ¬
+                set gotIds to id of (notes of f whose password protected is false)
+                set gotNames to name of (notes of f whose password protected is false)
+                set gotDates to modification date of (notes of f whose password protected is false)
+                set gotBodies to plaintext of (notes of f whose password protected is false)
+                repeat with i from 1 to (count of gotIds)
+                    set out to out & my txt(item i of gotIds) & FS & my txt(item i of gotNames) & FS ¬
+                        & my stamp(item i of gotDates) & FS & my txt(item i of gotBodies) & FS ¬
                         & (wanted as text) & RS
                 end repeat
             end repeat
@@ -113,9 +115,9 @@ SCRIPTS: dict[str, str] = {
     "reminders.list": _HEAD
     + """
     tell application "Reminders"
-        set names to name of lists
-        repeat with i from 1 to (count of names)
-            set out to out & (item i of names as text) & FS & ((count of reminders of list i) as text) & RS
+        set gotNames to name of lists
+        repeat with i from 1 to (count of gotNames)
+            set out to out & (item i of gotNames as text) & FS & ((count of reminders of list i) as text) & RS
         end repeat
     end tell
 """
@@ -125,15 +127,15 @@ SCRIPTS: dict[str, str] = {
     tell application "Reminders"
         repeat with wanted in argv
             repeat with l in (lists whose name is (wanted as text))
-                set ids to id of reminders of l
-                set names to name of reminders of l
-                set dones to completed of reminders of l
-                set dues to due date of reminders of l
-                set bodies to body of reminders of l
-                repeat with i from 1 to (count of ids)
-                    set out to out & my txt(item i of ids) & FS & my txt(item i of names) & FS ¬
-                        & ((item i of dones) as text) & FS & my stamp(item i of dues) & FS ¬
-                        & my txt(item i of bodies) & FS & (wanted as text) & RS
+                set gotIds to id of reminders of l
+                set gotNames to name of reminders of l
+                set gotDones to completed of reminders of l
+                set gotDues to due date of reminders of l
+                set gotBodies to body of reminders of l
+                repeat with i from 1 to (count of gotIds)
+                    set out to out & my txt(item i of gotIds) & FS & my txt(item i of gotNames) & FS ¬
+                        & ((item i of gotDones) as text) & FS & my stamp(item i of gotDues) & FS ¬
+                        & my txt(item i of gotBodies) & FS & (wanted as text) & RS
                 end repeat
             end repeat
         end repeat
@@ -146,8 +148,8 @@ SCRIPTS: dict[str, str] = {
     + """
     tell application "Mail"
         repeat with acc in accounts
-            set names to name of mailboxes of acc
-            repeat with n in names
+            set gotNames to name of mailboxes of acc
+            repeat with n in gotNames
                 set out to out & my txt(name of acc) & " / " & (n as text) & FS & "" & RS
             end repeat
         end repeat
@@ -166,15 +168,15 @@ SCRIPTS: dict[str, str] = {
                         set total to count of messages of mb
                         if total > 25 then set total to 25
                         if total > 0 then
-                            set ids to message id of (messages 1 thru total of mb)
-                            set sums to subject of (messages 1 thru total of mb)
-                            set dates to date received of (messages 1 thru total of mb)
-                            set names to sender of (messages 1 thru total of mb)
-                            set bodies to content of (messages 1 thru total of mb)
+                            set gotIds to message id of (messages 1 thru total of mb)
+                            set gotSums to subject of (messages 1 thru total of mb)
+                            set gotDates to date received of (messages 1 thru total of mb)
+                            set gotNames to sender of (messages 1 thru total of mb)
+                            set gotBodies to content of (messages 1 thru total of mb)
                             repeat with i from 1 to total
-                                set out to out & my txt(item i of ids) & FS & my txt(item i of sums) ¬
-                                    & FS & my stamp(item i of dates) & FS & my txt(item i of names) ¬
-                                    & FS & my txt(item i of bodies) & FS & (wanted as text) & RS
+                                set out to out & my txt(item i of gotIds) & FS & my txt(item i of gotSums) ¬
+                                    & FS & my stamp(item i of gotDates) & FS & my txt(item i of gotNames) ¬
+                                    & FS & my txt(item i of gotBodies) & FS & (wanted as text) & RS
                             end repeat
                         end if
                     end if
@@ -298,11 +300,16 @@ class MacAppAdapter:
             raise DeskThreadError(ErrorCode.SOURCE_NOT_ALLOWED)
         grant.raise_if_cancelled()
         records = self._call("read", sorted(grant.scope_ids), 240)
+        days = getattr(grant, "days", None)
+        oldest = now() - timedelta(days=days) if days else None
         for record in records:
             grant.raise_if_cancelled()  # a revoke stops the read between two items
             item = PARSERS[self._name](self.source_id, record)
-            if item is not None:
-                yield item
+            if item is None:
+                continue
+            if oldest and self._name == "mail" and item.date and item.date < oldest:
+                continue  # older than the period the user chose
+            yield item
 
 
 def _event(source_id: str, r: list[str]) -> Item | None:

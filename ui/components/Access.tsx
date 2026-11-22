@@ -4,6 +4,10 @@ import { api, ApiError, macWindow, plain, type FolderInfo, type PermissionReques
 // Anything personal stays Off when "all work sources" is used. It can still be switched on by hand.
 const NOT_WORK = /personal|whatsapp|kakaotalk|line|discord|imessage|messages|telegram|signal/i;
 
+// Sources where time matters: the user says how far back to read.
+const PERIOD = /^mac:(calendar|mail)$/;
+const SPANS: [number, string][] = [[14, "2 weeks"], [30, "1 month"], [90, "3 months"], [365, "1 year"]];
+
 const OS_NOTE: Record<string, string> = {
   not_needed: "",
   granted: "",
@@ -27,6 +31,7 @@ export default function Access({ sources, folder, demoFolder, onSources, onError
   const [request, setRequest] = useState<PermissionRequest | null>(null);
   const [ticked, setTicked] = useState<string[]>([]);
   const [folders, setFolders] = useState<FolderInfo[]>([]);
+  const [days, setDays] = useState(30);
 
   // The folders in use, kept in step with the sources.
   useEffect(() => {
@@ -72,7 +77,7 @@ export default function Access({ sources, folder, demoFolder, onSources, onError
   const allow = () =>
     run("allow", async () => {
       if (!request) return;
-      await api.grant(request.source_id, ticked);
+      await api.grant(request.source_id, ticked, PERIOD.test(request.source_id) ? days : undefined);
       setRequest(null);
       await refresh();
     });
@@ -107,7 +112,11 @@ export default function Access({ sources, folder, demoFolder, onSources, onError
 
   const row = (source: SourceState) => (
     <li key={source.source_id} className={source.status === "on" ? "rowitem on" : "rowitem"}>
-      <span className="tile" aria-hidden="true">{source.label.slice(0, 1)}</span>
+      {source.source_id.startsWith("mac:") ? (
+        <img className="appicon" src={api.iconUrl(source.source_id)} alt="" onError={(e) => { e.currentTarget.style.visibility = "hidden"; }} />
+      ) : (
+        <span className="tile" aria-hidden="true">{source.label.slice(0, 1)}</span>
+      )}
       <span className="who">
         <b>{source.label}</b>
         <small>{busy === source.source_id ? "Working…" : source.status === "on" ? `Reading · ${source.items_in_memory} items` : "Off"}</small>
@@ -174,9 +183,19 @@ export default function Access({ sources, folder, demoFolder, onSources, onError
           <input aria-label="Folder path" placeholder="or type a folder path" value={path} onChange={(e) => setPath(e.target.value)} />
           <button className="ghost" disabled={busy !== "" || !path.trim()}>Use</button>
         </form>
-        {files.length > 0 && <h2 className="in">In these folders</h2>}
+        {files.length > 0 && <h2 className="in">File types found in your folders</h2>}
         {files.length > 0 && <ul className="rows">{files.map(row)}</ul>}
       </div>
+
+      {on.length > 0 && (
+        <div className="card finish">
+          <span className="who">
+            <b>{on.length} switched on · {held} items ready</b>
+            <small>You can change this at any time.</small>
+          </span>
+          <button className="primary" onClick={onReady}>Done, start asking</button>
+        </div>
+      )}
 
       {request && (
         <div className="scrim" role="dialog" aria-modal="true" aria-labelledby="ask-title">
@@ -197,6 +216,17 @@ export default function Access({ sources, folder, demoFolder, onSources, onError
                 </label>
               ))}
             </fieldset>
+            {PERIOD.test(request.source_id) && (
+              <fieldset>
+                <legend>How far back</legend>
+                <div className="spans">
+                  {SPANS.map(([value, label]) => (
+                    <button key={value} type="button" className={days === value ? "span on" : "span"} aria-pressed={days === value} onClick={() => setDays(value)}>{label}</button>
+                  ))}
+                </div>
+                {request.source_id === "mac:mail" && <p className="fine">Mail is slow to read: the newest 25 messages within that time.</p>}
+              </fieldset>
+            )}
             {request.source_id.startsWith("mac:") && request.os_permission !== "missing" && (
               <p className="fine">
                 {request.source_id === "mac:calendar"

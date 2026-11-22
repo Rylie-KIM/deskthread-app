@@ -3,6 +3,8 @@ import { api, clock, day, plain, type Answer, type Citation, type Meeting, type 
 
 // Plain words for the status of something promised or to do.
 const STATUS_TEXT = { done: "Done", open: "Still to do", changed: "Changed", superseded: "No longer valid" } as const;
+// The steps of one question, in order (the same names the backend reports).
+const STEPS = ["Reading your folders", "Reading pictures", "Finding the right items", "Asking the AI on this Mac", "Checking the answer"];
 const STEP: Record<string, string> = { G1: "Access rules", G2: "Reading", G3: "AI on this Mac", G4: "Answer check", G6: "Record" };
 
 function when(meeting: Meeting, nowIso: string): string {
@@ -127,8 +129,13 @@ export default function Ask({ now, anyOn, thread, onAnswer, onCite, onError, fir
           <div className="turn">
             <p className="mine">{asking}</p>
             <div className="reply progress" role="status">
-              <div className="track"><i style={{ width: `${progress && progress.of ? Math.round((100 * progress.number) / progress.of) : 6}%` }} /></div>
-              <p>{progress?.step || "Starting"}{progress && progress.of ? ` · step ${progress.number} of ${progress.of}` : ""}</p>
+              <ol className="steps">
+                {STEPS.map((name, index) => {
+                  const at = progress?.number ?? 0;
+                  const state = index + 1 < at ? "past" : index + 1 === at ? "now" : "next";
+                  return <li key={name} className={state}><i>{index + 1 < at ? "✓" : index + 1}</i>{name}</li>;
+                })}
+              </ol>
             </div>
           </div>
         )}

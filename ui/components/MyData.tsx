@@ -29,6 +29,8 @@ export function MyData({ onError, onForgot, onEnd }: { onError: (message: string
 
   if (!proof || !memory) return <section><p className="fine">Checking…</p></section>;
   const untouched = proof.folders.every((f) => f.unchanged);
+  // Counted from the live list of connections; it is above zero only while a model downloads.
+  const outside = proof.connections.filter((c) => !c.local_only).length;
   const files = proof.folders.reduce((sum, f) => sum + f.files, 0);
 
   return (
@@ -98,13 +100,13 @@ export function MyData({ onError, onForgot, onEnd }: { onError: (message: string
           </div>
           <div className={memory.model_loaded ? "pipe moving" : "pipe"} aria-hidden="true" />
           <div className="node">
-            <p className="big">{memory.model_loaded ? "On" : "Off"}</p>
-            <p>AI on this Mac</p>
+            <p className="big">{memory.model_loaded ? "Ready" : "Resting"}</p>
+            <p>{memory.model_loaded ? "AI is in memory on this Mac" : "AI is not in memory until you ask"}</p>
           </div>
           <div className="pipe cut" aria-hidden="true" />
-          <div className="node off">
-            <p className="big">0</p>
-            <p>sent to the internet</p>
+          <div className={outside > 0 ? "node off alert" : "node off"}>
+            <p className="big">{outside}</p>
+            <p>{outside === 1 ? "connection" : "connections"} outside this Mac</p>
           </div>
         </div>
       </div>

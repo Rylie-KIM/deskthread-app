@@ -71,7 +71,7 @@ class Assistant:
 
     # ------------------------------------------------------------------ one question
     STEPS = (
-        "Reading what you switched on",
+        "Reading your folders",
         "Reading pictures",
         "Finding the right items",
         "Asking the AI on this Mac",

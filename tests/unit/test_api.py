@@ -288,3 +288,35 @@ def test_the_policy_follows_a_page_rebuilt_while_the_app_runs(tmp_path: Path) ->
     page.write_text("<script>second_build()</script>")
     after = client.get("/api/session").headers["content-security-policy"]
     assert "sha256-" in before and "sha256-" in after and before != after
+
+
+def test_an_app_icon_is_served_as_a_png_and_unknown_sources_have_none(
+    client: TestClient, runtime: Runtime
+) -> None:
+    pytest.importorskip("AppKit")
+    shown = client.get("/api/sources/mac:calendar/icon")
+    assert shown.status_code == 200 and shown.headers["content-type"] == "image/png"
+    assert shown.content[:8] == b"\x89PNG\r\n\x1a\n" and len(shown.content) > 2000
+    assert client.get("/api/sources/folder:notes/icon").status_code == 404
+    bare = TestClient(create_app(runtime), base_url=BASE)
+    assert bare.get("/api/sources/mac:calendar/icon").status_code == 401
+    assert bare.get(f"/api/sources/mac:calendar/icon?t={runtime.token}").status_code == 200
+
+
+def test_a_question_reads_folders_again_but_not_the_apps(
+    client: TestClient, runtime: Runtime, demo_laptop: Path
+) -> None:
+    from app.sources.mac import MacAppAdapter
+    from contracts.items import SourceKind
+    from tests.unit.test_mac_apps import FakeApps
+
+    apps = FakeApps()
+    runtime.session.broker.register(MacAppAdapter("notes", SourceKind.NOTES, "Notes", "/", apps))
+    _work_profile(client, demo_laptop)
+    client.post("/api/sources/mac:notes/grant", json={"scope_ids": ["DeskThread Demo"], "days": 30})
+    reads = [name for name, _ in apps.calls if name == "notes.read"]
+    grant = runtime.session.broker.read_grant("mac:notes")
+    assert reads and getattr(grant, "days", None) == 30
+    client.post("/api/ask", json={"question": "What did I promise Sam?"})
+    client.post("/api/ask", json={"question": "What did I promise Sam?"})
+    assert [name for name, _ in apps.calls if name == "notes.read"] == reads  # not asked again

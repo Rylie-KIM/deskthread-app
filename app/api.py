@@ -21,6 +21,7 @@ from fastapi.staticfiles import StaticFiles
 import contracts
 from app import config, models
 from app.clock import now
+from app.icons import app_icon
 from app.proof import ending, evidence, memory
 from app.runtime import Runtime
 from contracts.api import (
@@ -172,9 +173,16 @@ def create_app(runtime: Runtime, ui_dir: Path | None = None) -> FastAPI:
     @app.post("/api/sources/{source_id}/grant")
     def grant(source_id: str, body: GrantBody) -> SourceState:
         session = runtime.require()
-        session.broker.grant(source_id, frozenset(body.scope_ids))
+        session.broker.grant(source_id, frozenset(body.scope_ids), body.days)
         session.store.load(source_id)
         return next(s for s in session.broker.states() if s.source_id == source_id)
+
+    @app.get("/api/sources/{source_id}/icon")
+    def icon(source_id: str) -> Response:
+        data = app_icon(source_id)
+        if data is None:
+            raise DeskThreadError(ErrorCode.SOURCE_UNKNOWN)
+        return Response(content=data, media_type="image/png")
 
     @app.post("/api/sources/{source_id}/revoke")
     def revoke(source_id: str) -> SourceState:
@@ -242,6 +250,6 @@ def create_app(runtime: Runtime, ui_dir: Path | None = None) -> FastAPI:
 
 def _token_ok(request: Request, runtime: Runtime) -> bool:
     sent = request.headers.get(TOKEN_HEADER, "")
-    if not sent and request.url.path.endswith("/image"):
+    if not sent and request.url.path.endswith(("/image", "/icon")):
         sent = request.query_params.get("t", "")  # an <img> tag cannot send a header
     return hmac.compare_digest(sent.encode(), runtime.token.encode())

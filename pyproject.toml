@@ -57,6 +57,7 @@ ignore = [
 "tests/**" = ["S105", "S106", "S108"]
 "tests/unit/test_mac_apps.py" = ["S105", "S106", "S108", "E501"]  # canned app replies, kept on one line each
 "app/sources/mac.py" = ["E501"]  # AppleScript text is kept one statement per line
+"app/icons.py" = ["E501"]  # one very long method name from Apple's frameworks
 "app/window.py" = ["N802"]  # method names are dictated by Apple's frameworks
 "demo-data/content.py" = ["E501"]  # invented note text is kept as written
 
@@ -73,6 +74,6 @@ module = ["AppKit", "Foundation", "WebKit", "objc", "PyObjCTools", "EventKit"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = ["app.window"]
+module = ["app.window", "app.icons"]
 disallow_subclassing_any = false
 disallow_untyped_calls = false

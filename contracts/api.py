@@ -22,6 +22,7 @@ ROUTES: dict[str, str] = {
     "POST /api/folder/remove": "list[SourceState]",  # body: FolderChoice
     "GET /api/sources/{source_id}/request": "PermissionRequest",
     "POST /api/sources/{source_id}/grant": "SourceState",  # body: GrantBody
+    "GET /api/sources/{source_id}/icon": "bytes",  # the app's own icon, as the Mac shows it
     "POST /api/sources/{source_id}/revoke": "SourceState",
     "POST /api/sources/revoke-all": "list[SourceState]",
     "GET /api/meetings": "list[Meeting]",
@@ -87,6 +88,9 @@ class FolderInfo(_Frozen):
 
 class GrantBody(_Frozen):
     scope_ids: tuple[str, ...] = ()  # empty = every scope the request listed
+    # How many days back to read, for sources where time matters (Calendar, Mail).
+    # None: the source's own default. (contract 1.7)
+    days: int | None = Field(default=None, ge=1, le=366)
 
 
 class Meeting(_Frozen):

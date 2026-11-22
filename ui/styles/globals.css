@@ -401,3 +401,25 @@ button, input, table, code, summary { font-family: inherit; }
 .modeltable tr.current { filter: drop-shadow(0 10px 10px rgba(10, 23, 196, .22)); }
 .modeltable th { padding-left: 12px; }
 .modeltable th:first-child { padding-left: 18px; }
+
+/* ---- app icons, the period choice, the finish card, the steps of a question ---- */
+.appicon { width: 38px; height: 38px; flex: none; filter: drop-shadow(0 6px 8px rgba(40, 70, 160, .35)); }
+.spans { display: flex; flex-wrap: wrap; gap: 8px; padding: 4px 0 6px; }
+.span { border: 1px solid rgba(255, 255, 255, .95); border-radius: 999px; padding: 7px 16px; font-weight: 600; font-size: .9rem; color: var(--royal);
+  background: linear-gradient(180deg, rgba(255, 255, 255, .82), rgba(232, 240, 255, .5)); box-shadow: inset 0 1px 0 #fff, 0 0 0 1px rgba(10, 23, 196, .26); }
+.span.on { color: #fff; border-color: rgba(255, 255, 255, .42);
+  background: linear-gradient(180deg, rgba(70, 92, 255, .92), rgba(8, 20, 180, .94)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .7), 0 10px 18px -12px rgba(10, 23, 196, .9); }
+.finish { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 16px 20px; border-radius: 24px;
+  background: linear-gradient(150deg, rgba(255, 255, 255, .86), rgba(196, 226, 255, .62)); }
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.steps li { display: flex; align-items: center; gap: 12px; color: var(--faint); font-size: .95rem; }
+.steps li i { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; flex: none; font-style: normal; font-size: .8rem; font-weight: 600;
+  background: rgba(255, 255, 255, .7); box-shadow: inset 0 0 0 1px rgba(74, 86, 130, .25); }
+.steps li.past { color: var(--muted); }
+.steps li.past i { background: var(--royal-soft); color: var(--royal); box-shadow: none; }
+.steps li.now { color: var(--ink); font-weight: 600; }
+.steps li.now i { color: #fff; background: linear-gradient(180deg, rgba(70, 92, 255, .95), rgba(8, 20, 180, .95)); box-shadow: 0 0 0 5px var(--royal-soft); }
+@media (prefers-reduced-motion: no-preference) { .steps li.now i { animation: pulse 1.2s ease-in-out infinite alternate; } @keyframes pulse { to { box-shadow: 0 0 0 9px rgba(227, 232, 255, .5); } } }
+.node .big { font-size: 2rem; }
+.node.alert { box-shadow: inset 0 0 0 1.5px var(--bad); }
+.node.alert .big { color: var(--bad); -webkit-text-fill-color: var(--bad); }

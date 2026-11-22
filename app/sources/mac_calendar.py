@@ -100,7 +100,9 @@ class CalendarAdapter:
         if not wanted:
             return
         window = self._store.predicateForEventsWithStartDate_endDate_calendars_(
-            NSDate.dateWithTimeIntervalSinceNow_(-DAYS_BACK * 86400),
+            NSDate.dateWithTimeIntervalSinceNow_(
+                -(getattr(grant, "days", None) or DAYS_BACK) * 86400
+            ),
             NSDate.dateWithTimeIntervalSinceNow_(DAYS_AHEAD * 86400),
             wanted,
         )
