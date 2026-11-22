@@ -15,7 +15,7 @@
 * { box-sizing: border-box; }
 html { background: var(--page1); }
 body { margin: 0; min-height: 100vh; color: var(--ink); overflow-x: hidden;
-  font: 16px/1.55 "Helvetica Neue", -apple-system, "Segoe UI", system-ui, sans-serif; -webkit-font-smoothing: antialiased;
+  font: 16px/1.55 "Avenir Next", Avenir, "Century Gothic", Futura, -apple-system, "Segoe UI", system-ui, sans-serif; -webkit-font-smoothing: antialiased;
   background: linear-gradient(170deg, var(--page0) 0%, var(--page1) 48%, var(--page2) 100%) fixed; }
 
 /* ---- the scene: glass ribbons and glass spheres, behind everything ---- */
@@ -382,3 +382,9 @@ input:disabled { opacity: .6; }
 .dialog .effects { font-size: .95rem; gap: 8px; margin: 6px 0 4px; }
 .action { align-items: flex-start; }
 .action button { flex: none; }
+
+/* ---- one geometric typeface everywhere (after the type sample): round forms, large x-height ---- */
+h1 { font-weight: 600; letter-spacing: -.025em; }
+h2, h3, b, .mark, .big, .primary, .ghost, .danger, .tab.active, .modelpill, .status { font-weight: 600; }
+.big { letter-spacing: -.03em; }
+button, input, table, code, summary { font-family: inherit; }
