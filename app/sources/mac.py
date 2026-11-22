@@ -15,7 +15,7 @@ import atexit
 import subprocess
 import threading
 from collections.abc import Callable, Iterator
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -240,7 +240,8 @@ def _records(raw: str) -> list[list[str]]:
 
 def _when(stamp: str) -> datetime | None:
     try:
-        return datetime.fromisoformat(stamp).replace(tzinfo=UTC) if stamp else None
+        # The app gives the Mac's local time without a zone: read it as local, not as UTC.
+        return datetime.fromisoformat(stamp).astimezone() if stamp else None
     except ValueError:
         return None
 

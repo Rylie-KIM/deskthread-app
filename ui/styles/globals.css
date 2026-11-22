@@ -631,3 +631,7 @@ fieldset.period { display: grid; gap: 14px; padding: 14px 16px 16px; }
 .modeltable tbody td { padding-top: 16px; padding-bottom: 16px; }
 
 .original { display: flex; align-items: center; gap: 12px; margin: 12px 0 14px; }
+
+.looked .took { font-size: .78rem; color: var(--faint); margin-right: auto; font-variant-numeric: tabular-nums; }
+.looked.bits { justify-content: flex-start; }
+.looked.bits .link { margin-left: auto; }

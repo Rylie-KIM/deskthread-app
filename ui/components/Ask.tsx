@@ -7,6 +7,9 @@ const STATUS_TEXT = { done: "Done", open: "Still to do", changed: "Changed", sup
 const STEPS = ["Reading your folders", "Reading pictures", "Finding the right items", "Asking the AI on this Mac", "Checking the answer"];
 const STEP: Record<string, string> = { G1: "Allowed to read", G2: "Searched", G3: "AI used", G4: "Answer check", G6: "Record kept" };
 
+// How long an answer took, in plain words.
+const took = (seconds: number) => (seconds < 60 ? `${Math.max(1, Math.round(seconds))} s` : `${Math.floor(seconds / 60)} min ${Math.round(seconds % 60)} s`);
+
 // The quotes of one finding, grouped by the note they come from, newest note first.
 function byNote(cites: Citation[]): { head: Citation; cites: Citation[] }[] {
   const groups = new Map<string, { head: Citation; cites: Citation[] }>();
@@ -99,6 +102,7 @@ function Found({ answer, onCite }: { answer: Answer; onCite: (cite: Citation) =>
       )}
       <p className="looked bits">
         <span>Looked through <b>{answer.coverage.searched}</b> items</span>
+        <span className="took">Answered in {took(answer.seconds)}</span>
         <button className="link" onClick={() => setDetails(!details)}>{details ? "Hide the checks" : "How this was checked"}</button>
       </p>
       {details && (
