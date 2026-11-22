@@ -17,7 +17,9 @@ TOKEN_HEADER = "X-DeskThread-Token"
 ROUTES: dict[str, str] = {
     "GET /api/session": "SessionInfo",
     "GET /api/sources": "list[SourceState]",
-    "POST /api/folder": "list[SourceState]",  # body: FolderChoice; path empty = native dialog
+    "GET /api/folders": "list[FolderInfo]",  # the folders in use (contract 1.6)
+    "POST /api/folder": "list[SourceState]",  # adds a folder; body: FolderChoice
+    "POST /api/folder/remove": "list[SourceState]",  # body: FolderChoice
     "GET /api/sources/{source_id}/request": "PermissionRequest",
     "POST /api/sources/{source_id}/grant": "SourceState",  # body: GrantBody
     "POST /api/sources/{source_id}/revoke": "SourceState",
@@ -76,6 +78,11 @@ class ModelPick(_Frozen):
 
 class FolderChoice(_Frozen):
     path: str = ""
+
+
+class FolderInfo(_Frozen):
+    path: str
+    name: str
 
 
 class GrantBody(_Frozen):
@@ -254,6 +261,7 @@ __all__ = [
     "Coverage",
     "FolderChoice",
     "FolderHash",
+    "FolderInfo",
     "GrantBody",
     "ItemView",
     "Meeting",

@@ -8,9 +8,11 @@ from app.assistant import Assistant
 from app.broker import Broker
 from app.model import Model
 from app.policy import PERSONAL_CHAT_NAMES, AccessPolicy
-from app.sources.folder import scan
+from app.sources.folder import scan_all
 from app.store import SessionStore
 from contracts.adapters import SourceAdapter
+from contracts.broker import SourceStatus
+from contracts.errors import DeskThreadError
 
 
 @dataclass
@@ -31,10 +33,35 @@ def new_session(model: Model, apps: list[SourceAdapter] | None = None) -> Sessio
     return Session(policy, broker, store, Assistant(broker, store, policy, model))
 
 
+def set_folders(session: Session, roots: list[Path]) -> None:
+    """Use exactly these folders. Sources that were On stay On for the parts that still
+    exist; a folder that was removed leaves memory at once."""
+    kept = {
+        state.source_id: frozenset(state.allowed_scope_ids)
+        for state in session.broker.states()
+        if state.source_id.startswith("folder:") and state.status is SourceStatus.ON
+    }
+    session.policy.set_roots(roots)
+    session.broker.replace("folder:", list(scan_all(roots, session.policy)))
+    for source_id, scopes in kept.items():
+        try:
+            still = {s.scope_id for s in session.broker.request(source_id).scopes} & scopes
+        except DeskThreadError:
+            continue  # that kind of source is gone with its folder
+        if still:
+            session.broker.grant(source_id, frozenset(still))
+            session.store.load(source_id)
+
+
 def choose_folder(session: Session, root: Path) -> None:
-    """Point the session at a folder. Its sources start Off; app sources keep their state."""
-    session.policy.set_roots([root])
-    session.broker.replace("folder:", list(scan(root, session.policy)))
+    """Add a folder. Its sources start Off."""
+    roots = session.policy.roots
+    if root.resolve() not in roots:
+        set_folders(session, [*roots, root.resolve()])
+
+
+def remove_folder(session: Session, root: Path) -> None:
+    set_folders(session, [r for r in session.policy.roots if r != root.resolve()])
 
 
 def open_folder(root: Path, model: Model) -> Session:

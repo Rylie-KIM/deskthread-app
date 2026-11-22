@@ -52,9 +52,13 @@ class FolderAdapter:
         policy: AccessPolicy,
         role: str = "",
         want_images: bool | None = None,
+        prefix: str = "",
     ) -> None:
         self._source_id, self._kind, self._label = source_id, kind, label
-        self._root, self._scopes, self._policy = root, scopes, policy
+        self._policy = policy
+        # One part per chosen folder: (the folder, a prefix for its keys, its scopes). The
+        # first chosen folder has no prefix, so its keys are plain paths inside it.
+        self._parts: list[tuple[Path, str, list[Path]]] = [(root, prefix, scopes)]
         self._role = role
         self._want_images = want_images  # True: images only; False: no images; None: all
 
@@ -73,8 +77,21 @@ class FolderAdapter:
     def os_permission(self) -> OsPermission:
         return OsPermission.NOT_NEEDED
 
+    def extend(self, other: "FolderAdapter") -> None:
+        """Take in the same kind of source from another chosen folder."""
+        self._parts += other._parts
+
+    @property
+    def _scopes(self) -> list[Path]:
+        return [scope for _, _, scopes in self._parts for scope in scopes]
+
     def _key(self, path: Path) -> str:
-        return norm(str(path.relative_to(self._root)))
+        for root, prefix, _ in self._parts:
+            if path == root:
+                return norm(prefix.rstrip("/") or root.name)
+            if root in path.parents:
+                return norm(prefix + str(path.relative_to(root)))
+        raise DeskThreadError(ErrorCode.PATH_OUTSIDE_ALLOWED)
 
     def _mine(self, path: Path) -> bool:
         is_image = path.suffix.lower() in IMAGE_SUFFIXES
@@ -134,7 +151,27 @@ class FolderAdapter:
                     yield Uncounted(source_id=self._source_id, location=key, reason=err.code.value)
 
 
-def scan(root: Path, policy: AccessPolicy) -> list[FolderAdapter]:
+def scan_all(roots: list[Path], policy: AccessPolicy) -> list[FolderAdapter]:
+    """The sources of every chosen folder, one adapter per kind across all of them."""
+    merged: dict[str, FolderAdapter] = {}
+    used: set[str] = set()
+    for number, root in enumerate(roots):
+        prefix = ""
+        if number:  # later folders get their name in front of their keys, made unique
+            name, count = root.name, 2
+            while name in used:
+                name, count = f"{root.name}-{count}", count + 1
+            used.add(name)
+            prefix = f"{name}/"
+        for adapter in scan(root, policy, prefix):
+            if adapter.source_id in merged:
+                merged[adapter.source_id].extend(adapter)
+            else:
+                merged[adapter.source_id] = adapter
+    return list(merged.values())
+
+
+def scan(root: Path, policy: AccessPolicy, prefix: str = "") -> list[FolderAdapter]:
     """Recognise the sources under a chosen folder by folder names. Reads no content."""
     root = policy.confine(root)
     found: list[FolderAdapter] = []
@@ -154,6 +191,7 @@ def scan(root: Path, policy: AccessPolicy) -> list[FolderAdapter]:
                     kind=kind,
                     label=label,
                     root=root,
+                    prefix=prefix,
                     scopes=scopes,
                     policy=policy,
                     role=role,
@@ -168,12 +206,15 @@ def scan(root: Path, policy: AccessPolicy) -> list[FolderAdapter]:
                 kind=SourceKind.CHAT_EXPORT,
                 label="Chat files",
                 root=root,
+                prefix=prefix,
                 scopes=chat,
                 policy=policy,
                 role="chat",
             )
         )
-    plain = [p for p in top if p != exports]
+    # A folder laid out like a laptop (with App-exports) is split by its top folders. Any other
+    # folder is one piece: everything in it, files at the top included.
+    plain = [p for p in top if p != exports] if exports.is_dir() else [root]
     if plain:
         found.append(
             FolderAdapter(
@@ -181,6 +222,7 @@ def scan(root: Path, policy: AccessPolicy) -> list[FolderAdapter]:
                 kind=SourceKind.DOCUMENTS,
                 label="Documents",
                 root=root,
+                prefix=prefix,
                 scopes=plain,
                 policy=policy,
                 role="document",
@@ -193,6 +235,7 @@ def scan(root: Path, policy: AccessPolicy) -> list[FolderAdapter]:
                 kind=SourceKind.IMAGES,
                 label="Pictures",
                 root=root,
+                prefix=prefix,
                 scopes=plain,
                 policy=policy,
                 want_images=True,

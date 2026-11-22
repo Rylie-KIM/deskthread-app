@@ -7,6 +7,7 @@ uv run python -m scripts.model_smoke
 import base64
 import io
 import json
+import os
 import sys
 import time
 import urllib.request
@@ -14,8 +15,9 @@ from typing import Any
 
 from PIL import Image, ImageDraw, ImageFont
 
-BASE = "http://127.0.0.1:11435"
-MODEL = "gemma4:e4b"
+# Another model or port can be given: MODEL=gemma4:e2b PORT=11436 python -m scripts.model_smoke
+BASE = f"http://127.0.0.1:{os.environ.get('PORT', '11435')}"
+MODEL = os.environ.get("MODEL", "gemma4:e4b")
 
 NOTES = {
     "n1": ["1:1 Sam 23 Oct", "said yes to the data storytelling course", "will ask HR re budget"],

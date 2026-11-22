@@ -116,8 +116,9 @@ class Evidence:
         self._before: dict[Path, tuple[str, int]] = {}
         runtime.on_folder.append(self.remember)
 
-    def remember(self, root: Path) -> None:
-        self._before = {root: fingerprint(root)}
+    def remember(self, roots: list[Path]) -> None:
+        """Keep the fingerprint taken when each folder was first chosen; drop removed ones."""
+        self._before = {r: self._before.get(r) or fingerprint(r) for r in roots}
 
     def folders(self) -> tuple[FolderHash, ...]:
         out = []

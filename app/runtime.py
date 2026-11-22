@@ -11,7 +11,7 @@ from collections.abc import Callable
 from pathlib import Path
 
 from app.model import Model, ModelGateway, ModelServer
-from app.session import Session, choose_folder, new_session
+from app.session import Session, choose_folder, new_session, remove_folder
 from contracts.adapters import SourceAdapter
 from contracts.errors import DeskThreadError, ErrorCode
 
@@ -39,9 +39,8 @@ class Runtime:
         self.token = secrets.token_urlsafe(32)
         # One session per launch. Apps on this Mac are listed from the start, all Off.
         self.session: Session = new_session(model, apps)
-        self.root: Path | None = None
         self.ask_lock = threading.Lock()  # one question at a time; revoke never waits on it
-        self.on_folder: list[Callable[[Path], None]] = []
+        self.on_folder: list[Callable[[list[Path]], None]] = []  # told the folders in use
         self.stop: Callable[[], None] = lambda: None  # set by the launcher: quits the server
 
     @property
@@ -52,16 +51,27 @@ class Runtime:
         return self.session
 
     def choose(self, path: str) -> Session:
-        """Use a folder. An empty path opens the Mac's own folder dialog (FT-33). The old
-        folder's sources are revoked and dropped from memory first."""
+        """Add a folder. An empty path opens the Mac's own folder dialog (FT-33)."""
         folder = Path(path).expanduser() if path else self._dialog()
         if not folder.is_dir():
             raise DeskThreadError(ErrorCode.BAD_REQUEST, "that folder does not exist")
-        self.root = folder.resolve()
-        choose_folder(self.session, self.root)
-        for callback in self.on_folder:
-            callback(self.root)
+        choose_folder(self.session, folder.resolve())
+        self._told()
         return self.session
+
+    def remove(self, path: str) -> Session:
+        """Stop using a folder: its sources are revoked and leave memory."""
+        remove_folder(self.session, Path(path).expanduser())
+        self._told()
+        return self.session
+
+    @property
+    def folders(self) -> list[Path]:
+        return self.session.policy.roots
+
+    def _told(self) -> None:
+        for callback in self.on_folder:
+            callback(self.folders)
 
     @staticmethod
     def _dialog() -> Path:

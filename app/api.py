@@ -29,6 +29,7 @@ from contracts.api import (
     ApiError,
     AskBody,
     FolderChoice,
+    FolderInfo,
     GrantBody,
     ItemView,
     Meeting,
@@ -142,6 +143,14 @@ def create_app(runtime: Runtime, ui_dir: Path | None = None) -> FastAPI:
     @app.post("/api/folder")
     def folder(body: FolderChoice) -> list[SourceState]:
         return runtime.choose(body.path).broker.states()
+
+    @app.get("/api/folders")
+    def folders() -> list[FolderInfo]:
+        return [FolderInfo(path=str(f), name=f.name) for f in runtime.folders]
+
+    @app.post("/api/folder/remove")
+    def remove_folder(body: FolderChoice) -> list[SourceState]:
+        return runtime.remove(body.path).broker.states()
 
     @app.get("/api/sources/{source_id}/request")
     def permission_request(source_id: str) -> PermissionRequest:

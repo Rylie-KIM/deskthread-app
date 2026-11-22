@@ -168,19 +168,37 @@ def test_an_image_is_served_to_the_page_only_with_the_token(
     assert client.get(f"/api/items/{note.item_id}/image").status_code == 409
 
 
-def test_choosing_a_new_folder_drops_the_old_one_from_memory(
+def test_several_folders_at_once_and_removing_one_drops_it_from_memory(
     client: TestClient, runtime: Runtime, demo_laptop: Path, tmp_path: Path
 ) -> None:
     _work_profile(client, demo_laptop)
-    assert len(runtime.session.store.items()) > 40
-    (tmp_path / "Work").mkdir()
-    assert client.post("/api/folder", json={"path": str(tmp_path)}).is_success
-    assert runtime.session.store.items() == []  # the old folder's items left memory
-    assert all(s.status.value == "off" for s in runtime.session.broker.states())
-    assert {s.source_id for s in runtime.session.broker.states()} == {
-        "folder:documents",
-        "folder:images",
-    }
+    held = len(runtime.session.store.items())
+    assert held > 40
+
+    extra = tmp_path / "Meeting notes"
+    extra.mkdir()
+    (extra / "offsite.txt").write_text("Offsite 14 Jan\nbook the venue")  # a file at the top
+    (extra / "deep").mkdir()
+    (extra / "deep" / "more.md").write_text("more notes")
+    added = client.post("/api/folder", json={"path": str(extra)}).json()
+    states = {s["source_id"]: s for s in added}
+    assert states["folder:notes"]["status"] == "on"  # what was On stays On
+    assert len(runtime.session.store.items()) == held  # and stays in memory
+    names = [f["name"] for f in client.get("/api/folders").json()]
+    assert names == ["demo-laptop", "Meeting notes"]
+
+    request = client.get("/api/sources/folder:documents/request").json()
+    labels = {s["label"]: s["item_count"] for s in request["scopes"]}
+    assert labels["Meeting notes"] == 2  # the new folder is one piece, top-level files included
+    chosen = [s["scope_id"] for s in request["scopes"] if s["label"] == "Meeting notes"]
+    client.post("/api/sources/folder:documents/grant", json={"scope_ids": chosen})
+    locations = {i.location for i in runtime.session.store.items()}
+    assert {"Meeting notes/offsite.txt", "Meeting notes/deep/more.md"} <= locations
+
+    client.post("/api/folder/remove", json={"path": str(demo_laptop)})
+    left = {i.location for i in runtime.session.store.items()}
+    assert left == {"offsite.txt", "deep/more.md"}  # only the remaining folder is held
+    assert [f["name"] for f in client.get("/api/folders").json()] == ["Meeting notes"]
     assert client.post("/api/folder", json={"path": str(tmp_path / "missing")}).status_code == 400
 
 
