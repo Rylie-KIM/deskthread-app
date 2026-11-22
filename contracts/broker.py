@@ -43,6 +43,9 @@ class SourceState(BaseModel):
     os_permission: OsPermission
     allowed_scope_ids: tuple[str, ...] = ()
     items_in_memory: int = 0
+    # Why this source cannot be switched on right now, in plain words; "" when it can. Today:
+    # pictures with an AI model that cannot read pictures. (contract 1.17)
+    blocked: str = ""
 
 
 class AuditAction(StrEnum):

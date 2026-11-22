@@ -32,6 +32,8 @@ def client(runtime: Runtime) -> TestClient:
 
 def _work_profile(client: TestClient, demo_laptop: Path) -> None:
     for source in client.post("/api/folder", json={"path": str(demo_laptop)}).json():
+        if source["blocked"]:
+            continue  # this AI model cannot use it (pictures)
         request = client.get(f"/api/sources/{source['source_id']}/request").json()
         skip = ("personal", "WhatsApp", "KakaoTalk")
         scopes = [
@@ -411,3 +413,41 @@ def test_choosing_and_removing_a_folder_is_logged_once_each(
         ("folder_added", f"dir:{tmp_path.name}"),
         ("folder_removed", f"dir:{tmp_path.name}"),
     ]
+
+
+def test_pictures_cannot_be_switched_on_with_a_model_that_does_not_read_them(
+    client: TestClient, runtime: Runtime, tmp_path: Path
+) -> None:
+    (tmp_path / "shot.png").write_bytes(b"x")
+    (tmp_path / "note.txt").write_text("a note")
+    sources = {
+        s["source_id"]: s for s in client.post("/api/folder", json={"path": str(tmp_path)}).json()
+    }
+    assert set(sources) == {"folder:documents", "folder:images"}
+    assert all(s["blocked"] == "" for s in sources.values())
+    model = runtime.session.assistant._model
+    request = client.get("/api/sources/folder:images/request").json()
+    scopes = [s["scope_id"] for s in request["scopes"]]
+    assert client.post("/api/sources/folder:images/grant", json={"scope_ids": scopes}).is_success
+    model.reads_pictures = False  # type: ignore[attr-defined]  # a model without pictures
+    now_blocked = {s["source_id"]: s for s in client.get("/api/sources").json()}
+    assert (
+        now_blocked["folder:images"]["blocked"] and now_blocked["folder:documents"]["blocked"] == ""
+    )
+    assert client.post("/api/sources/folder:images/revoke").is_success
+    refused = client.post("/api/sources/folder:images/grant", json={"scope_ids": scopes})
+    assert refused.status_code == 400
+    assert client.post("/api/sources/folder:documents/grant", json={"scope_ids": []}).is_success
+
+
+def test_a_folder_has_only_the_rows_for_what_it_holds(client: TestClient, tmp_path: Path) -> None:
+    (tmp_path / "shot.png").write_bytes(b"x")
+    only_pictures = {
+        s["source_id"] for s in client.post("/api/folder", json={"path": str(tmp_path)}).json()
+    }
+    assert only_pictures == {"folder:images"}  # no empty "Files" row
+    other = tmp_path / "docs"
+    other.mkdir()
+    (other / "a.txt").write_text("text")
+    both = {s["source_id"] for s in client.post("/api/folder", json={"path": str(other)}).json()}
+    assert both == {"folder:images", "folder:documents"}

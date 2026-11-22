@@ -13,6 +13,7 @@ from app.store import SessionStore
 from contracts.adapters import SourceAdapter
 from contracts.broker import SourceStatus
 from contracts.errors import DeskThreadError
+from contracts.items import SourceKind
 
 
 @dataclass
@@ -30,6 +31,14 @@ def new_session(model: Model, apps: list[SourceAdapter] | None = None) -> Sessio
     for adapter in apps or []:
         broker.register(adapter)
     store = SessionStore(broker)
+
+    def blocked(adapter: SourceAdapter) -> str:
+        # Asked each time, so choosing another AI model changes it at once.
+        if adapter.kind is SourceKind.IMAGES and not getattr(model, "reads_pictures", True):
+            return "This AI model does not read pictures"
+        return ""
+
+    broker.set_blocker(blocked)
     return Session(policy, broker, store, Assistant(broker, store, policy, model))
 
 

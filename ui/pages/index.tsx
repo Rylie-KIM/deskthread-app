@@ -196,7 +196,7 @@ export default function Home() {
             {/* Ask stays alive while another section is open, so a running question keeps running. */}
             {info && <div hidden={tab !== "ask"}><Ask now={info.now} anyOn={anyOn} visible={tab === "ask"} thread={thread} onAnswer={(a) => { setThread((t) => [...t, a]); void refresh(); }} onCite={setCite} onError={setError} first={first} /></div>}
             {tab === "data" && <MyData onError={setError} onClear={clear} onEnd={() => setConfirm(true)} />}
-            {tab === "model" && <Models onError={setError} onChange={loadModel} />}
+            {tab === "model" && <Models onError={setError} onChange={() => { loadModel(); void refresh(); }} />}
           </>
         )}
       </main>

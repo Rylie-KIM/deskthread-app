@@ -94,7 +94,7 @@ export default function Access({ sources, folder, demoFolder, onSources, onError
 
   const allWork = (list: SourceState[]) =>
     run("work", async () => {
-      for (const source of list.filter((s) => s.status === "off" && s.source_id.startsWith("folder:"))) {
+      for (const source of list.filter((s) => s.status === "off" && s.source_id.startsWith("folder:") && !s.blocked)) {
         const asked = await api.request(source.source_id);
         const scopes = asked.scopes.filter((s) => !NOT_WORK.test(s.scope_id)).map((s) => s.scope_id);
         if (scopes.length) await api.grant(source.source_id, scopes);
@@ -105,7 +105,7 @@ export default function Access({ sources, folder, demoFolder, onSources, onError
   const tryDemo = () =>
     run("demo", async () => {
       const found = await api.chooseFolder(demoFolder);
-      for (const source of found.filter((s) => s.status === "off" && s.source_id.startsWith("folder:"))) {
+      for (const source of found.filter((s) => s.status === "off" && s.source_id.startsWith("folder:") && !s.blocked)) {
         const asked = await api.request(source.source_id);
         const scopes = asked.scopes.filter((s) => !NOT_WORK.test(s.scope_id)).map((s) => s.scope_id);
         if (scopes.length) await api.grant(source.source_id, scopes);
@@ -134,14 +134,15 @@ export default function Access({ sources, folder, demoFolder, onSources, onError
       )}
       <span className="who">
         <b>{source.label}</b>
-        <small>{busy === source.source_id ? "Working…" : source.status === "on" ? `Reading ${source.items_in_memory} items` : "Off"}</small>
+        <small>{busy === source.source_id ? "Working…" : source.blocked ? "Not supported by this AI model" : source.status === "on" ? `Reading ${source.items_in_memory} items` : "Off"}</small>
       </span>
       <button
         role="switch"
         aria-checked={source.status === "on"}
         aria-label={`Read ${source.label}`}
         className={source.status === "on" ? "switch on" : "switch"}
-        disabled={busy !== ""}
+        disabled={busy !== "" || (source.blocked !== "" && source.status !== "on")}
+        title={source.blocked || undefined}
         onClick={() => flip(source)}
       >
         <i />

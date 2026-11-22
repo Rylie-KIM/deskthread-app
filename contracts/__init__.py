@@ -14,4 +14,5 @@ package; a change bumps CONTRACT_VERSION (dev rule R14).
 # 1.14 the search model; points that are only possibly related
 # 1.15 other spellings of a name
 # 1.16 the log records choosing and removing a folder
-CONTRACT_VERSION = "1.16"
+# 1.17 a source can be blocked by the AI model in use (pictures)
+CONTRACT_VERSION = "1.17"

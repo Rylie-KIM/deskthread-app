@@ -12,6 +12,7 @@ from fastapi import FastAPI
 from app import config
 from app.runtime import Runtime
 from contracts.api import ModelInfo, ModelPick
+from contracts.broker import SourceStatus
 from contracts.errors import DeskThreadError, ErrorCode
 
 
@@ -98,6 +99,11 @@ def register(app: FastAPI, runtime: Runtime) -> Downloads:
             raise DeskThreadError(ErrorCode.MODEL_UNAVAILABLE)
         with runtime.ask_lock:  # never in the middle of an answer
             runtime.gateway.select(body.tag)  # what was read stays in memory (user, 2026-11-22)
+            session = runtime.session
+            if session is not None:
+                for state in session.broker.states():
+                    if state.blocked and state.status is SourceStatus.ON:
+                        session.broker.revoke(state.source_id)  # this model cannot use it
         return listing(runtime, downloads)
 
     @app.post("/api/models/download")

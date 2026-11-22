@@ -257,7 +257,16 @@ def scan(root: Path, policy: AccessPolicy, prefix: str = "") -> list[FolderAdapt
     # A folder laid out like a laptop (with App-exports) is split by its top folders. Any other
     # folder is one piece: everything in it, files at the top included.
     plain = [p for p in top if p != exports] if exports.is_dir() else [root]
-    if plain:
+    held = [
+        (path.suffix.lower() in IMAGE_SUFFIXES, supported(path))
+        for scope in plain
+        for path in _visible_files(scope)
+    ]
+    # A row exists only when the folders hold something of that kind (a folder with pictures
+    # only has no "Files" row, and the other way round).
+    has_files = any(readable and not image for image, readable in held)
+    has_pictures = any(image for image, _readable in held)
+    if plain and has_files:
         found.append(
             FolderAdapter(
                 source_id="folder:documents",
@@ -271,6 +280,7 @@ def scan(root: Path, policy: AccessPolicy, prefix: str = "") -> list[FolderAdapt
                 want_images=False,
             )
         )
+    if plain and has_pictures:
         found.append(
             FolderAdapter(
                 source_id="folder:images",

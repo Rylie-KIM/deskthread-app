@@ -78,8 +78,13 @@ class Broker:
         self._audit: list[AuditLine] = []
         self._on_revoke: list[Callable[[str], None]] = []
         self._count: Callable[[str], int] = lambda _source_id: 0
+        self._blocker: Callable[[SourceAdapter], str] = lambda _adapter: ""
 
     # ----------------------------------------------------------------- wiring
+    def set_blocker(self, blocker: Callable[[SourceAdapter], str]) -> None:
+        """Say, for a source, why it cannot be switched on now ("" if it can)."""
+        self._blocker = blocker
+
     def register(self, adapter: SourceAdapter) -> None:
         with self._lock:
             self._adapters[adapter.source_id] = adapter  # a new source always starts Off
@@ -140,6 +145,7 @@ class Broker:
             os_permission=adapter.os_permission(),
             allowed_scope_ids=tuple(sorted(grant.scope_ids)) if grant else (),
             items_in_memory=self._count(source_id) if grant else 0,
+            blocked=self._blocker(adapter),
         )
 
     def states(self) -> list[SourceState]:
@@ -165,6 +171,9 @@ class Broker:
         until: Day | None = None,
     ) -> SourceState:
         adapter = self.adapter(source_id)
+        reason = self._blocker(adapter)
+        if reason:
+            raise DeskThreadError(ErrorCode.BAD_REQUEST, reason)
         known = {s.scope_id for s in adapter.list_scopes()}
         chosen = (scope_ids & known) if scope_ids else known
         if not chosen:

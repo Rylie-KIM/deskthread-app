@@ -12,6 +12,7 @@ export interface SourceState {
   os_permission: OsPermission;
   allowed_scope_ids: string[];
   items_in_memory: number;
+  blocked: string;
 }
 export interface FolderInfo { path: string; name: string; files: number; pictures: number; videos: number; other: number }
 export interface Scope { scope_id: string; label: string; item_count: number | null }
