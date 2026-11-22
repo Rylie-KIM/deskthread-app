@@ -49,7 +49,7 @@ export default function Viewer({ cite, onClose }: { cite: Citation; onClose: () 
             <div className={item.has_image ? "sidebyside" : ""}>
               {item.has_image && <img src={api.imageUrl(item.item_id)} alt="The image this text was read from" />}
               <div>
-                {item.read_by_model && <p className="note">Read from the picture by the AI on this Mac. Compare it with the picture.</p>}
+                {item.read_by_model && <p className="note">Read from the picture on this Mac. Compare it with the picture.</p>}
                 <ol className="lines">
                   {item.units.map((unit) => (
                     <li key={unit.number} className={unit.number === cite.unit ? "hit" : ""}>{unit.text}</li>

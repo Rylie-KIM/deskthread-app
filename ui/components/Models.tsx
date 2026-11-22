@@ -46,7 +46,7 @@ export default function Models({ onError, onChange }: { onError: (message: strin
       <p className="sub">Every model runs on this Mac. Pick one for what you need.</p>
       <div className="card modeltable">
         <table>
-          <thead><tr><th>Model</th><th>Text</th><th>Pictures</th><th><span className="thhelp">Parameters<Help about="parameters">The number of values the model learned in training, a rough measure of its size. More usually means more capable but slower and heavier on memory. It is not a promise: how well a model was trained, and its design, matter as much. The note in brackets says how large it computes as.</Help></span></th><th>Speed</th><th>Download</th><th></th></tr></thead>
+          <thead><tr><th>Model</th><th>Text</th><th><span className="thhelp">Sees pictures<Help about="seeing pictures">The text in a picture or screenshot is read by macOS for any model. This column says whether the AI can also look at a picture itself, for pictures that hold no text.</Help></span></th><th><span className="thhelp">Parameters<Help about="parameters">The number of values the model learned in training, a rough measure of its size. More usually means more capable but slower and heavier on memory. It is not a promise: how well a model was trained, and its design, matter as much. The note in brackets says how large it computes as.</Help></span></th><th>Speed</th><th>Download</th><th></th></tr></thead>
           <tbody>
             {models.filter((m) => m.role !== "search").map((m) => (
               <tr key={m.tag} className={m.selected ? "current" : ""}>

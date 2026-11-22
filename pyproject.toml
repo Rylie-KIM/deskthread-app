@@ -8,6 +8,7 @@ dependencies = [
     "fastapi>=0.115",
     "pydantic>=2.9",
     "pyobjc-framework-eventkit>=10",
+    "pyobjc-framework-vision>=10",
     "pyobjc-framework-webkit>=10",
     "pypdf>=5",
     "uvicorn>=0.32",
@@ -73,7 +74,7 @@ cache_dir = "/dev/null"
 
 # Apple's frameworks through pyobjc have no type stubs; the window module subclasses NSObject.
 [[tool.mypy.overrides]]
-module = ["AppKit", "Foundation", "WebKit", "objc", "PyObjCTools", "EventKit"]
+module = ["AppKit", "Foundation", "WebKit", "objc", "PyObjCTools", "EventKit", "Vision"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

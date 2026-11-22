@@ -310,6 +310,20 @@ class Assistant:
         scored.sort(key=lambda pair: (-pair[0], pair[1].item_id))
         return [Candidate(i, score) for score, i in scored[:8] if score >= config.LIKE_WIDER]
 
+    def read_pictures_now(self) -> None:
+        """Read the text of newly allowed pictures right away (macOS text recognition only, no
+        AI), so the first question does not wait for it. The progress shows "3 of 7"."""
+
+        def show(done: int, total: int) -> None:
+            self.progress = Progress(
+                step="Reading pictures", number=0, of=0, detail=f"{done} of {total}"
+            )
+
+        try:
+            self._images.read_pending(show, None, use_model=False)
+        finally:
+            self.progress = Progress()
+
     # ------------------------------------------------------------ the items behind the numbers
     def _details(self, answer: Answer) -> dict[str, object]:
         """The items of each stage of "how this was checked", so that every number can be

@@ -11,6 +11,13 @@ REPO = Path(__file__).resolve().parent.parent
 CANARY = "ZX9-CANARY-4471-BLUEHERON"
 
 
+@pytest.fixture(autouse=True)
+def _no_ocr(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The tests of the picture steps use a fake AI that "sees" the pictures. macOS text
+    recognition is switched off for them; the tests of the recognition switch it on."""
+    monkeypatch.setenv("DESKTHREAD_OCR", "off")
+
+
 def _load_generator() -> ModuleType:
     # demo-data/ is a folder of scripts, not a package: load the generator by path.
     path = REPO / "demo-data" / "make_demo_data.py"

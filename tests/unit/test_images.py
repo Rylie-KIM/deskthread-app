@@ -55,3 +55,33 @@ def test_an_image_in_a_revoked_source_is_never_sent_to_the_model(demo_laptop: Pa
     assert assistant.readings_held == 0
     assert all("Transcribe" not in p for p in model.prompts)
     assert answer.points == ()
+
+
+def test_pictures_are_read_by_macos_when_switched_on_and_the_ai_only_fills_the_gaps(
+    demo_laptop: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    pytest.importorskip("Vision")
+    monkeypatch.delenv("DESKTHREAD_OCR", raising=False)
+    model = _model(demo_laptop)
+    session, assistant = open_work(demo_laptop, model)
+    calls = model.calls
+    shown: list[str] = []
+    original = assistant._images.read_pending
+
+    def watching(progress=None, check=None, use_model=True):  # type: ignore[no-untyped-def]
+        return original(lambda done, total: shown.append(f"{done} of {total}"), check, use_model)
+
+    assistant._images.read_pending = watching  # type: ignore[method-assign]
+    session.store.refresh()  # the sources are read when they are switched on
+    assistant.read_pictures_now()  # then macOS reads the text of the pictures
+    assert model.calls == calls  # the AI was not asked: macOS read them
+    images = {i.title: i for i in session.store.items() if i.kind is ItemKind.IMAGE}
+    typed = [i for i in images.values() if i.meta["reading"] == "done"]
+    assert len(typed) == 3 and shown == ["1 of 5", "2 of 5", "3 of 5", "4 of 5", "5 of 5"]
+    assert all(i.meta["read_with"] == "macOS text recognition" and i.read_by_model for i in typed)
+    assert any("stretch project" in u.text for i in typed for u in i.units)
+    assert sorted(i.meta["reading"] for i in images.values()).count("pending") == 2  # no text
+    assistant.ask("What did I promise Sam?")  # the first question: the AI looks at those two
+    assert sorted(i.meta["reading"] for i in session.store.items() if i.kind is ItemKind.IMAGE) == [
+        "done", "done", "done", "no text found", "no text found"
+    ]  # fmt: skip

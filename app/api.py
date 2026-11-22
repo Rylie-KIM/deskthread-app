@@ -43,7 +43,7 @@ from contracts.api import (
 )
 from contracts.broker import PermissionRequest, SourceState
 from contracts.errors import DeskThreadError, ErrorCode
-from contracts.items import Item, ItemKind
+from contracts.items import Item, ItemKind, SourceKind
 
 _INLINE_SCRIPT = re.compile(
     rb"<script(?![^>]*\bsrc=)(?![^>]*application/json)[^>]*>(.*?)</script>", re.S
@@ -181,6 +181,8 @@ def create_app(runtime: Runtime, ui_dir: Path | None = None) -> FastAPI:
             source_id, frozenset(body.scope_ids), body.days, body.since, body.until
         )
         session.store.load(source_id)
+        if session.broker.adapter(source_id).kind is SourceKind.IMAGES:
+            session.assistant.read_pictures_now()  # macOS reads their text now, in memory
         return next(s for s in session.broker.states() if s.source_id == source_id)
 
     @app.get("/api/sources/{source_id}/icon")

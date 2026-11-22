@@ -4,6 +4,7 @@ import re
 from dataclasses import dataclass
 from pathlib import Path
 
+from app import ocr
 from app.assistant import Assistant
 from app.broker import Broker
 from app.model import Model
@@ -34,7 +35,13 @@ def new_session(model: Model, apps: list[SourceAdapter] | None = None) -> Sessio
 
     def blocked(adapter: SourceAdapter) -> str:
         # Asked each time, so choosing another AI model changes it at once.
-        if adapter.kind is SourceKind.IMAGES and not getattr(model, "reads_pictures", True):
+        # macOS reads the text of pictures for any answering AI; only without it does the
+        # answering AI have to read them itself.
+        if (
+            adapter.kind is SourceKind.IMAGES
+            and not ocr.available()
+            and not getattr(model, "reads_pictures", True)
+        ):
             return "This AI model does not read pictures"
         return ""
 
