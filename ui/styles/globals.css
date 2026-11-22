@@ -586,3 +586,22 @@ fieldset.period { display: grid; gap: 14px; padding: 14px 16px 16px; }
   background: rgba(255, 255, 255, .7); box-shadow: inset 0 1px 3px rgba(40, 70, 160, .14), inset 0 0 0 1px rgba(10, 23, 196, .14); }
 .copyline { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
 .copyline .cmd { flex: 1; margin: 0; }
+
+/* ---- answers as a closed list: one glass row per thing found, opened on request ---- */
+.findings { display: grid; gap: 8px; }
+.findings .finding { padding: 0; border: 0; border-radius: 20px; background: rgba(255, 255, 255, .5); box-shadow: inset 0 1px 0 #fff, inset 0 0 0 1px rgba(255, 255, 255, .9); }
+.findings .finding.open { background: rgba(255, 255, 255, .72); box-shadow: inset 0 1px 0 #fff, 0 0 0 1px rgba(255, 255, 255, .95), 0 16px 26px -22px rgba(10, 23, 196, .6); }
+.findrow { width: 100%; display: grid; grid-template-columns: 18px minmax(0, 1fr) auto auto auto; align-items: center; gap: 14px; padding: 13px 16px; border: 0; background: none; font: inherit; color: var(--ink); text-align: left; cursor: pointer; border-radius: 20px; }
+.findrow b { font-weight: 650; font-size: 1.02rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.finding.open .findrow b { white-space: normal; }
+.findrow .when, .findrow .n { color: var(--muted); font-size: .84rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.chev { width: 8px; height: 8px; border-right: 2px solid var(--royal); border-bottom: 2px solid var(--royal); transform: rotate(-45deg); transition: transform .15s ease; margin-left: 4px; }
+.finding.open .chev { transform: rotate(45deg); }
+.tag.state-open { color: #fff; background: linear-gradient(180deg, rgba(70, 92, 255, .92), rgba(8, 20, 180, .94)); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .6); }
+.tag.state-superseded { color: var(--muted); box-shadow: inset 0 1px 0 #fff, 0 0 0 1px rgba(74, 86, 130, .2); }
+.findbody { padding: 0 16px 16px 48px; }
+.findbody .why { margin: 0 0 10px; }
+.findings .finding .findbody ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.origin { display: flex; flex-wrap: wrap; column-gap: 14px; margin-top: 6px; font-size: .78rem; color: var(--muted); }
+.origin span:first-child { color: var(--ink); font-weight: 600; }
+@media (max-width: 700px) { .findrow { grid-template-columns: 18px minmax(0, 1fr) auto; } .findrow .when, .findrow .n { display: none; } .findbody { padding-left: 16px; } }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, clock, day, plain, type Answer, type Citation, type Meeting, type Progress } from "../lib/api";
+import { api, clock, day, plain, type Answer, type BriefPoint, type Citation, type Meeting, type Progress } from "../lib/api";
 
 // Plain words for the status of something promised or to do.
 const STATUS_TEXT = { done: "Done", open: "Still to do", changed: "Changed", superseded: "No longer valid" } as const;
@@ -33,6 +33,48 @@ function when(meeting: Meeting, nowIso: string): string {
   return `${label} ${clock(meeting.start)}`;
 }
 
+// One thing found: a closed row (name, newest date, number of quotes, status). Opening it
+// shows why it is there and the exact words, each with the note it comes from.
+function Finding({ point, showStatus, first, onCite }: { point: BriefPoint; showStatus: boolean; first: boolean; onCite: (cite: Citation) => void }) {
+  const [open, setOpen] = useState(first);
+  const notes = byNote(point.citations);
+  const newest = notes[0]?.head;
+  const count = point.citations.length;
+  return (
+    <article className={open ? "finding open" : "finding"}>
+      <button type="button" className="findrow" aria-expanded={open} onClick={() => setOpen(!open)}>
+        <i className="chev" aria-hidden="true" />
+        <b>{point.label}</b>
+        <span className="when">{!newest || newest.undated ? "No date" : day(newest.date)}</span>
+        <span className="n">{count} {count === 1 ? "quote" : "quotes"}</span>
+        {showStatus && <em className={`tag state-${point.status}`}>{STATUS_TEXT[point.status]}</em>}
+      </button>
+      {open && (
+        <div className="findbody">
+          <p className="why">
+            {point.matched.length > 0 ? <>Shown because it mentions {point.matched.map((word) => <em key={word} className="tag">{word}</em>)}</> : "Shown because the AI judged it to be about your question"}
+          </p>
+          {point.note && <p className="note">Written as a question or a maybe, not as a clear promise.</p>}
+          <ul>
+            {notes.flatMap((group) => group.cites).map((cite) => (
+              <li key={`${cite.item_id}-${cite.unit}`}>
+                <button className="cite" onClick={() => onCite(cite)} title="Open the source">
+                  <span className="quote">“{cite.quote.replace(/^[-*•]\s*/, "")}”</span>
+                  <span className="origin">
+                    <span>{cite.title}</span>
+                    <span>{cite.undated ? "No date" : day(cite.date)}</span>
+                    <span>{cite.read_by_model ? "Read from the picture" : cite.source_label}</span>
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </article>
+  );
+}
+
 function Found({ answer, onCite }: { answer: Answer; onCite: (cite: Citation) => void }) {
   const [details, setDetails] = useState(false);
   return (
@@ -48,42 +90,11 @@ function Found({ answer, onCite }: { answer: Answer; onCite: (cite: Citation) =>
               {answer.summary.map((text) => <p key={text}>{text}</p>)}
             </div>
           )}
-          <p className="bits tally">
-            <span><b>{answer.points.length}</b> {answer.points.length === 1 ? "thing found" : "things found"}</span>
-            <span><b>{answer.coverage.cited}</b> {answer.coverage.cited === 1 ? "note" : "notes"} quoted word for word</span>
-            <span>Newest note first</span>
-          </p>
-          {answer.points.map((point, index) => (
-            <article key={index} className="finding">
-              <header className="row wrap">
-                <h3>{point.label}</h3>
-                {answer.show_status && <span className={`status ${point.status}`}>{STATUS_TEXT[point.status]}</span>}
-              </header>
-              <p className="why">
-                {point.matched.length > 0 ? <>Shown because it mentions {point.matched.map((word) => <em key={word} className="tag">{word}</em>)}</> : "Shown because the AI judged it to be about your question"}
-              </p>
-              {point.note && <p className="note">Written as a question or a maybe, not as a clear promise.</p>}
-              {byNote(point.citations).map((group) => (
-                <div className="group" key={group.head.item_id}>
-                  <p className="grouphead">
-                    <em className="tag">{group.head.source_label}</em>
-                    <b>{group.head.title}</b>
-                    <span className="when">{group.head.undated ? "No date" : day(group.head.date)}</span>
-                    {group.head.read_by_model && <em className="tag">Read from the picture</em>}
-                  </p>
-                  <ul>
-                    {group.cites.map((cite) => (
-                      <li key={`${cite.item_id}-${cite.unit}`}>
-                        <button className="cite" onClick={() => onCite(cite)} title="Open the source">
-                          <span className="quote">“{cite.quote.replace(/^[-*•]\s*/, "")}”</span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ))}
-            </article>
-          ))}
+          <div className="findings">
+            {answer.points.map((point, index) => (
+              <Finding key={index} point={point} showStatus={answer.show_status} first={index === 0} onCite={onCite} />
+            ))}
+          </div>
         </>
       )}
       <p className="looked bits">
