@@ -4,6 +4,7 @@
     uv run python -B -m scripts.seed.seed_demo more      # add the second list of events
     uv run python -B -m scripts.seed.seed_demo notes-more # add the second, more abstract notes
     uv run python -B -m scripts.seed.seed_demo more2     # the third layer: more notes and events
+    uv run python -B -m scripts.seed.seed_demo renumber  # n1, n2, ... in front of every note title
     uv run python -B -m scripts.seed.seed_demo unseed    # remove exactly what seed wrote
     uv run python -B -m scripts.seed.seed_demo status    # counts only
 
@@ -56,6 +57,23 @@ end run
 """
     % FOLDER
 )
+READ_NOTE = """
+on run argv
+    tell application "Notes"
+        set n to note id (item 1 of argv)
+        return (name of n) & "|" & ((creation date of n) as «class isot» as string)
+    end tell
+end run
+"""
+SET_NOTE = """
+on run argv
+    tell application "Notes"
+        set n to note id (item 1 of argv)
+        set body of n to (item 2 of argv)
+        return ((creation date of n) as «class isot» as string)
+    end tell
+end run
+"""
 DEL_NOTE = """
 on run argv
     tell application "Notes" to delete note id (item 1 of argv)
@@ -229,6 +247,32 @@ def more2() -> None:
           f" {len(manifest['notes'])} notes and {len(manifest['events'])} events in all")  # fmt: skip
 
 
+def renumber() -> None:
+    """Put a number in front of every seeded note's title: n1 for the oldest, n2, n3 and so on
+    (by creation date). Safe to run again. The creation date of each note is set back after
+    its text is rewritten (the app does not allow setting it on an existing note, and
+    rewriting the text keeps it)."""
+    manifest = load()
+    entries = [*content.NOTES, *content.NOTES_MORE, *content.NOTES_THIRD]
+    ids = manifest["notes"]
+    if len(entries) != len(ids):
+        sys.exit(f"The manifest holds {len(ids)} notes but the content lists {len(entries)}.")
+    for note_id, (_when, title, _lines) in zip(ids, entries, strict=True):
+        name = osa(READ_NOTE, note_id).split("|")[0]
+        if name != title and not (name.startswith("n") and name.endswith(" " + title)):
+            sys.exit(
+                "A note does not have the title it was written with; nothing more was changed."
+            )
+    order = sorted(range(len(entries)), key=lambda i: (entries[i][0], i))
+    for number, index in enumerate(order, 1):
+        when, title, lines = entries[index]
+        before = osa(READ_NOTE, ids[index]).split("|")[1]
+        after = osa(SET_NOTE, ids[index], body_of(f"n{number} {title}", lines))
+        if after[:16] != datetime(*when).isoformat()[:16] or before[:16] != after[:16]:
+            sys.exit(f"The creation date of note {number} is not what it should be.")
+    print(f"  {len(ids)} notes numbered n1 to n{len(ids)}")
+
+
 def unseed() -> None:
     manifest = load()
     for note_id in manifest["notes"]:
@@ -253,6 +297,7 @@ if __name__ == "__main__":
         "more": more,
         "notes-more": more_notes,
         "more2": more2,
+        "renumber": renumber,
         "unseed": unseed,
         "status": status,
     }.get(sys.argv[1] if len(sys.argv) > 1 else "", status)()
