@@ -226,6 +226,9 @@ class Query:
     # does not contain the word "today".
     window: tuple[datetime, datetime] | None = None
     window_name: str = ""
+    # The question asks what is still ahead ("still to do", "left", "upcoming"): then only
+    # what is not over counts, and a done reminder does not.
+    forward: bool = False
 
     @property
     def topic(self) -> set[str]:
@@ -268,6 +271,19 @@ def time_window(
     return None
 
 
+_FORWARD = frozenset(
+    stem(w)
+    for w in ("still", "left", "remaining", "remain", "pending", "upcoming", "coming", "due",
+              "todo", "ahead", "outstanding")
+)  # fmt: skip
+
+
+def is_forward(question: str) -> bool:
+    """Does the question ask for what is still ahead, not for what happened?"""
+    text = " " + " ".join(_WORD.findall(question.lower())) + " "
+    return bool(_FORWARD & set(stems(question))) or " to do " in text
+
+
 def build_query(
     question: str, person: str | None = None, spellings: dict[str, tuple[str, ...]] | None = None
 ) -> Query:
@@ -295,6 +311,7 @@ def build_query(
         focus_words=focus_words,
         window=(when[0], when[1]) if when else None,
         window_name=when[2] if when else "",
+        forward=bool(when) and is_forward(question),
     )
 
 
@@ -304,14 +321,23 @@ def in_window(query: Query, item: Item) -> bool:
     if query.window is None:
         return False
     start, end = query.window
+    today = now().astimezone()
+    if item.kind is ItemKind.REMINDER and query.forward:
+        if item.meta.get("status") != "open":
+            return False  # done: nothing left to do
+        if item.date is None:
+            return start <= today <= end
+        moment = item.date if item.date.tzinfo else item.date.replace(tzinfo=start.tzinfo)
+        return moment <= end  # an open reminder that is overdue is still to do
     if item.date is None:
-        today = now().astimezone()
         return (
             item.kind is ItemKind.REMINDER
             and item.meta.get("status") == "open"
             and start <= today <= end
         )
     moment = item.date if item.date.tzinfo else item.date.replace(tzinfo=start.tzinfo)
+    if query.forward:
+        start = max(start, today)  # what has already happened is not still to do
     return start <= moment <= end
 
 

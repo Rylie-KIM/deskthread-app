@@ -2,6 +2,8 @@
 
 from pathlib import Path
 
+import pytest
+
 from app.broker import Broker
 from app.policy import AccessPolicy
 from app.search import add_expansion, build_query, find, keyword_floor, names_in, stem
@@ -77,11 +79,15 @@ def test_suggested_words_widen_the_search_but_weigh_less(demo_laptop: Path) -> N
     assert before < after and "App-exports/Notes/sam-fragment.md" in after
 
 
-def test_a_question_about_a_day_shows_what_is_dated_then_whatever_its_words() -> None:
+def test_a_question_about_a_day_shows_what_is_dated_then_whatever_its_words(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     from datetime import UTC, datetime, timedelta
 
     from app.clock import now
     from app.search import time_window
+
+    monkeypatch.setenv("DESKTHREAD_NOW", "2026-11-22T07:00:00+00:00")  # a Sunday morning
     from contracts.items import Item, ItemKind, Unit
 
     today = now().astimezone().replace(hour=19, minute=0)
@@ -128,3 +134,36 @@ def test_other_spellings_of_a_name_count_as_the_same_person() -> None:
     assert {c.item.item_id for c in find(known, items)} == {"long", "short"}
     asked_other_way = build_query("What did I promise Samuel?", None, {"Sam": ("Samuel",)})
     assert {c.item.item_id for c in find(asked_other_way, items)} == {"long", "short"}
+
+
+def test_a_question_about_what_is_still_to_do_leaves_out_what_is_over_or_done(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from datetime import UTC, datetime
+
+    from contracts.items import Item, ItemKind, Unit
+
+    monkeypatch.setenv("DESKTHREAD_NOW", "2026-11-18T12:00:00+00:00")  # a Wednesday, noon
+
+    def make(item_id: str, kind: ItemKind, day: int | None, hour: int = 10, **meta: str) -> Item:
+        date = datetime(2026, 11, day, hour, 0, tzinfo=UTC) if day else None
+        return Item(item_id=item_id, source_id="x", kind=kind, title=item_id,
+                    units=(Unit(number=1, text=item_id),), date=date, meta=meta)  # fmt: skip
+
+    items = [
+        make("monday_event", ItemKind.EVENT, 16),
+        make("this_morning", ItemKind.EVENT, 18, 9),
+        make("this_afternoon", ItemKind.EVENT, 18, 15),
+        make("friday_event", ItemKind.EVENT, 20, 11),
+        make("next_week", ItemKind.EVENT, 23),
+        make("overdue", ItemKind.REMINDER, 16, status="open"),
+        make("done_thursday", ItemKind.REMINDER, 19, status="done"),
+        make("no_date", ItemKind.REMINDER, None, status="open"),
+    ]
+    ahead = {c.item.item_id for c in find(build_query("What is still to do this week?"), items)}
+    assert ahead == {"this_afternoon", "friday_event", "overdue", "no_date"}
+    whole = {c.item.item_id for c in find(build_query("What happened this week?"), items)}
+    assert {"monday_event", "this_morning", "done_thursday"} <= whole and "next_week" not in whole
+    assert build_query("What do I need to do this week?").forward is True
+    assert build_query("What did I do this week?").forward is False
+    assert build_query("What is left to do today?").forward is True

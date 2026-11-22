@@ -251,7 +251,8 @@ class Assistant:
             name = ", ".join(sorted(names_in(question))) or "the person asked about"
             kind = prompts.KIND_PERSON.format(name=name)
         elif query.window is not None:
-            kind = prompts.KIND_PERIOD.format(period=query.window_name)
+            period = query.window_name + (" (only what is still ahead)" if query.forward else "")
+            kind = prompts.KIND_PERIOD.format(period=period)
         else:
             kind = prompts.KIND_TOPIC
         prompt = prompts.ANSWER.format(
