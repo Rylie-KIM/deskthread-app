@@ -17,7 +17,7 @@ from dataclasses import dataclass
 
 from app import prompts
 from app.model import Model, complete_json
-from app.search import Query, stems
+from app.search import STOP, Query, names_in, stem, stems
 from contracts.errors import DeskThreadError
 from contracts.gates import Gate, GateResult, Outcome, ProposedCitation, ProposedPoint
 from contracts.items import Item, Unit
@@ -77,6 +77,58 @@ def parse_points(data: dict[str, object]) -> list[ProposedPoint]:
             )
         )
     return points
+
+
+def summarise(question: str, points: list["Checked"], model: Model) -> tuple[str, ...]:
+    """Up to two sentences by the model over the checked quotes. A sentence is kept only if
+    it names lines that exist, every number in it occurs in those lines, and (for notes in
+    Latin script) most of its words occur in them or in the question. Never raises."""
+    flat = list(
+        {
+            (item.item_id, unit.number): (item, unit) for p in points for item, unit in p.cites
+        }.values()
+    )
+    if not flat:
+        return ()
+    lines = "\n".join(
+        f'{n}. ("{item.title}", {item.date.date() if item.date else "undated"}) {unit.text}'
+        for n, (item, unit) in enumerate(flat, 1)
+    )
+    try:
+        raw = complete_json(model, prompts.SUMMARY.format(question=question, lines=lines))
+    except DeskThreadError:
+        return ()
+    kept: list[str] = []
+    entries = raw.get("sentences", [])
+    for entry in entries if isinstance(entries, list) else []:
+        if not isinstance(entry, dict):
+            continue
+        text = " ".join(str(entry.get("text", "")).split())[:260]
+        numbers = entry.get("lines", [])
+        used = [
+            flat[n - 1]
+            for n in (numbers if isinstance(numbers, list) else [])
+            if isinstance(n, int) and not isinstance(n, bool) and 1 <= n <= len(flat)
+        ]
+        if not text or not used:
+            continue
+        support = " ".join(f"{item.title} {unit.text}" for item, unit in used)
+        if not set(re.findall(r"\d+", text)) <= set(re.findall(r"\d+", support)):
+            continue  # a number that is not in the quoted lines
+        latin = sum(c.isascii() for c in support) > 0.7 * max(1, len(support))
+        words = [w for w in stems(text) if w not in STOP and len(w) > 2]
+        known = set(stems(support)) | set(stems(question))
+        if latin and words and sum(w in known for w in words) < 0.6 * len(words):
+            continue  # too much that the quoted lines do not say
+        kept.append(text)
+    return tuple(kept[:2])
+
+
+def matched_words(query: Query, cites: tuple[tuple[Item, Unit], ...]) -> tuple[str, ...]:
+    """The words of the question that occur in these quoted lines or their note titles."""
+    have = set(stems(" ".join(f"{item.title} {unit.text}" for item, unit in cites)))
+    names = sorted(n for n in names_in(query.question) if stem(n.lower()) in have)
+    return tuple([*names, *[w for w in query.focus_words if stem(w) in have and w not in names]])
 
 
 @dataclass(frozen=True)

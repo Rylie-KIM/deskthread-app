@@ -11,11 +11,19 @@ from datetime import datetime
 
 from app import config, coverage, meetings, prompts
 from app.broker import Broker
-from app.gate import Checked, Given, check, instruction_units, parse_points
+from app.gate import (
+    Checked,
+    Given,
+    check,
+    instruction_units,
+    matched_words,
+    parse_points,
+    summarise,
+)
 from app.images import ImageReader
 from app.model import Model, complete_json
 from app.policy import AccessPolicy
-from app.search import Candidate, add_expansion, build_query, find, stem, stems
+from app.search import Candidate, Query, add_expansion, build_query, find, stem, stems
 from app.store import SessionStore
 from contracts.api import (
     Answer,
@@ -52,6 +60,7 @@ class Assistant:
         self._images = ImageReader(policy, store, model)
         self.questions = 0
         self.items_given = 0
+        self.given_by: dict[str, int] = {}  # source id -> items shown to the AI
         self.progress = Progress()  # which step a running question is on
         self._stop = threading.Event()  # set when the user stops the running question
 
@@ -167,6 +176,8 @@ class Assistant:
             self._step(5)
             points, result = check(query, proposed, given, self._model)
             self._step(5)  # a question stopped while the AI was answering ends here
+            summary = summarise(question, points, self._model) if points else ()
+            self._step(5)
         except DeskThreadError as err:
             trace.append(_gate(Gate.G3_MODEL, Outcome.FAIL, f"the local model failed ({err.code})"))
             message = "The model on this laptop did not answer. Nothing was sent anywhere else."
@@ -179,9 +190,12 @@ class Assistant:
         trace.append(_gate(Gate.G3_MODEL, Outcome.PASS, model_note))
         trace.append(result)
         self.items_given += len(given)
+        for g in given:
+            self.given_by[g.item.source_id] = self.given_by.get(g.item.source_id, 0) + 1
         kind = AnswerKind.BRIEF if points else AnswerKind.NOT_FOUND
         message = "" if points else NOT_FOUND
-        answer = self._answer(kind, question, message, points, given, trace, started)
+        answer = self._answer(kind, question, message, points, given, trace, started, query)
+        answer = answer.model_copy(update={"summary": summary})
         # A status only means something for things promised or to do.
         commitment = person is not None or bool(COMMITMENT_WORDS & set(stems(question)))
         return answer.model_copy(update={"show_status": commitment})
@@ -202,6 +216,7 @@ class Assistant:
         given: list[Given],
         trace: list[GateResult],
         started: float,
+        query: Query | None = None,
     ) -> Answer:
         labels = {s.source_id: s.label for s in self._broker.states()}
         brief = tuple(
@@ -209,6 +224,7 @@ class Assistant:
                 label=p.label,
                 status=PointStatus(p.status),
                 note=p.note,
+                matched=matched_words(query, p.cites) if query else (),
                 citations=tuple(_citation(item, unit, labels) for item, unit in p.cites),
             )
             for p in points

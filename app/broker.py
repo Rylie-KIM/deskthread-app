@@ -7,6 +7,7 @@ drop them. Nothing is remembered between sessions, because nothing is saved (R4)
 
 import threading
 from collections.abc import Callable
+from datetime import date as Day  # noqa: N812 (a field is called `date`)
 
 from app.clock import now
 from contracts.adapters import ReadGrant, SourceAdapter
@@ -36,9 +37,17 @@ WHAT_IS_READ: dict[SourceKind, str] = {
 class Grant:
     """Proof that a read is allowed right now. Cancelled the moment access is revoked."""
 
-    def __init__(self, source_id: str, scope_ids: frozenset[str], days: int | None = None) -> None:
+    def __init__(
+        self,
+        source_id: str,
+        scope_ids: frozenset[str],
+        days: int | None = None,
+        since: Day | None = None,
+        until: Day | None = None,
+    ) -> None:
         self._source_id, self._scope_ids = source_id, scope_ids
         self.days = days  # how far back to read, where time matters; None = the default
+        self.since, self.until = since, until  # or an exact range, both days included
         self._cancel = threading.Event()
 
     @property
@@ -142,7 +151,12 @@ class Broker:
         )
 
     def grant(
-        self, source_id: str, scope_ids: frozenset[str], days: int | None = None
+        self,
+        source_id: str,
+        scope_ids: frozenset[str],
+        days: int | None = None,
+        since: Day | None = None,
+        until: Day | None = None,
     ) -> SourceState:
         adapter = self.adapter(source_id)
         known = {s.scope_id for s in adapter.list_scopes()}
@@ -151,7 +165,7 @@ class Broker:
             raise DeskThreadError(ErrorCode.BAD_REQUEST)
         self.revoke(source_id, quiet=True)  # a new choice of scopes replaces the old one
         with self._lock:
-            self._grants[source_id] = Grant(source_id, frozenset(chosen), days)
+            self._grants[source_id] = Grant(source_id, frozenset(chosen), days, since, until)
             self._note(AuditAction.GRANT, source_id, len(chosen))
             return self._state(source_id)
 

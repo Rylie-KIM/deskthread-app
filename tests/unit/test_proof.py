@@ -122,3 +122,24 @@ def test_the_proof_holds_counts_and_ids_only_and_states_its_limits(
     assert {line["action"] for line in proof["audit"]} >= {"grant", "read"}
     assert "cannot prove that memory was erased" in proof["limits"]
     assert set(proof["telemetry_off"]) >= {"OLLAMA_NO_CLOUD", "DO_NOT_TRACK"}
+
+
+def test_a_changed_folder_names_the_files_with_time_and_owner_without_opening_them(
+    tmp_path: Path,
+) -> None:
+    from app.proof.evidence import differences, listing
+
+    (tmp_path / "keep.txt").write_text("same")
+    (tmp_path / "edit.txt").write_text("old")
+    (tmp_path / "gone.txt").write_text("bye")
+    before = listing(tmp_path)
+    assert differences(before, listing(tmp_path)) == []
+    (tmp_path / "edit.txt").write_text("new and longer")
+    (tmp_path / "new.txt").write_text("hello")
+    (tmp_path / "gone.txt").unlink()
+    found = {c.name: c for c in differences(before, listing(tmp_path))}
+    assert {n: c.what for n, c in found.items()} == {
+        "edit.txt": "changed", "new.txt": "added", "gone.txt": "removed"
+    }  # fmt: skip
+    assert found["edit.txt"].when is not None and found["edit.txt"].owner
+    assert found["gone.txt"].when is None

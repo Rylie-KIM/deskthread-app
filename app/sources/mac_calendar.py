@@ -12,6 +12,7 @@ from collections.abc import Iterator
 from datetime import UTC, datetime
 from typing import Any
 
+from app import period
 from app.readers.common import item_id, to_units
 from app.sources.mac import MacAppAdapter, Runner, osascript
 from contracts.adapters import OsPermission, ReadGrant, Scope
@@ -99,11 +100,10 @@ class CalendarAdapter:
         wanted = [c for c in self._calendars() if str(c.title()) in grant.scope_ids]
         if not wanted:
             return
+        start, end = period.window(grant, DAYS_BACK, DAYS_AHEAD)  # the period the user chose
         window = self._store.predicateForEventsWithStartDate_endDate_calendars_(
-            NSDate.dateWithTimeIntervalSinceNow_(
-                -(getattr(grant, "days", None) or DAYS_BACK) * 86400
-            ),
-            NSDate.dateWithTimeIntervalSinceNow_(DAYS_AHEAD * 86400),
+            NSDate.dateWithTimeIntervalSince1970_(start.timestamp()),
+            NSDate.dateWithTimeIntervalSince1970_(end.timestamp()),
             wanted,
         )
         for event in self._store.eventsMatchingPredicate_(window) or []:

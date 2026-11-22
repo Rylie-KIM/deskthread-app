@@ -4,6 +4,7 @@ All routes live under /api on 127.0.0.1 and need the session token header (FT-23
 ROUTES is the frozen list; the OpenAPI document is generated from these models.
 """
 
+from datetime import date as Day  # noqa: N812 (a field is called `date`)
 from datetime import datetime
 from enum import StrEnum
 
@@ -98,6 +99,9 @@ class GrantBody(_Frozen):
     # How many days back to read, for sources where time matters (Calendar, Mail).
     # None: the source's own default. (contract 1.7)
     days: int | None = Field(default=None, ge=1, le=366)
+    # Or an exact range, both days included (contract 1.9). It wins over `days`.
+    since: Day | None = None
+    until: Day | None = None
 
 
 class Meeting(_Frozen):
@@ -148,6 +152,8 @@ class BriefPoint(_Frozen):
     status: PointStatus
     citations: tuple[Citation, ...]
     note: str = ""  # e.g. "a newer note changed this"
+    # Words of the question that occur in the quoted lines: why these lines (contract 1.9).
+    matched: tuple[str, ...] = ()
 
 
 class Coverage(_Frozen):
@@ -181,6 +187,9 @@ class Answer(_Frozen):
     # True when the question is about things promised or to do: only then does a status
     # (done, still to do, ...) mean anything, and only then is it shown. (contract 1.5)
     show_status: bool = False
+    # Up to two sentences by the AI, each resting on quoted lines; a sentence that does not
+    # is dropped by code. The quotes stay the proof. (contract 1.9)
+    summary: tuple[str, ...] = ()
 
 
 class UnitView(_Frozen):
@@ -224,12 +233,25 @@ class Connection(_Frozen):
     local_only: bool
 
 
+class FileChange(_Frozen):
+    """One file that is different from when its folder was chosen. Name and times only: no
+    file is opened to find this out. macOS does not record which program changed a file,
+    so only the owning user account can be named. (contract 1.9)"""
+
+    name: str  # path inside the folder
+    what: str  # "added" | "changed" | "removed"
+    when: datetime | None = None  # the file's own changed-time; None for a removed file
+    owner: str = ""  # the user account that owns the file
+
+
 class FolderHash(_Frozen):
     label: str
     files: int
     before: str
     now: str
     unchanged: bool
+    changes: tuple[FileChange, ...] = ()  # the newest ones, at most 25 (contract 1.9)
+    changes_total: int = 0
 
 
 class Proof(_Frozen):
@@ -244,7 +266,8 @@ class Proof(_Frozen):
 
 
 class Receipt(_Frozen):
-    """Shown on End session. Counts and hashes only, never note text (FT-40)."""
+    """Shown on End session. Counts, hashes and the names of changed files only, never note
+    text (FT-40)."""
 
     items_read: int
     items_given_to_model: int
@@ -255,6 +278,9 @@ class Receipt(_Frozen):
     all_connections_local: bool
     folders: tuple[FolderHash, ...]
     limits: str
+    # Per source, by its label: how many items were read, and shown to the AI (contract 1.9).
+    read_by_source: dict[str, int] = Field(default_factory=dict)
+    given_by_source: dict[str, int] = Field(default_factory=dict)
 
 
 class ApiError(_Frozen):

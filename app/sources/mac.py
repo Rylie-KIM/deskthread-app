@@ -15,10 +15,11 @@ import atexit
 import subprocess
 import threading
 from collections.abc import Callable, Iterator
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from app import period
 from app.clock import now
 from app.readers.common import find_date, item_id, to_units
 from contracts.adapters import OsPermission, ReadGrant, Scope, SourceAdapter
@@ -300,15 +301,17 @@ class MacAppAdapter:
             raise DeskThreadError(ErrorCode.SOURCE_NOT_ALLOWED)
         grant.raise_if_cancelled()
         records = self._call("read", sorted(grant.scope_ids), 240)
-        days = getattr(grant, "days", None)
-        oldest = now() - timedelta(days=days) if days else None
+        timed = self._name in ("mail", "calendar") and (
+            getattr(grant, "days", None) or getattr(grant, "since", None)
+        )
+        start, end = period.window(grant, 30, 365)
         for record in records:
             grant.raise_if_cancelled()  # a revoke stops the read between two items
             item = PARSERS[self._name](self.source_id, record)
             if item is None:
                 continue
-            if oldest and self._name == "mail" and item.date and item.date < oldest:
-                continue  # older than the period the user chose
+            if timed and item.date and not start <= item.date <= end:
+                continue  # outside the period the user chose
             yield item
 
 

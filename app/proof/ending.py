@@ -18,9 +18,18 @@ def receipt(runtime: Runtime, evidence: Evidence) -> Receipt:
     session = runtime.session
     proof = evidence.proof()
     read = given = questions = 0
+    read_by: dict[str, int] = {}
+    given_by: dict[str, int] = {}
     if session is not None:
-        read = sum(a.count for a in session.broker.audit() if a.action is AuditAction.READ)
+        labels = {s.source_id: s.label for s in session.broker.states()}
+        # A folder is read again for every question: count a source once, at its largest.
+        for line in session.broker.audit():
+            if line.action is AuditAction.READ:
+                name = labels.get(line.source_id, line.source_id)
+                read_by[name] = max(read_by.get(name, 0), line.count)
+        read = sum(read_by.values())
         given, questions = session.assistant.items_given, session.assistant.questions
+        given_by = {labels.get(k, k): v for k, v in session.assistant.given_by.items()}
         session.broker.revoke_all()
         session.assistant.forget()
     unloaded = runtime.gateway.unload() if runtime.gateway else True
@@ -35,6 +44,8 @@ def receipt(runtime: Runtime, evidence: Evidence) -> Receipt:
         all_connections_local=proof.all_local,
         folders=proof.folders,
         limits=LIMITS,
+        read_by_source=read_by,
+        given_by_source=given_by,
     )
 
 

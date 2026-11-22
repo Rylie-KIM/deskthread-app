@@ -5,6 +5,7 @@ revokes, and a revoke takes effect at once: items of that source leave memory an
 progress are cancelled.
 """
 
+from datetime import date as Day  # noqa: N812 (a field is called `date`)
 from datetime import datetime
 from enum import StrEnum
 from typing import Protocol, runtime_checkable
@@ -70,7 +71,12 @@ class PermissionBroker(Protocol):
     def request(self, source_id: str) -> PermissionRequest: ...
 
     def grant(
-        self, source_id: str, scope_ids: frozenset[str], days: int | None = None
+        self,
+        source_id: str,
+        scope_ids: frozenset[str],
+        days: int | None = None,
+        since: Day | None = None,
+        until: Day | None = None,
     ) -> SourceState:
         """Allow reading for this session. Reading is the only permission there is."""
         ...

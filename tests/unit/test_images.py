@@ -42,7 +42,7 @@ def test_an_image_is_read_once_per_session_and_forgotten_on_request(demo_laptop:
     calls = model.calls
     assert assistant.readings_held == 5
     assistant.ask("What did I promise Sam?")
-    assert model.calls == calls + 1  # one answer call; no image was read a second time
+    assert model.calls == calls + 2  # the answer and its summary; no image read again
     assistant.forget()
     assert assistant.readings_held == 0 and session.store.items() == []
 

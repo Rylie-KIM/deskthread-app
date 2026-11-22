@@ -12,8 +12,10 @@ Mac's own tools, and a plain statement of what it cannot prove.
 
 import hashlib
 import os
+import pwd
 import subprocess
 import sys
+from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -22,7 +24,7 @@ from app import config
 from app.clock import now
 from app.proof.processes import watched
 from app.runtime import Runtime
-from contracts.api import Connection, FolderHash, Proof
+from contracts.api import Connection, FileChange, FolderHash, Proof
 
 LIMITS = (
     "This covers DeskThread's own programs only, not other apps on this Mac. Connections are "
@@ -59,20 +61,57 @@ def files_written() -> int:
     return _writes[0]
 
 
-def fingerprint(root: Path) -> tuple[str, int]:
-    """A hash of every file's name, size and modification time. Opens no file."""
-    digest, count = hashlib.sha256(), 0
-    for folder, _dirs, names in sorted(os.walk(root)):
-        for name in sorted(names):
+Listing = dict[str, tuple[int, int, int]]  # path inside the folder -> size, changed-time, owner
+
+
+def listing(root: Path) -> Listing:
+    """Name, size, changed-time and owner of every file under the folder. Opens no file."""
+    found: Listing = {}
+    for folder, _dirs, names in os.walk(root):
+        for name in names:
             path = Path(folder) / name
             try:
                 info = path.lstat()
             except OSError:
                 continue
-            rel = path.relative_to(root).as_posix()
-            digest.update(f"{rel}\0{info.st_size}\0{info.st_mtime_ns}\n".encode())
-            count += 1
-    return digest.hexdigest(), count
+            found[path.relative_to(root).as_posix()] = (info.st_size, info.st_mtime_ns, info.st_uid)
+    return found
+
+
+def _digest(files: Listing) -> str:
+    digest = hashlib.sha256()
+    for rel in sorted(files):
+        size, changed, _owner = files[rel]
+        digest.update(f"{rel}\0{size}\0{changed}\n".encode())
+    return digest.hexdigest()
+
+
+def fingerprint(root: Path) -> tuple[str, int]:
+    """A hash of every file's name, size and modification time. Opens no file."""
+    files = listing(root)
+    return _digest(files), len(files)
+
+
+def _owner(uid: int) -> str:
+    try:
+        return pwd.getpwuid(uid).pw_name
+    except KeyError:
+        return str(uid)
+
+
+def differences(before: Listing, current: Listing) -> list[FileChange]:
+    """What is different between two listings, newest first. Removed files come last."""
+    out: list[FileChange] = []
+    for rel, (size, changed, uid) in current.items():
+        old = before.get(rel)
+        if old is not None and old[:2] == (size, changed):
+            continue
+        when = datetime.fromtimestamp(changed / 1e9, UTC)
+        what = "added" if old is None else "changed"
+        out.append(FileChange(name=rel, what=what, when=when, owner=_owner(uid)))
+    out.sort(key=lambda c: c.when or datetime.min.replace(tzinfo=UTC), reverse=True)
+    out.extend(FileChange(name=rel, what="removed") for rel in sorted(set(before) - set(current)))
+    return out
 
 
 def parse_lsof(text: str, names: dict[int, str]) -> list[Connection]:
@@ -113,24 +152,28 @@ class Evidence:
 
     def __init__(self, runtime: Runtime) -> None:
         self._runtime = runtime
-        self._before: dict[Path, tuple[str, int]] = {}
+        self._before: dict[Path, Listing] = {}  # names, sizes and times only, in memory
         runtime.on_folder.append(self.remember)
 
     def remember(self, roots: list[Path]) -> None:
         """Keep the fingerprint taken when each folder was first chosen; drop removed ones."""
-        self._before = {r: self._before.get(r) or fingerprint(r) for r in roots}
+        self._before = {r: self._before[r] if r in self._before else listing(r) for r in roots}
 
     def folders(self) -> tuple[FolderHash, ...]:
         out = []
-        for root, (before, _count) in self._before.items():
-            current, count = fingerprint(root)
+        for root, before in self._before.items():
+            current = listing(root)
+            old, new = _digest(before), _digest(current)
+            changes = [] if old == new else differences(before, current)
             out.append(
                 FolderHash(
                     label=root.name,
-                    files=count,
-                    before=before[:16],
-                    now=current[:16],
-                    unchanged=before == current,
+                    files=len(current),
+                    before=old[:16],
+                    now=new[:16],
+                    unchanged=old == new,
+                    changes=tuple(changes[:25]),
+                    changes_total=len(changes),
                 )
             )
         return tuple(out)

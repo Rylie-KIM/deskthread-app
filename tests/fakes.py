@@ -24,6 +24,7 @@ class FakeModel:
     def __init__(self, script: Script, verify: str = "yes", words: list[str] | None = None):
         self.script, self.verify, self.words = script, verify, words or []
         self.calls = 0
+        self.summary: list[dict[str, object]] = []  # what the fake writes as a summary
         self.prompts: list[str] = []
         self.raw_cites: list[dict[str, object]] = []  # extra citations to inject as they are
         self.image_text: dict[bytes, str] = {}  # what the fake "sees" in a given image
@@ -38,6 +39,8 @@ class FakeModel:
         if "one entry per line" in prompt:
             count = len(re.findall(r"^\d+\. \(from the note", prompt, re.M))
             return json.dumps({"answers": [self.verify] * count})
+        if "lines it rests on" in prompt:
+            return json.dumps({"sentences": self.summary})
         question = re.search(r"^Question: (.+)$", prompt, re.M)
         assert question
         points = []

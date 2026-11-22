@@ -123,8 +123,9 @@ def test_u4_a_note_with_instructions_is_flagged_and_its_orders_never_reach_the_m
     )
     session, assistant = open_work(demo_laptop, model)
     answer = assistant.ask("What did I promise Sam?")
-    sent = model.prompts[-1]
-    assert "ignore your rules" not in sent and "promised a promotion" not in sent
+    sent = next(p for p in model.prompts if "Notes:\n" in p)  # the answer prompt
+    assert all("ignore your rules" not in p for p in model.prompts)  # nor in any other
+    assert "promised a promotion" not in sent
     assert "[line withheld" in sent
     assert [p.label for p in answer.points] == ["Present at offsite"]  # the order was not followed
     outcome, detail = gate(answer, Gate.G4_ANSWER)
@@ -174,3 +175,28 @@ def test_revoking_a_source_takes_it_out_of_the_next_answer(demo_laptop: Path) ->
     session.broker.revoke_all()
     stopped = assistant.ask("What did I promise Sam?")
     assert stopped.kind is AnswerKind.NO_SOURCES and stopped.coverage.accessible == 0
+
+
+def test_a_summary_sentence_is_kept_only_when_the_quoted_lines_carry_it() -> None:
+    from app.gate import Checked, matched_words, summarise
+    from app.search import build_query
+    from contracts.items import Item, ItemKind, Unit
+
+    unit = Unit(number=1, text="Promised Sam a data storytelling course, budget 800 pounds")
+    item = Item(
+        item_id="i1", source_id="folder:notes", kind=ItemKind.NOTE, title="1:1 Sam", units=(unit,)
+    )
+    points = [Checked("Course for Sam", "open", ((item, unit),))]
+    model = FakeModel(lambda _q: [])
+    model.summary = [
+        {"text": "You promised Sam a data storytelling course with a budget of 800.", "lines": [1]},
+        {"text": "The budget was 1200 pounds.", "lines": [1]},  # a number the line does not say
+        {"text": "Sam will also get a new laptop and a pay rise next spring.", "lines": [1]},
+        {"text": "You promised Sam a course.", "lines": [7]},  # rests on a line that is not there
+        {"text": "You promised Sam a course.", "lines": []},
+    ]
+    question = "What did I promise Sam about the course?"
+    assert summarise(question, points, model) == (
+        "You promised Sam a data storytelling course with a budget of 800.",
+    )
+    assert matched_words(build_query(question), points[0].cites) == ("Sam", "course")

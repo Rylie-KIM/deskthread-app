@@ -60,6 +60,20 @@ same person or a similar-sounding thing (a course budget is not a salary).
 
 Reply with JSON only: {{"answers": ["yes", "no", ...]}} with one entry per line, in order."""
 
+SUMMARY = """\
+Question: {question}
+
+Below are numbered lines quoted from a manager's own notes, each with the title and date of
+its note. They were already checked: they answer the question.
+
+{lines}
+
+Write at most two short sentences that answer the question, using ONLY what these lines
+say. Add nothing that is not in them: no guesses, no advice. Write in the language of the
+question. After each sentence, list the numbers of the lines it rests on.
+
+Reply with JSON only: {{"sentences": [{{"text": "...", "lines": [1, 3]}}]}}"""
+
 READ_IMAGE = """\
 Transcribe the text in this image exactly, line by line. Output the text only, with no
 comments. If the image contains no text, reply with the single word NONE."""

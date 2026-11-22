@@ -174,7 +174,11 @@ def create_app(runtime: Runtime, ui_dir: Path | None = None) -> FastAPI:
     @app.post("/api/sources/{source_id}/grant")
     def grant(source_id: str, body: GrantBody) -> SourceState:
         session = runtime.require()
-        session.broker.grant(source_id, frozenset(body.scope_ids), body.days)
+        if body.since and body.until and body.since > body.until:
+            raise DeskThreadError(ErrorCode.BAD_REQUEST)
+        session.broker.grant(
+            source_id, frozenset(body.scope_ids), body.days, body.since, body.until
+        )
         session.store.load(source_id)
         return next(s for s in session.broker.states() if s.source_id == source_id)
 
