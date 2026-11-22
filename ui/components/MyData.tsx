@@ -215,6 +215,7 @@ export function MyData({ onError, onClear, onEnd }: { onError: (message: string)
           <div className="dialog wide">
             <h2 id="check-title">{check.all_local ? "Every connection stays on this Mac." : "A connection leaves this Mac."}</h2>
             <p className="lead">DeskThread asked macOS which connections its own programs have open, at {clock(check.ran_at)}.</p>
+            <div className="connbox">
             <table className="conn">
               <thead><tr><th>Program</th><th>Talking to</th><th></th></tr></thead>
               <tbody>
@@ -222,6 +223,7 @@ export function MyData({ onError, onClear, onEnd }: { onError: (message: string)
                 {check.connections.length === 0 && <tr><td colSpan={3}>No open connection.</td></tr>}
               </tbody>
             </table>
+            </div>
             <h3>How to read it</h3>
             <ul className="read">
               <li><b>127.0.0.1</b> is the address a Mac uses to talk to itself. Nothing sent there leaves the Mac.</li>
@@ -241,7 +243,7 @@ export function MyData({ onError, onClear, onEnd }: { onError: (message: string)
               <button className="ghost small" onClick={() => copy(check.command)}>{copied ? "Copied" : "Copy"}</button>
               {macWindow() && <button className="ghost small" onClick={() => macWindow()?.postMessage("open-terminal")}>Open Terminal</button>}
             </div>
-            <div className="row end closing">
+            <div className="pair closing">
               <button className="ghost" disabled={checking} onClick={runCheck}>{checking ? "Checking…" : "Run again"}</button>
               <button className="primary" onClick={() => setCheck(null)}>Close</button>
             </div>
