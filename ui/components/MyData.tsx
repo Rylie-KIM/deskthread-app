@@ -109,6 +109,7 @@ export function MyData({ onError, onClear, onEnd }: { onError: (message: string)
   // The AI is working from the step where it reads pictures to the end of a question.
   const working = (running?.number ?? 0) >= 2;
   const mac = Math.max(1, memory.mac_memory_mb);
+  const reading = Object.entries(memory.items_by_source).sort();  // what is On and held, by name
 
   return (
     <section>
@@ -122,7 +123,14 @@ export function MyData({ onError, onClear, onEnd }: { onError: (message: string)
         </div>
         <div className={untouched ? "card fact" : "card fact blink"}>
           <span className="dot" />
-          <h2>{proof.folders.length === 0 ? "No folder chosen yet." : untouched ? "Your files are untouched." : "A file in your folders changed."}</h2>
+          <h2>{proof.folders.length > 0 ? (untouched ? "Your files are untouched." : "A file in your folders changed.") : reading.length > 0 ? "Your apps are only read." : "Nothing is switched on yet."}</h2>
+          {proof.folders.length === 0 && reading.length > 0 && <p>DeskThread asks these apps for their content and sends them nothing to save, change or delete.</p>}
+          {proof.folders.length === 0 && reading.length > 0 && (
+            <ul className="folders">
+              {reading.map(([name, count]) => <li key={name}><b>{name}</b><span>{count} items</span><em className="tag">Read only</em></li>)}
+            </ul>
+          )}
+          {proof.folders.length === 0 && reading.length === 0 && <p>Switch a source on in Access. What is read, and that nothing is changed, shows up here.</p>}
           {proof.folders.length > 0 && <p>{untouched ? "Nothing was added, changed or removed since you chose them." : "Not by DeskThread: it cannot write, and it saved 0 files. You or another app changed it."}</p>}
           {proof.folders.length > 0 && (
             <ul className="folders">
