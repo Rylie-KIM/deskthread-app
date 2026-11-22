@@ -141,19 +141,21 @@ SCRIPTS: dict[str, str] = {
 """
     + _TAIL,
     # ---------------------------------------------------------------- Mail
+    # Names only: counting the messages of every mailbox of every account is slow.
     "mail.list": _HEAD
     + """
     tell application "Mail"
         repeat with acc in accounts
-            repeat with mb in mailboxes of acc
-                set out to out & my txt(name of acc) & " / " & my txt(name of mb) & FS ¬
-                    & ((count of messages of mb) as text) & RS
+            set names to name of mailboxes of acc
+            repeat with n in names
+                set out to out & my txt(name of acc) & " / " & (n as text) & FS & "" & RS
             end repeat
         end repeat
     end tell
 """
     + _TAIL,
-    # Only the newest messages of a chosen mailbox: a big mailbox is slow to read through.
+    # Only the newest messages of a chosen mailbox, and whole lists per request instead of
+    # one request per message. Mail hands over what it has on this Mac.
     "mail.read": _HEAD
     + """
     tell application "Mail"
@@ -162,13 +164,19 @@ SCRIPTS: dict[str, str] = {
                 repeat with mb in mailboxes of acc
                     if (my txt(name of acc) & " / " & my txt(name of mb)) is (wanted as text) then
                         set total to count of messages of mb
-                        if total > 40 then set total to 40
-                        repeat with i from 1 to total
-                            set m to message i of mb
-                            set out to out & my txt(message id of m) & FS & my txt(subject of m) ¬
-                                & FS & my stamp(date received of m) & FS & my txt(sender of m) ¬
-                                & FS & my txt(content of m) & FS & (wanted as text) & RS
-                        end repeat
+                        if total > 25 then set total to 25
+                        if total > 0 then
+                            set ids to message id of (messages 1 thru total of mb)
+                            set sums to subject of (messages 1 thru total of mb)
+                            set dates to date received of (messages 1 thru total of mb)
+                            set names to sender of (messages 1 thru total of mb)
+                            set bodies to content of (messages 1 thru total of mb)
+                            repeat with i from 1 to total
+                                set out to out & my txt(item i of ids) & FS & my txt(item i of sums) ¬
+                                    & FS & my stamp(item i of dates) & FS & my txt(item i of names) ¬
+                                    & FS & my txt(item i of bodies) & FS & (wanted as text) & RS
+                            end repeat
+                        end if
                     end if
                 end repeat
             end repeat

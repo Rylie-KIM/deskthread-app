@@ -50,7 +50,7 @@ class FakeApps:
             "reminders.list": _record("Work", "2"),
             "reminders.read": _record("r1", "Intro Sam to Mark", "false", "2026-11-27T09:00:00", "", "Work")
             + _record("r2", "Email Sam about the course budget", "true", "", "", "Work"),
-            "mail.list": _record("On My Mac / DeskThread Demo", "1") + _record("Work / INBOX", "13037"),
+            "mail.list": _record("On My Mac / DeskThread Demo", "") + _record("Work / INBOX", ""),
             "mail.read": _record("m1", "RE: Course budget request - Sam", "2026-11-10T11:24:00",
                                  "HR Learning <hr-learning@ukpharma.example>",
                                  "Hi Seoyeon,\nBudget approved up to 800 for Sam's online course.", "On My Mac / DeskThread Demo"),
@@ -145,7 +145,7 @@ def test_reminders_carry_open_or_done_and_the_due_date(apps: FakeApps) -> None:
 def test_mail_reads_one_chosen_mailbox(apps: FakeApps) -> None:
     adapter = MacAppAdapter("mail", SourceKind.MAIL, "Mail", "/", apps)
     scopes = {s.label: s.item_count for s in adapter.list_scopes()}
-    assert scopes["Work / INBOX"] == 13037
+    assert scopes == {"On My Mac / DeskThread Demo": None, "Work / INBOX": None}  # names only
     (message,) = _on(adapter, {"On My Mac / DeskThread Demo"}).items()
     assert apps.calls[-1] == ("mail.read", ["On My Mac / DeskThread Demo"])
     assert message.kind is ItemKind.MAIL and message.date is not None and message.date.day == 10
