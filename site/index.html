@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DeskThread: download</title>
+<meta name="description" content="A local-first assistant that finds what you wrote down, without your notes ever leaving your laptop.">
+<style>
+  :root {
+    --deep: #0a1fb8; --azure: #0a84f0; --ink: #0c1433; --muted: #4b5576;
+    --page: #f3f5fa; --card: #ffffff; --line: #dbe1f0; --ok: #0f7b4a; --warn: #8a5a00;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --deep: #8fa2ff; --azure: #5db2ff; --ink: #eef1fb; --muted: #a9b2d0;
+            --page: #0b1024; --card: #131a36; --line: #263058; --ok: #57d39b; --warn: #f0c060; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--page); color: var(--ink);
+         font: 17px/1.6 -apple-system, "Segoe UI", system-ui, sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 56px 20px 72px; }
+  .brand { font-weight: 700; letter-spacing: .02em; color: var(--deep); }
+  h1 { font-size: clamp(2rem, 5.5vw, 3.1rem); line-height: 1.12; font-weight: 300;
+       margin: 18px 0 14px; text-wrap: balance; }
+  h1 b { font-weight: 650; color: var(--deep); }
+  .lead { color: var(--muted); max-width: 62ch; margin: 0 0 28px; }
+  .badge { display: inline-block; font-size: .85rem; padding: 4px 12px; border-radius: 999px;
+           border: 1px solid var(--line); color: var(--ok); background: var(--card); }
+  .actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 8px 0 12px; }
+  a.button { display: inline-block; padding: 13px 22px; border-radius: 12px; font-weight: 600;
+             text-decoration: none; background: var(--deep); color: var(--page); }
+  a.button.second { background: transparent; color: var(--deep); border: 1.5px solid var(--deep); }
+  a.button:focus-visible, a:focus-visible { outline: 3px solid var(--azure); outline-offset: 3px; }
+  .note { font-size: .92rem; color: var(--warn); margin: 0 0 40px; }
+  h2 { font-size: 1.15rem; margin: 44px 0 14px; color: var(--deep); }
+  .grid { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 18px 20px; }
+  .card h3 { margin: 0 0 6px; font-size: 1rem; }
+  .card p { margin: 0; color: var(--muted); font-size: .95rem; }
+  pre { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px;
+        overflow-x: auto; font: 14px/1.6 ui-monospace, "SF Mono", Menlo, monospace; margin: 0; }
+  code { font: .92em ui-monospace, "SF Mono", Menlo, monospace; overflow-wrap: anywhere; }
+  ul { padding-left: 20px; margin: 0; color: var(--muted); }
+  li { margin: 6px 0; }
+  a { color: var(--azure); }
+  footer { margin-top: 56px; padding-top: 18px; border-top: 1px solid var(--line);
+           color: var(--muted); font-size: .9rem; }
+</style>
+</head>
+<body>
+<main>
+  <div class="brand">DeskThread</div>
+  <h1>Find what you wrote down. <b>Your notes never leave your laptop.</b></h1>
+  <p class="lead">A local-first assistant for managers. It joins notes, mail, reminders and
+  screenshots written weeks apart in different words, quotes exactly where each point came
+  from, and says "not found" when the answer is not there.</p>
+  <p><span class="badge">Runs on your machine · no account · no telemetry</span></p>
+
+  <div class="actions">
+    <a class="button" href="https://github.com/Rylie-KIM/deskthread-app/archive/refs/heads/main.zip">Download source (.zip)</a>
+    <a class="button second" href="https://github.com/Rylie-KIM/deskthread-app">View on GitHub</a>
+  </div>
+  <p class="note">Prototype, work in progress: the reading, access and answer parts are built
+  and tested and run from the terminal. The browser interface is not built yet. macOS on
+  Apple silicon only; Windows is not tested.</p>
+
+  <h2>What it promises</h2>
+  <div class="grid">
+    <div class="card"><h3>Nothing leaves</h3><p>The only connection the app can open is to the model server on <code>127.0.0.1</code>. A test fails if any other code tries.</p></div>
+    <div class="card"><h3>No copies</h3><p>No database, no index, no log file. The app writes nothing to disk.</p></div>
+    <div class="card"><h3>You choose what it sees</h3><p>Every source starts Off. One click grants, one click revokes, with immediate effect. Private apps stay locked off.</p></div>
+    <div class="card"><h3>Honest answers</h3><p>The model points at a note and a line; code copies the quote. No support means "not found".</p></div>
+  </div>
+
+  <h2>Install</h2>
+  <pre><code>git clone https://github.com/Rylie-KIM/deskthread-app.git && cd deskthread-app
+brew install ollama uv
+make setup
+
+# download the model once (about 9 GB); after this it works offline
+OLLAMA_HOST=127.0.0.1:11435 OLLAMA_NO_CLOUD=1 ollama serve &
+OLLAMA_HOST=127.0.0.1:11435 ollama pull gemma4:e4b
+kill %1</code></pre>
+
+  <h2>Check what you downloaded</h2>
+  <ul>
+    <li>The source is public: read it before you run it. Dependencies are pinned with hashes in <code>uv.lock</code>.</li>
+    <li>The model is pinned by digest and refused if it differs:<br><code>eb2177adf7646d15faead94fdad6d3e170dc8015653418a3b7d5d52a6380be5b</code> (<code>gemma4:e4b</code>, Apache-2.0).</li>
+    <li>Run <code>make check</code>: lint, type check and 100 tests, no model needed.</li>
+  </ul>
+
+  <h2>About this page</h2>
+  <ul>
+    <li>This page loads nothing from other sites: no analytics, no fonts, no scripts, no cookies.</li>
+    <li>The download and the code are served by GitHub. All sample data in the project is invented.</li>
+  </ul>
+
+  <footer>DeskThread · hackathon prototype, November 2026 · no licence chosen yet</footer>
+</main>
+</body>
+</html>
