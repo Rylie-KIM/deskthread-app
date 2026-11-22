@@ -6,8 +6,11 @@ content-security-policy, so the page can load nothing from outside. Note text is
 plain strings and shown as text, never as HTML.
 """
 
+import base64
+import hashlib
 import hmac
 import mimetypes
+import re
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 
@@ -37,14 +40,35 @@ from contracts.broker import PermissionRequest, SourceState
 from contracts.errors import DeskThreadError, ErrorCode
 from contracts.items import ItemKind
 
-CSP = (
-    "default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
-    "img-src 'self'; connect-src 'self'; font-src 'self'; base-uri 'none'; "
-    "form-action 'none'; frame-ancestors 'none'"
+_INLINE_SCRIPT = re.compile(
+    rb"<script(?![^>]*\bsrc=)(?![^>]*application/json)[^>]*>(.*?)</script>", re.S
 )
+
+
+def script_hashes(ui_dir: Path | None) -> list[str]:
+    """Hashes of the inline scripts in our own built page. The build tool puts one small
+    start-up script inline; allowing it by its exact hash keeps every other inline script
+    (for example one smuggled in through a note) blocked."""
+    hashes: set[str] = set()
+    if ui_dir is not None and ui_dir.is_dir():
+        for page in sorted(ui_dir.glob("*.html")):
+            for body in _INLINE_SCRIPT.findall(page.read_bytes()):
+                digest = base64.b64encode(hashlib.sha256(body).digest()).decode()
+                hashes.add(f"'sha256-{digest}'")
+    return sorted(hashes)
+
+
+def content_security_policy(ui_dir: Path | None = None) -> str:
+    scripts = " ".join(["'self'", *script_hashes(ui_dir)])
+    return (
+        f"default-src 'none'; script-src {scripts}; style-src 'self' 'unsafe-inline'; "
+        "img-src 'self'; connect-src 'self'; font-src 'self'; base-uri 'none'; "
+        "form-action 'none'; frame-ancestors 'none'"
+    )
+
+
 SECURITY_HEADERS = {
     "Cache-Control": "no-store",
-    "Content-Security-Policy": CSP,
     "X-Content-Type-Options": "nosniff",
     "Referrer-Policy": "no-referrer",
     "Cross-Origin-Resource-Policy": "same-origin",
@@ -72,6 +96,8 @@ def create_app(runtime: Runtime, ui_dir: Path | None = None) -> FastAPI:
     app = FastAPI(title="DeskThread", version=contracts.CONTRACT_VERSION, docs_url=None,
                   redoc_url=None, openapi_url=None)  # fmt: skip
 
+    csp = content_security_policy(ui_dir)
+
     @app.middleware("http")
     async def guard(
         request: Request, call_next: Callable[[Request], Awaitable[Response]]
@@ -89,6 +115,7 @@ def create_app(runtime: Runtime, ui_dir: Path | None = None) -> FastAPI:
             response = await call_next(request)
         for name, value in SECURITY_HEADERS.items():
             response.headers[name] = value
+        response.headers["Content-Security-Policy"] = csp
         return response
 
     @app.exception_handler(DeskThreadError)

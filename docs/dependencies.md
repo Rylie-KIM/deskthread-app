@@ -18,6 +18,18 @@ package runs a build or install script on the machine.
 | Ollama (server, Homebrew formula) | 0.40.9 | MIT | Ollama Inc. (US) | Runs the model on the laptop; started by the launcher on 127.0.0.1 with cloud features off (`OLLAMA_NO_CLOUD=1`). The desktop app is not used |
 | Gemma 4 E4B (`gemma4:e4b`) | digest `eb2177adf764…` (full value in the README) | Apache-2.0 (licence text shipped with the model: `ollama show gemma4:e4b --license`) | Google (US) | The one local model: answers and image reading. Downloaded once at setup |
 
+## User interface (built once into static files; nothing here runs a server)
+
+| Name | Version | Licence | Whose it is | Why we use it |
+|---|---|---|---|---|
+| Next.js | 16.4.6 | MIT | Vercel (US) | Builds the page as a static export (`ui/out`) that the local backend serves. Pages Router, no server-side code. Its build telemetry is switched off (`NEXT_TELEMETRY_DISABLED=1`) |
+| React, React DOM | 19.3.1 | MIT | Meta (US) and contributors | The page's components. React escapes text, so note text is shown as characters and never runs |
+| TypeScript | 7.0.2 | Apache-2.0 | Microsoft (US) | Strict type check of the UI against the API shapes |
+| @types/react, @types/react-dom, @types/node | 19.3.0, 19.3.0, 26.6.6 | MIT | DefinitelyTyped contributors | Type declarations only |
+
+UI packages are pinned in `ui/package-lock.json` and installed with `npm ci --ignore-scripts`
+(`ui/.npmrc` also sets `ignore-scripts=true`), so no package runs an install script.
+
 ## Development only
 
 | Name | Version | Licence | Whose it is | Why we use it |

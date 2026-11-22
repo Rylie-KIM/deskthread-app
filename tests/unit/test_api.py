@@ -164,3 +164,20 @@ def test_choosing_a_new_folder_drops_the_old_one_from_memory(
     assert client.post("/api/folder", json={"path": str(tmp_path)}).is_success
     assert old.store.items() == [] and all(s.status.value != "on" for s in old.broker.states())
     assert client.post("/api/folder", json={"path": str(tmp_path / "missing")}).status_code == 400
+
+
+def test_inline_scripts_of_our_own_page_are_allowed_by_hash_and_nothing_else(
+    tmp_path: Path,
+) -> None:
+    from app.api import content_security_policy, script_hashes
+
+    (tmp_path / "index.html").write_text(
+        '<script src="/a.js"></script><script>boot()</script>'
+        '<script id="d" type="application/json">{"a":1}</script>'
+    )
+    hashes = script_hashes(tmp_path)
+    assert len(hashes) == 1 and hashes[0].startswith("'sha256-")  # only the executable one
+    csp = content_security_policy(tmp_path)
+    assert f"script-src 'self' {hashes[0]};" in csp
+    assert "'unsafe-inline'" not in csp.split("style-src")[0]  # never for scripts
+    assert content_security_policy(None).count("sha256") == 0

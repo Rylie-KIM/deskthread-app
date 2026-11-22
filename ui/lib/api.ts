@@ -1,0 +1,169 @@
+// The shapes below mirror contracts/api.py (contract 1.0). The page talks only to the
+// backend it was served from, and sends the session token with every call.
+
+export type SourceStatus = "off" | "on" | "locked";
+export type OsPermission = "not_needed" | "granted" | "missing" | "unknown";
+
+export interface SourceState {
+  source_id: string;
+  kind: string;
+  label: string;
+  status: SourceStatus;
+  os_permission: OsPermission;
+  allowed_scope_ids: string[];
+  items_in_memory: number;
+}
+export interface Scope { scope_id: string; label: string; item_count: number | null }
+export interface PermissionRequest {
+  source_id: string;
+  label: string;
+  what_will_be_read: string;
+  scopes: Scope[];
+  os_permission: OsPermission;
+}
+export interface Meeting { meeting_id: string; title: string; start: string; person: string }
+export interface Citation {
+  item_id: string;
+  unit: number;
+  quote: string;
+  source_id: string;
+  source_label: string;
+  title: string;
+  date: string | null;
+  undated: boolean;
+  read_by_model: boolean;
+}
+export type PointStatus = "done" | "open" | "changed" | "superseded";
+export interface BriefPoint { label: string; status: PointStatus; citations: Citation[]; note: string }
+export interface Coverage {
+  accessible: number;
+  searched: number;
+  unsupported: number;
+  given_to_model: number;
+  cited: number;
+  by_source: Record<string, number>;
+  not_accessible: Record<string, number | null>;
+}
+export interface GateResult { gate: string; outcome: "pass" | "warn" | "fail" | "skipped"; detail: string }
+export interface Answer {
+  kind: "brief" | "not_found" | "no_sources";
+  question: string;
+  points: BriefPoint[];
+  message: string;
+  coverage: Coverage;
+  gate_trace: GateResult[];
+  given_item_ids: string[];
+  seconds: number;
+}
+export interface ItemView {
+  item_id: string;
+  source_label: string;
+  kind: string;
+  title: string;
+  date: string | null;
+  location: string;
+  units: { number: number; text: string }[];
+  read_by_model: boolean;
+  has_image: boolean;
+}
+export interface ProcessInfo { name: string; pid: number; memory_mb: number }
+export interface MemoryState {
+  items_held: number;
+  items_by_source: Record<string, number>;
+  image_readings_held: number;
+  model_loaded: boolean;
+  processes: ProcessInfo[];
+}
+export interface Connection { process: string; pid: number; remote: string; local_only: boolean }
+export interface FolderHash { label: string; files: number; before: string; now: string; unchanged: boolean }
+export interface AuditLine { at: string; action: string; source_id: string; count: number }
+export interface Proof {
+  sampled_at: string;
+  connections: Connection[];
+  all_local: boolean;
+  folders: FolderHash[];
+  files_written_by_app: number;
+  telemetry_off: Record<string, boolean>;
+  audit: AuditLine[];
+  limits: string;
+}
+export interface Receipt {
+  items_read: number;
+  items_given_to_model: number;
+  questions: number;
+  memory_cleared: boolean;
+  model_unloaded: boolean;
+  files_written_by_app: number;
+  all_connections_local: boolean;
+  folders: FolderHash[];
+  limits: string;
+}
+export interface SessionInfo {
+  app: string;
+  contract_version: string;
+  model_tag: string;
+  model_digest: string;
+  prompt_version: string;
+  now: string;
+}
+
+export class ApiError extends Error {
+  constructor(public code: string, message: string, public status: number) {
+    super(message);
+  }
+}
+
+// The token arrives in the address fragment (#t=...), which a browser never sends over the
+// network. It is kept in memory only: no cookie, no localStorage.
+let token = "";
+export function readToken(): string {
+  if (!token && typeof window !== "undefined") {
+    token = new URLSearchParams(window.location.hash.slice(1)).get("t") ?? "";
+  }
+  return token;
+}
+
+async function call<T>(method: "GET" | "POST", path: string, body?: unknown): Promise<T> {
+  const response = await fetch(path, {
+    method,
+    cache: "no-store",
+    credentials: "omit",
+    headers: { "X-DeskThread-Token": readToken(), ...(body === undefined ? {} : { "Content-Type": "application/json" }) },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const data: unknown = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const err = data as { code?: string; message?: string };
+    throw new ApiError(err.code ?? "E-999", err.message ?? "The request failed.", response.status);
+  }
+  return data as T;
+}
+
+const id = encodeURIComponent;
+export const api = {
+  session: () => call<SessionInfo>("GET", "/api/session"),
+  sources: () => call<SourceState[]>("GET", "/api/sources"),
+  chooseFolder: (path: string) => call<SourceState[]>("POST", "/api/folder", { path }),
+  request: (sourceId: string) => call<PermissionRequest>("GET", `/api/sources/${id(sourceId)}/request`),
+  grant: (sourceId: string, scopeIds: string[]) =>
+    call<SourceState>("POST", `/api/sources/${id(sourceId)}/grant`, { scope_ids: scopeIds }),
+  revoke: (sourceId: string) => call<SourceState>("POST", `/api/sources/${id(sourceId)}/revoke`),
+  revokeAll: () => call<SourceState[]>("POST", "/api/sources/revoke-all"),
+  meetings: () => call<Meeting[]>("GET", "/api/meetings"),
+  prepare: (meetingId: string) => call<Answer>("POST", "/api/prepare", { meeting_id: meetingId }),
+  ask: (question: string) => call<Answer>("POST", "/api/ask", { question }),
+  item: (itemId: string) => call<ItemView>("GET", `/api/items/${id(itemId)}`),
+  imageUrl: (itemId: string) => `/api/items/${id(itemId)}/image?t=${id(readToken())}`,
+  memory: () => call<MemoryState>("GET", "/api/memory"),
+  forget: () => call<MemoryState>("POST", "/api/forget"),
+  proof: () => call<Proof>("GET", "/api/proof"),
+  endSession: () => call<Receipt>("POST", "/api/end-session"),
+};
+
+export function day(iso: string | null): string {
+  if (!iso) return "undated";
+  return new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+}
+export function clock(iso: string): string {
+  return new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+}

@@ -11,12 +11,12 @@ export HF_HUB_DISABLE_TELEMETRY := 1
 
 UV := uv run --frozen
 
-.PHONY: setup check lint format typecheck test test-live
+.PHONY: setup check lint format typecheck test test-live ui ui-check run demo-data
 
 setup:            ## install the locked dependencies into .venv (the one network step besides the model)
 	uv sync --frozen
 
-check: lint typecheck test  ## lint, type check, unit tests, contract tests, quick leak test
+check: lint typecheck test ui-check  ## lint, type check, tests, and the UI type check
 
 lint:
 	$(UV) ruff check --no-cache .
@@ -34,3 +34,15 @@ test:
 
 test-live:        ## touches the real Mac apps; prints counts and pass/fail only (R1)
 	$(UV) pytest -m live
+
+ui:               ## install the locked UI packages (no install scripts) and build the static page
+	cd ui && npm ci --ignore-scripts && npm run build
+
+ui-check:         ## strict TypeScript check of the UI (needs `make ui` once)
+	@if [ -d ui/node_modules ]; then cd ui && npm run --silent typecheck; else echo "ui-check skipped: run make ui first"; fi
+
+demo-data:        ## build the invented demo laptop in ./demo-laptop
+	$(UV) python -B demo-data/make_demo_data.py
+
+run:              ## start DeskThread (model server, backend, page) on this Mac only
+	./DeskThread.command
