@@ -275,3 +275,16 @@ def test_progress_is_empty_when_nothing_runs_and_names_the_step_while_a_question
     steps = {str(s["step"]) for s in seen}
     assert "Asking the AI on this Mac" in steps and all(s["of"] == 5 for s in seen)
     assert client.get("/api/progress").json()["step"] == ""  # cleared when the answer is back
+
+
+def test_the_policy_follows_a_page_rebuilt_while_the_app_runs(tmp_path: Path) -> None:
+    page = tmp_path / "index.html"
+    page.write_text("<script>first()</script>")
+    runtime = Runtime(FakeModel(lambda q: []), PORT)
+    client = TestClient(
+        create_app(runtime, tmp_path), base_url=BASE, headers={TOKEN_HEADER: runtime.token}
+    )
+    before = client.get("/api/session").headers["content-security-policy"]
+    page.write_text("<script>second_build()</script>")
+    after = client.get("/api/session").headers["content-security-policy"]
+    assert "sha256-" in before and "sha256-" in after and before != after

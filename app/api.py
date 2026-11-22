@@ -98,7 +98,16 @@ def create_app(runtime: Runtime, ui_dir: Path | None = None) -> FastAPI:
     app = FastAPI(title="DeskThread", version=contracts.CONTRACT_VERSION, docs_url=None,
                   redoc_url=None, openapi_url=None)  # fmt: skip
 
-    csp = content_security_policy(ui_dir)
+    # The policy follows the built page: if the page is rebuilt while the app runs, the hash
+    # of its start-up script changes, so it is worked out again when the page file changes.
+    built: dict[str, object] = {"stamp": None, "csp": content_security_policy(ui_dir)}
+
+    def current_policy() -> str:
+        page = ui_dir / "index.html" if ui_dir is not None else None
+        stamp = page.stat().st_mtime_ns if page is not None and page.is_file() else None
+        if stamp != built["stamp"]:
+            built["stamp"], built["csp"] = stamp, content_security_policy(ui_dir)
+        return str(built["csp"])
 
     @app.middleware("http")
     async def guard(
@@ -117,7 +126,7 @@ def create_app(runtime: Runtime, ui_dir: Path | None = None) -> FastAPI:
             response = await call_next(request)
         for name, value in SECURITY_HEADERS.items():
             response.headers[name] = value
-        response.headers["Content-Security-Policy"] = csp
+        response.headers["Content-Security-Policy"] = current_policy()
         return response
 
     @app.exception_handler(DeskThreadError)
