@@ -68,8 +68,8 @@ MODELS: tuple[ModelChoice, ...] = (
 # Meaning search: a small model that turns a text into numbers, so notes can be compared by
 # what they say and not only by their words. Optional: without it, search is by words.
 SEARCH_MODEL = ModelChoice(
-    "embeddinggemma:300m", "Meaning search", "Google", 0.6, False,
-    "Finds notes that say the same thing in other words",
+    "embeddinggemma:300m", "EmbeddingGemma", "Google", 0.6, False,
+    "Picks the notes that matter, by what they mean",
 )  # fmt: skip
 # How alike a note must be to count as related (0 to 1), and how many are taken at most.
 LIKE_QUESTION = 0.45

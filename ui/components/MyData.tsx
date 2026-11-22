@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, clock, day, macWindow, type AuditLine, type ConnectionCheck, type FolderHash, type MemoryState, type Progress, type Proof, type Receipt } from "../lib/api";
+import Help from "./Help";
 
 const WORDS: Record<string, string> = { grant: "You allowed reading", revoke: "You stopped", revoke_all: "You stopped", read: "Read", denied: "Refused", folder_added: "You added the folder", folder_removed: "You removed the folder" };
 
@@ -70,17 +71,6 @@ function Counts({ by }: { by: Record<string, number> }) {
   const rows = Object.entries(by).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]);
   if (rows.length === 0) return <p className="fine">Nothing.</p>;
   return <ul className="counts">{rows.map(([name, n]) => <li key={name}><span>{name}</span><b>{n}</b></li>)}</ul>;
-}
-
-// A small "?" in the corner: the explanation opens only when asked for.
-function Help({ about, children }: { about: string; children: React.ReactNode }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <span className="help">
-      <button type="button" className="helpbtn" aria-label={`What does ${about} do?`} aria-expanded={open} onClick={() => setOpen(!open)}>?</button>
-      {open && <span className="helpbox" role="note">{children}</span>}
-    </span>
-  );
 }
 
 const size = (mb: number) => (mb >= 1024 ? `${(mb / 1024).toFixed(1)} GB` : `${Math.round(mb)} MB`);

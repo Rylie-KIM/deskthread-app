@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, plain, type ModelInfo } from "../lib/api";
+import Help from "./Help";
 
 // One short line per model, and how quick it is. Kept here so the list reads at a glance.
 const LINE: Record<string, [string, number]> = {
@@ -73,23 +74,40 @@ export default function Models({ onError, onChange }: { onError: (message: strin
           </tbody>
         </table>
       </div>
-      {models.filter((m) => m.role === "search").map((m) => (
-        <div key={m.tag} className="card searchmodel">
-          <i className="orb" aria-hidden="true" />
-          <span className="who">
-            <b>{m.name}</b>
-            <span className="about"><em className="tag">{m.maker}</em><small>{m.good_for}. It also offers notes that do not name the person you ask about, apart from the rest.</small></span>
-          </span>
-          <span className="size">{m.download_gb} GB</span>
-          {m.installed ? (
-            <span className="status done">On</span>
-          ) : m.downloading !== null ? (
-            <span className="dl"><span className="track"><i style={{ width: `${m.downloading}%` }} /></span>{m.downloading}%</span>
-          ) : (
-            <button className="ghost small" disabled={busy !== ""} onClick={() => run(m.tag, () => api.downloadModel(m.tag))}>{m.failed ? "Try again" : "Download"}</button>
-          )}
-        </div>
-      ))}
+      {models.filter((m) => m.role === "search").map((m) => {
+        const answering = models.find((x) => x.selected && x.role !== "search");
+        return (
+          <div key={m.tag} className="card helper">
+            <div className="helperhead">
+              <span className="who">
+                <b>Search helper</b>
+                <small>A second, much smaller AI. It finds notes; it never writes an answer.</small>
+              </span>
+              <Help about="the search helper">
+                <b>Not the same AI.</b> It is a separate, small model that cannot write or answer anything.<br />
+                <b>What it does.</b> It turns each note into a list of numbers. Notes that mean something similar get similar numbers, even in other words, so it can offer notes that do not name the person you ask about.<br />
+                <b>Where it runs.</b> On this Mac, next to the answering AI, using about {m.download_gb} GB more memory while it works.<br />
+                <b>Without it,</b> notes are matched by their words only. It works with any answering AI.
+              </Help>
+            </div>
+            <ol className="chain">
+              <li><b>Your notes</b><span>Calendar, Notes, files</span></li>
+              <li className="step"><b>{m.name}</b><span>Search helper: picks the notes that matter</span></li>
+              <li className="step"><b>{answering?.name ?? "Answering AI"}</b><span>Answering AI: reads them and writes the answer</span></li>
+            </ol>
+            <div className="helperfoot">
+              <span><em className="tag">{m.maker}</em><span className="size">{m.download_gb} GB</span></span>
+              {m.installed ? (
+                <span className="status done">On</span>
+              ) : m.downloading !== null ? (
+                <span className="dl"><span className="track"><i style={{ width: `${m.downloading}%` }} /></span>{m.downloading}%</span>
+              ) : (
+                <button className="ghost small" disabled={busy !== ""} onClick={() => run(m.tag, () => api.downloadModel(m.tag))}>{m.failed ? "Try again" : "Download"}</button>
+              )}
+            </div>
+          </div>
+        );
+      })}
       {downloading && <p className="fine">Downloading uses the internet, this once. Your notes are not part of it.</p>}
     </section>
   );
