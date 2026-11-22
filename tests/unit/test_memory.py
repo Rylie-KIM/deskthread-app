@@ -27,7 +27,7 @@ class FakeGateway(ModelGateway):
     def loaded(self) -> bool:
         return self.is_loaded
 
-    def unload(self) -> bool:
+    def unload(self, wait_s: float = 20) -> bool:
         self.is_loaded = False
         self.unloads += 1
         return True

@@ -8,6 +8,10 @@ const NOT_WORK = /personal|whatsapp|kakaotalk|line|discord|imessage|messages|tel
 const PERIOD = /^mac:(calendar|mail)$/;
 const SPANS: [number, string][] = [[14, "2 weeks"], [30, "1 month"], [90, "3 months"], [365, "1 year"]];
 
+const isoDay = (offset: number) => new Date(Date.now() + offset * 86_400_000).toISOString().slice(0, 10);
+const contents = (f: FolderInfo) =>
+  [[f.files, "files"], [f.pictures, "pictures"], [f.videos, "videos"], [f.other, "other"]].filter(([n]) => (n as number) > 0).map(([n, word]) => `${n} ${word}`).join(" · ") || "empty";
+
 const OS_NOTE: Record<string, string> = {
   not_needed: "",
   granted: "",
@@ -32,6 +36,7 @@ export default function Access({ sources, folder, demoFolder, onSources, onError
   const [ticked, setTicked] = useState<string[]>([]);
   const [folders, setFolders] = useState<FolderInfo[]>([]);
   const [days, setDays] = useState(30);
+  const [since, setSince] = useState("");  // an exact first day, instead of one of the spans
 
   // The folders in use, kept in step with the sources.
   useEffect(() => {
@@ -70,7 +75,8 @@ export default function Access({ sources, folder, demoFolder, onSources, onError
         return;
       }
       const asked = await api.request(source.source_id);
-      setTicked(asked.scopes.filter((s) => !NOT_WORK.test(s.scope_id)).map((s) => s.scope_id));
+      setTicked([]);  // nothing is ticked until the user ticks it
+      setSince("");
       setRequest(asked);
     });
 
@@ -109,6 +115,11 @@ export default function Access({ sources, folder, demoFolder, onSources, onError
   const files = sources.filter((s) => s.source_id.startsWith("folder:")).sort(byName);
   const on = sources.filter((s) => s.status === "on");
   const held = on.reduce((sum, s) => sum + s.items_in_memory, 0);
+  // Counted by file name only; DeskThread has no way to read these.
+  const unreadable: [string, number, string][] = [
+    ["Videos and recordings", folders.reduce((sum, f) => sum + f.videos, 0), "cannot be read"],
+    ["Other formats", folders.reduce((sum, f) => sum + f.other, 0), "not a format DeskThread reads"],
+  ];
 
   const row = (source: SourceState) => (
     <li key={source.source_id} className={source.status === "on" ? "rowitem on" : "rowitem"}>
@@ -172,7 +183,7 @@ export default function Access({ sources, folder, demoFolder, onSources, onError
             {folders.map((f) => (
               <li key={f.path} className="rowitem">
                 <span className="tile" aria-hidden="true">▤</span>
-                <span className="who"><b>{f.name}</b><small title={f.path}>{f.path.replace(/^\/Users\/[^/]+/, "~")}</small></span>
+                <span className="who"><b title={f.path}>{f.name}</b><small>{contents(f)}</small></span>
                 <button className="iconbtn" aria-label={`Remove ${f.name}`} title="Stop using this folder" disabled={busy !== ""} onClick={() => run("remove", async () => onSources(await api.removeFolder(f.path)))}>×</button>
               </li>
             ))}
@@ -184,7 +195,17 @@ export default function Access({ sources, folder, demoFolder, onSources, onError
           <button className="ghost" disabled={busy !== "" || !path.trim()}>Use</button>
         </form>
         {files.length > 0 && <h2 className="in">File types found in your folders</h2>}
-        {files.length > 0 && <ul className="rows">{files.map(row)}</ul>}
+        {files.length > 0 && (
+          <ul className="rows">
+            {files.map(row)}
+            {unreadable.filter(([, count]) => count > 0).map(([label, count, why]) => (
+              <li key={label} className="rowitem none">
+                <span className="tile" aria-hidden="true">–</span>
+                <span className="who"><b>{label}</b><small>{count} found · {why}</small></span>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       {on.length > 0 && (
@@ -203,7 +224,7 @@ export default function Access({ sources, folder, demoFolder, onSources, onError
             <h2 id="ask-title">Allow DeskThread to read {request.label}?</h2>
             <p className="readonly"><b>Read only.</b> DeskThread cannot change, send or delete anything.</p>
             <fieldset>
-              <legend>Read from</legend>
+              <legend>Read from <button type="button" className="link" onClick={() => setTicked(ticked.length === request.scopes.length ? [] : request.scopes.map((s) => s.scope_id))}>{ticked.length === request.scopes.length ? "Clear all" : "Select all"}</button></legend>
               {request.scopes.map((scope) => (
                 <label key={scope.scope_id} className="tick">
                   <input
@@ -221,8 +242,13 @@ export default function Access({ sources, folder, demoFolder, onSources, onError
                 <legend>How far back</legend>
                 <div className="spans">
                   {SPANS.map(([value, label]) => (
-                    <button key={value} type="button" className={days === value ? "span on" : "span"} aria-pressed={days === value} onClick={() => setDays(value)}>{label}</button>
+                    <button key={value} type="button" className={!since && days === value ? "span on" : "span"} aria-pressed={!since && days === value} onClick={() => { setSince(""); setDays(value); }}>{label}</button>
                   ))}
+                  <label className={since ? "span date on" : "span date"}>
+                    From
+                    <input type="date" aria-label="Read from this day on" value={since} min={isoDay(-366)} max={isoDay(0)}
+                      onChange={(e) => { setSince(e.target.value); if (e.target.value) setDays(Math.min(366, Math.max(1, Math.ceil((Date.now() - new Date(e.target.value).getTime()) / 86_400_000)))); }} />
+                  </label>
                 </div>
                 {request.source_id === "mac:mail" && <p className="fine">Mail is slow to read: the newest 25 messages within that time.</p>}
               </fieldset>

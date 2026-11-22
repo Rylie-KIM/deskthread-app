@@ -24,6 +24,7 @@ from app.clock import now
 from app.icons import app_icon
 from app.proof import ending, evidence, memory
 from app.runtime import Runtime
+from app.sources.folder import kinds_in
 from contracts.api import (
     TOKEN_HEADER,
     Answer,
@@ -156,7 +157,7 @@ def create_app(runtime: Runtime, ui_dir: Path | None = None) -> FastAPI:
 
     @app.get("/api/folders")
     def folders() -> list[FolderInfo]:
-        return [FolderInfo(path=str(f), name=f.name) for f in runtime.folders]
+        return [FolderInfo(path=str(f), name=f.name, **kinds_in(f)) for f in runtime.folders]
 
     @app.post("/api/folder/remove")
     def remove_folder(body: FolderChoice) -> list[SourceState]:
@@ -201,6 +202,11 @@ def create_app(runtime: Runtime, ui_dir: Path | None = None) -> FastAPI:
     @app.get("/api/progress")
     def progress() -> Progress:
         return runtime.session.assistant.progress  # never waits for the running question
+
+    @app.post("/api/cancel")
+    def cancel() -> Progress:
+        runtime.session.assistant.cancel()  # never waits for the running question
+        return runtime.session.assistant.progress
 
     @app.post("/api/ask")
     def ask(body: AskBody) -> Answer:

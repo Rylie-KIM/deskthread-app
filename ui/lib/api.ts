@@ -13,7 +13,7 @@ export interface SourceState {
   allowed_scope_ids: string[];
   items_in_memory: number;
 }
-export interface FolderInfo { path: string; name: string }
+export interface FolderInfo { path: string; name: string; files: number; pictures: number; videos: number; other: number }
 export interface Scope { scope_id: string; label: string; item_count: number | null }
 export interface PermissionRequest {
   source_id: string;
@@ -47,7 +47,7 @@ export interface Coverage {
 }
 export interface GateResult { gate: string; outcome: "pass" | "warn" | "fail" | "skipped"; detail: string }
 export interface Answer {
-  kind: "brief" | "not_found" | "no_sources";
+  kind: "brief" | "not_found" | "no_sources" | "stopped";
   question: string;
   points: BriefPoint[];
   message: string;
@@ -57,7 +57,7 @@ export interface Answer {
   seconds: number;
   show_status: boolean;
 }
-export interface Progress { step: string; number: number; of: number }
+export interface Progress { step: string; number: number; of: number; detail: string }
 export interface ItemView {
   item_id: string;
   source_label: string;
@@ -76,6 +76,7 @@ export interface MemoryState {
   image_readings_held: number;
   model_loaded: boolean;
   processes: ProcessInfo[];
+  mac_memory_mb: number;
 }
 export interface Connection { process: string; pid: number; remote: string; local_only: boolean }
 export interface FolderHash { label: string; files: number; before: string; now: string; unchanged: boolean }
@@ -174,6 +175,7 @@ export const api = {
   prepare: (meetingId: string) => call<Answer>("POST", "/api/prepare", { meeting_id: meetingId }),
   ask: (question: string) => call<Answer>("POST", "/api/ask", { question }),
   progress: () => call<Progress>("GET", "/api/progress"),
+  cancel: () => call<Progress>("POST", "/api/cancel"),
   item: (itemId: string) => call<ItemView>("GET", `/api/items/${id(itemId)}`),
   imageUrl: (itemId: string) => `/api/items/${id(itemId)}/image?t=${id(readToken())}`,
   models: () => call<ModelInfo[]>("GET", "/api/models"),

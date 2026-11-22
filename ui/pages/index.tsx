@@ -5,7 +5,7 @@ import Access from "../components/Access";
 import Models from "../components/Models";
 import { MyData, SessionEnded } from "../components/MyData";
 import Viewer from "../components/Viewer";
-import { api, readToken, type Answer, type Citation, type Receipt, type SessionInfo, type SourceState } from "../lib/api";
+import { api, readToken, type Answer, type Citation, type MemoryState, type Receipt, type SessionInfo, type SourceState } from "../lib/api";
 
 type Tab = "access" | "ask" | "data" | "model";
 const TABS: [Tab, string][] = [["access", "Access"], ["ask", "Ask"], ["data", "My data"], ["model", "AI model"]];
@@ -23,6 +23,10 @@ export default function Home() {
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [stopped, setStopped] = useState(false);
   const [confirm, setConfirm] = useState(false);
+  // Clear memory and End session show what is being closed, and close when all of it is done.
+  const [closing, setClosing] = useState<"" | "clear" | "end">("");
+  const [seen, setSeen] = useState<MemoryState | null>(null);  // memory, as it empties
+  const [called, setCalled] = useState(false);  // the request itself has come back
   const [state, setState] = useState<"loading" | "ready" | "locked">("loading");
 
   const refresh = useCallback(async () => setSources(await api.sources()), []);
@@ -51,10 +55,46 @@ export default function Home() {
     return () => clearInterval(timer);
   }, [receipt, stopped]);
 
+  useEffect(() => {
+    if (!closing) return;
+    const timer = setInterval(() => api.memory().then(setSeen).catch(() => undefined), 400);
+    return () => clearInterval(timer);
+  }, [closing]);
+  // End session is finished when the address no longer answers.
+  useEffect(() => {
+    if (closing !== "end" || !stopped) return;
+    const timer = setTimeout(() => setClosing(""), 900);
+    return () => clearTimeout(timer);
+  }, [closing, stopped]);
+
   async function end() {
-    setConfirm(false);
-    try { setReceipt(await api.endSession()); setThread([]); setCite(null); } catch { setError("End session failed."); }
+    setConfirm(false); setSeen(null); setCalled(false); setClosing("end");
+    try {
+      await api.cancel().catch(() => undefined);  // a running question is stopped first
+      const result = await api.endSession();
+      setCalled(true); setReceipt(result); setThread([]); setCite(null);
+    } catch { setError("End session failed."); setClosing(""); }
   }
+
+  async function clear() {
+    setSeen(null); setCalled(false); setClosing("clear");
+    try {
+      await api.cancel().catch(() => undefined);
+      const after = await api.forget();
+      setSeen(after); setCalled(true); setThread([]); setCite(null);
+      await refresh();
+      if (after.model_loaded || after.items_held > 0) setError("Something is still in memory. Use End session to stop everything.");
+      await new Promise((done) => setTimeout(done, 900));  // long enough to see every step ticked
+    } catch { setError("Clear memory did not work."); }
+    finally { setClosing(""); }
+  }
+
+  const emptied = seen !== null && seen.items_held === 0;
+  const modelGone = receipt ? receipt.model_unloaded : seen !== null && !seen.model_loaded;
+  const closingSteps: [string, boolean][] = closing === "clear"
+    ? [["What was read leaves memory", emptied], ["The AI model leaves memory", emptied && modelGone], ["This conversation is removed", called]]
+    : [["Access is switched off and what was read leaves memory", called || emptied], ["The AI model leaves memory", (called || emptied) && modelGone], ["The receipt is written", called], ["DeskThread stops", stopped]];
+  const firstOpen = closingSteps.findIndex(([, done]) => !done);
 
   const anyOn = sources.some((s) => s.status === "on");
 
@@ -137,7 +177,7 @@ export default function Home() {
             <p className="sub">Each launch creates a new secret address. Start DeskThread again (double-click DeskThread.command) and use the address it opens. Nothing is reachable without it.</p>
           </section>
         )}
-        {receipt && <SessionEnded receipt={receipt} stopped={stopped} />}
+        {receipt && !closing && <SessionEnded receipt={receipt} stopped={stopped} />}
         {state === "ready" && !receipt && (
           <>
             {tab === "access" && (
@@ -145,8 +185,9 @@ export default function Home() {
                 demoFolder={info?.demo_folder ?? ""} onReady={() => setTab("ask")}
                 onSources={(next, chosen) => { setSources(next); if (chosen !== undefined) setFolder(chosen); }} />
             )}
-            {tab === "ask" && info && <Ask now={info.now} anyOn={anyOn} thread={thread} onAnswer={(a) => { setThread((t) => [...t, a]); void refresh(); }} onCite={setCite} onError={setError} first={first} />}
-            {tab === "data" && <MyData onError={setError} onForgot={() => { setThread([]); void refresh(); }} onEnd={() => setConfirm(true)} />}
+            {/* Ask stays alive while another section is open, so a running question keeps running. */}
+            {info && <div hidden={tab !== "ask"}><Ask now={info.now} anyOn={anyOn} visible={tab === "ask"} thread={thread} onAnswer={(a) => { setThread((t) => [...t, a]); void refresh(); }} onCite={setCite} onError={setError} first={first} /></div>}
+            {tab === "data" && <MyData onError={setError} onClear={clear} onEnd={() => setConfirm(true)} />}
             {tab === "model" && <Models onError={setError} onChange={loadModel} />}
           </>
         )}
@@ -159,6 +200,18 @@ export default function Home() {
         </div>
       )}
       {cite && <Viewer cite={cite} onClose={() => setCite(null)} />}
+      {closing && (
+        <div className="scrim" role="dialog" aria-modal="true" aria-labelledby="closing-title">
+          <div className="dialog">
+            <h2 id="closing-title">{closing === "clear" ? "Clearing memory" : "Ending the session"}</h2>
+            <ol className="steps" role="status">
+              {closingSteps.map(([name, done], index) => (
+                <li key={name} className={done ? "past" : index === firstOpen ? "now" : "next"}><i>{done ? "✓" : index + 1}</i>{name}</li>
+              ))}
+            </ol>
+          </div>
+        </div>
+      )}
       {confirm && (
         <div className="scrim" role="dialog" aria-modal="true" aria-labelledby="end-title">
           <div className="dialog">

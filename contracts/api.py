@@ -29,6 +29,7 @@ ROUTES: dict[str, str] = {
     "POST /api/prepare": "Answer",  # body: PrepareBody
     "POST /api/ask": "Answer",  # body: AskBody
     "GET /api/progress": "Progress",  # which step a running question is on
+    "POST /api/cancel": "Progress",  # stop the running question (contract 1.8)
     "GET /api/items/{item_id}": "ItemView",
     "GET /api/items/{item_id}/image": "bytes",
     "GET /api/models": "list[ModelInfo]",
@@ -84,6 +85,12 @@ class FolderChoice(_Frozen):
 class FolderInfo(_Frozen):
     path: str
     name: str
+    # What is in the folder, by file name only (contract 1.8). Videos and unknown formats
+    # cannot be read; they are counted so the user sees that they were not taken in.
+    files: int = 0
+    pictures: int = 0
+    videos: int = 0
+    other: int = 0
 
 
 class GrantBody(_Frozen):
@@ -114,6 +121,7 @@ class Progress(_Frozen):
     step: str = ""
     number: int = 0
     of: int = 0
+    detail: str = ""  # for a long step, how far it is: "picture 3 of 13" (contract 1.8)
 
 
 class PointStatus(StrEnum):
@@ -158,6 +166,7 @@ class AnswerKind(StrEnum):
     BRIEF = "brief"
     NOT_FOUND = "not_found"
     NO_SOURCES = "no_sources"
+    STOPPED = "stopped"  # the user stopped the question (contract 1.8)
 
 
 class Answer(_Frozen):
@@ -205,6 +214,7 @@ class MemoryState(_Frozen):
     image_readings_held: int
     model_loaded: bool
     processes: tuple[ProcessInfo, ...]
+    mac_memory_mb: float = 0  # all the memory this Mac has, to compare against (contract 1.8)
 
 
 class Connection(_Frozen):

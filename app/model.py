@@ -155,24 +155,31 @@ class ModelGateway:
         except (KeyError, TypeError) as exc:
             raise DeskThreadError(ErrorCode.MODEL_BAD_OUTPUT) from exc
 
-    def loaded(self) -> bool:
+    def _held(self) -> list[str]:
+        """Names of the models our server has in memory right now."""
         try:
             models = self._call("/api/ps", timeout=5).get("models", [])
         except DeskThreadError:
-            return False
-        return any(m.get("name") == self.tag for m in models)
+            return []
+        return [str(m.get("name")) for m in models]
 
-    def unload(self) -> bool:
-        """Forget now: ask the runtime to drop the model, and with it the last prompt."""
-        try:
-            self._call("/api/generate", {"model": self.tag, "keep_alive": 0}, timeout=30)
-        except DeskThreadError:
-            return not self.loaded()
-        for _ in range(20):
-            if not self.loaded():
+    def loaded(self) -> bool:
+        return bool(self._held())
+
+    def unload(self, wait_s: float = 20) -> bool:
+        """Ask the runtime to drop every model it holds, and with it the last prompt, then
+        wait until none is left. Returns whether memory is really free of them."""
+        for tag in self._held():
+            try:
+                self._call("/api/generate", {"model": tag, "keep_alive": 0}, timeout=30)
+            except DeskThreadError:
+                continue
+        end = time.monotonic() + wait_s
+        while time.monotonic() < end:
+            if not self._held():
                 return True
             time.sleep(0.25)
-        return False
+        return not self._held()
 
 
 class ModelServer:

@@ -226,7 +226,7 @@ def test_the_model_list_shows_what_is_approved_installed_and_in_use(runtime: Run
         def installed(self) -> dict[str, str]:
             return {"gemma4:e4b": "d" * 64, "phi4-mini:latest": "e" * 64}
 
-        def unload(self) -> bool:
+        def unload(self, wait_s: float = 20) -> bool:
             return True
 
         def verify_pin(self) -> str:
@@ -261,7 +261,7 @@ def test_progress_is_empty_when_nothing_runs_and_names_the_step_while_a_question
     client: TestClient, runtime: Runtime, demo_laptop: Path
 ) -> None:
     _work_profile(client, demo_laptop)
-    assert client.get("/api/progress").json() == {"step": "", "number": 0, "of": 0}
+    assert client.get("/api/progress").json() == {"step": "", "number": 0, "of": 0, "detail": ""}
     seen: list[dict[str, object]] = []
     model = runtime.session.assistant._model
     original = model.complete
@@ -320,3 +320,37 @@ def test_a_question_reads_folders_again_but_not_the_apps(
     client.post("/api/ask", json={"question": "What did I promise Sam?"})
     client.post("/api/ask", json={"question": "What did I promise Sam?"})
     assert [name for name, _ in apps.calls if name == "notes.read"] == reads  # not asked again
+
+
+def test_a_question_can_be_stopped_and_long_steps_say_how_far_they_are(
+    client: TestClient, runtime: Runtime, demo_laptop: Path
+) -> None:
+    _work_profile(client, demo_laptop)
+    model = runtime.session.assistant._model
+    seen: list[str] = []
+    original = model.complete
+
+    def reading(prompt: str, images: list[bytes] | None = None) -> str:
+        seen.append(client.get("/api/progress").json()["detail"])
+        if len(seen) == 2:
+            client.post("/api/cancel")  # the user presses Stop while pictures are read
+        return original(prompt, images)
+
+    model.complete = reading  # type: ignore[method-assign]
+    stopped = client.post("/api/ask", json={"question": "What did I promise Sam?"}).json()
+    assert stopped["kind"] == "stopped" and stopped["points"] == []
+    assert seen[:2] == ["picture 1 of 5", "picture 2 of 5"] and len(seen) == 2
+    again = client.post("/api/ask", json={"question": "What did I promise Sam?"}).json()
+    assert again["kind"] == "brief"  # the next question runs normally
+    assert runtime.session.assistant.readings_held == 5  # pictures already read were kept
+
+
+def test_folders_say_what_they_hold_and_what_cannot_be_read(
+    client: TestClient, tmp_path: Path
+) -> None:
+    for name in ("a.pdf", "b.txt", "shot.png", "clip.mov", "talk.mp4", "data.xyz"):
+        (tmp_path / name).write_bytes(b"x")
+    client.post("/api/folder", json={"path": str(tmp_path)})
+    (info,) = client.get("/api/folders").json()
+    assert (info["files"], info["pictures"], info["videos"], info["other"]) == (2, 1, 2, 1)
+    assert client.get("/api/memory").json()["mac_memory_mb"] > 1000

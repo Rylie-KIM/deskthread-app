@@ -5,6 +5,7 @@ answer check (G4) -> brief with quotes, coverage and the gate trace. Nothing is 
 disk at any step.
 """
 
+import threading
 import time
 from datetime import datetime
 
@@ -31,6 +32,12 @@ from contracts.gates import Gate, GateResult, Outcome
 from contracts.items import Item, Unit
 
 NOT_FOUND = "I could not find this in the notes you shared."
+
+
+class _StoppedError(Exception):
+    """The user stopped the question."""
+
+
 COMMITMENT_WORDS = frozenset(
     stem(w) for w in ("promise", "promised", "owe", "agreed", "commit", "todo", "pending", "still")
 )
@@ -46,6 +53,7 @@ class Assistant:
         self.questions = 0
         self.items_given = 0
         self.progress = Progress()  # which step a running question is on
+        self._stop = threading.Event()  # set when the user stops the running question
 
     def forget(self) -> None:
         """Forget now: drop every item held in memory. The app stays open."""
@@ -78,12 +86,25 @@ class Assistant:
         "Checking the answer",
     )
 
-    def _step(self, number: int) -> None:
-        self.progress = Progress(step=self.STEPS[number - 1], number=number, of=len(self.STEPS))
+    def _step(self, number: int, detail: str = "") -> None:
+        if self._stop.is_set():
+            raise _StoppedError
+        self.progress = Progress(
+            step=self.STEPS[number - 1], number=number, of=len(self.STEPS), detail=detail
+        )
+
+    def cancel(self) -> None:
+        """Stop the running question at its next step. A request already with the AI is
+        waited for (it cannot be interrupted), but its answer is thrown away."""
+        self._stop.set()
 
     def ask(self, question: str, person: str | None = None) -> Answer:
+        self._stop.clear()
+        started = time.monotonic()
         try:
             return self._ask(question, person)
+        except _StoppedError:
+            return self._answer(AnswerKind.STOPPED, question, "Stopped.", [], [], [], started)
         finally:
             self.progress = Progress()
 
@@ -99,7 +120,9 @@ class Assistant:
         self._step(1)
         self._store.refresh()  # read again each time: a deleted file is gone at once (U10)
         self._step(2)
-        unread = self._images.read_pending()  # the local model reads new images
+        unread = self._images.read_pending(  # the local model reads pictures it has not read yet
+            lambda done, total: self._step(2, f"picture {done} of {total}")
+        )
         items = self._store.items()
         coverage_note = (
             f"{len(items)} items readable in {len(allowed)} allowed sources; "
@@ -143,6 +166,7 @@ class Assistant:
             )
             self._step(5)
             points, result = check(query, proposed, given, self._model)
+            self._step(5)  # a question stopped while the AI was answering ends here
         except DeskThreadError as err:
             trace.append(_gate(Gate.G3_MODEL, Outcome.FAIL, f"the local model failed ({err.code})"))
             message = "The model on this laptop did not answer. Nothing was sent anywhere else."

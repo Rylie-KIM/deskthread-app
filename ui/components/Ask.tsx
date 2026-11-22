@@ -5,7 +5,7 @@ import { api, clock, day, plain, type Answer, type Citation, type Meeting, type 
 const STATUS_TEXT = { done: "Done", open: "Still to do", changed: "Changed", superseded: "No longer valid" } as const;
 // The steps of one question, in order (the same names the backend reports).
 const STEPS = ["Reading your folders", "Reading pictures", "Finding the right items", "Asking the AI on this Mac", "Checking the answer"];
-const STEP: Record<string, string> = { G1: "Access rules", G2: "Reading", G3: "AI on this Mac", G4: "Answer check", G6: "Record" };
+const STEP: Record<string, string> = { G1: "Allowed to read", G2: "Searched", G3: "AI used", G4: "Answer check", G6: "Record kept" };
 
 function when(meeting: Meeting, nowIso: string): string {
   const start = new Date(meeting.start);
@@ -24,6 +24,9 @@ function Found({ answer, onCite }: { answer: Answer; onCite: (cite: Citation) =>
       ) : (
         <>
           <p className="replyhead">Found in your notes</p>
+          <p className="summary">
+            {answer.points.length} {answer.points.length === 1 ? "thing" : "things"} · {answer.coverage.cited} {answer.coverage.cited === 1 ? "note" : "notes"} quoted, word for word
+          </p>
           {answer.points.map((point, index) => (
             <article key={index} className="finding">
               <header className="row wrap">
@@ -53,9 +56,16 @@ function Found({ answer, onCite }: { answer: Answer; onCite: (cite: Citation) =>
         <button className="link" onClick={() => setDetails(!details)}>{details ? "Hide" : "How this was checked"}</button>
       </p>
       {details && (
-        <ul className="trace">
-          {answer.gate_trace.map((gate) => <li key={gate.gate}><b>{STEP[gate.gate] ?? gate.gate}</b> {gate.detail}</li>)}
-        </ul>
+        <table className="checks">
+          <tbody>
+            {answer.gate_trace.map((gate) => (
+              <tr key={gate.gate}>
+                <th scope="row">{STEP[gate.gate] ?? gate.gate}</th>
+                <td>{gate.detail.split(/;\s*/).map((part) => <span key={part}>{part}</span>)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       )}
     </div>
   );
@@ -64,6 +74,7 @@ function Found({ answer, onCite }: { answer: Answer; onCite: (cite: Citation) =>
 interface Props {
   now: string;
   anyOn: boolean;
+  visible: boolean;
   thread: Answer[];
   onAnswer: (answer: Answer) => void;
   onCite: (cite: Citation) => void;
@@ -71,15 +82,15 @@ interface Props {
   first?: string;
 }
 
-export default function Ask({ now, anyOn, thread, onAnswer, onCite, onError, first }: Props) {
+export default function Ask({ now, anyOn, visible, thread, onAnswer, onCite, onError, first }: Props) {
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [question, setQuestion] = useState("");
   const [asking, setAsking] = useState("");
   const [progress, setProgress] = useState<Progress | null>(null);
 
   useEffect(() => {
-    api.meetings().then(setMeetings).catch(() => setMeetings([]));
-  }, [anyOn]);
+    if (visible) api.meetings().then(setMeetings).catch(() => setMeetings([]));
+  }, [anyOn, visible]);
 
   // While a question runs, ask the backend which step it is on.
   useEffect(() => {
@@ -91,7 +102,9 @@ export default function Ask({ now, anyOn, thread, onAnswer, onCite, onError, fir
   async function run(shown: string, work: () => Promise<Answer>) {
     setAsking(shown);
     try {
-      onAnswer(await work());
+      const answer = await work();
+      if (answer.kind === "stopped") return;  // stopped by the user: the question stays in the box
+      onAnswer(answer);
       setQuestion("");
     } catch (err) {
       onError(plain(err));
@@ -114,9 +127,28 @@ export default function Ask({ now, anyOn, thread, onAnswer, onCite, onError, fir
       <h1>Find anything you wrote down.</h1>
       {!anyOn && <p className="empty">Nothing is switched on yet. Go to Access first.</p>}
 
+      {meetings.length > 0 && (
+        <div className="coming">
+          <h2>Coming up</h2>
+          <ul>
+            {meetings.map((meeting) => (
+              <li key={meeting.meeting_id}>
+                <span className="time">{when(meeting, now)}</span>
+                <b>{meeting.title}</b>
+                <button className="ghost small" disabled={asking !== ""} onClick={() => run(`Prepare: ${meeting.title}`, () => api.prepare(meeting.meeting_id))}>Prepare</button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <form className="card row ask" onSubmit={(e) => { e.preventDefault(); if (question.trim()) void ask(question.trim()); }}>
         <input aria-label="Your question" placeholder="Ask in your own words" value={question} maxLength={500} disabled={asking !== ""} onChange={(e) => setQuestion(e.target.value)} />
-        <button className="primary" disabled={asking !== "" || !question.trim() || !anyOn}>{asking !== "" ? "Looking…" : "Ask"}</button>
+        {asking !== "" ? (
+          <button type="button" className="ghost" onClick={() => { api.cancel().catch(() => undefined); }}>Stop</button>
+        ) : (
+          <button className="primary" disabled={!question.trim() || !anyOn}>Ask</button>
+        )}
       </form>
       {thread.length === 0 && asking === "" && anyOn && (
         <div className="row wrap chips">
@@ -133,7 +165,7 @@ export default function Ask({ now, anyOn, thread, onAnswer, onCite, onError, fir
                 {STEPS.map((name, index) => {
                   const at = progress?.number ?? 0;
                   const state = index + 1 < at ? "past" : index + 1 === at ? "now" : "next";
-                  return <li key={name} className={state}><i>{index + 1 < at ? "✓" : index + 1}</i>{name}</li>;
+                  return <li key={name} className={state}><i>{index + 1 < at ? "✓" : index + 1}</i>{name}{state === "now" && progress?.detail ? <small>{progress.detail}</small> : null}</li>;
                 })}
               </ol>
             </div>
@@ -147,20 +179,6 @@ export default function Ask({ now, anyOn, thread, onAnswer, onCite, onError, fir
         ))}
       </div>
 
-      {meetings.length > 0 && (
-        <div className="coming">
-          <h2>Coming up</h2>
-          <ul>
-            {meetings.map((meeting) => (
-              <li key={meeting.meeting_id}>
-                <span className="time">{when(meeting, now)}</span>
-                <b>{meeting.title}</b>
-                <button className="ghost small" disabled={asking !== ""} onClick={() => run(`Prepare: ${meeting.title}`, () => api.prepare(meeting.meeting_id))}>Prepare</button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
     </section>
   );
 }
