@@ -212,3 +212,44 @@ def test_an_answer_names_its_model_and_counts_what_was_left_out(demo_laptop: Pat
     assert answer.left_out["nowhere"] >= 1 and answer.left_out["instructions"] >= 1
     assert all(count > 0 for count in answer.left_out.values())
     assert gate(answer, Gate.G4_ANSWER)[1].count("citations pointed at nothing") == 1
+
+
+def test_a_note_that_does_not_name_the_person_is_shown_apart_as_possibly_related(
+    tmp_path: Path,
+) -> None:
+    from app.session import open_folder
+
+    (tmp_path / "sam.md").write_text("1:1 Sam\npromised Sam the analytics course, budget ok\n")
+    (tmp_path / "loose.md").write_text("course notes\nanalytics course budget still to book\n")
+    (tmp_path / "milk.md").write_text("errands\nbuy milk and bread\n")
+    words = ("analytics", "course", "budget", "milk", "bread")
+
+    def script(_question: str) -> list[tuple[str, str, list[tuple[str, str]]]]:
+        return [
+            ("Analytics course", "open", [("1:1 Sam", "promised Sam")]),
+            ("Book the course", "open", [("course notes", "still to book")]),
+            ("Milk", "open", [("errands", "buy milk")]),  # never given: cannot be cited
+        ]
+
+    model = FakeModel(script)
+    model.embed = lambda texts: [[float(t.lower().count(w)) for w in words] for t in texts]  # type: ignore[attr-defined]
+    session = open_folder(tmp_path, model)
+    for state in session.broker.states():
+        if session.broker.request(state.source_id).scopes:
+            session.broker.grant(state.source_id, frozenset())
+            session.store.load(state.source_id)
+    answer = session.assistant.ask("What did I promise Sam?")
+    sure = [p for p in answer.points if not p.related]
+    maybe = [p for p in answer.points if p.related]
+    assert [p.label for p in sure] == ["Analytics course"]
+    assert [p.label for p in maybe] == ["Book the course"] and maybe[0].related == "meaning"
+    assert "Sam is not named" in maybe[0].why
+    assert all("milk" not in c.quote for p in answer.points for c in p.citations)
+
+    model.embed = lambda texts: None  # type: ignore[attr-defined]  # the search model is not there
+    session.assistant.forget()
+    for state in session.broker.states():
+        if session.broker.is_allowed(state.source_id):
+            session.store.load(state.source_id)
+    plain = session.assistant.ask("What did I promise Sam?")
+    assert [p.label for p in plain.points] == ["Analytics course"]  # as before, by words only

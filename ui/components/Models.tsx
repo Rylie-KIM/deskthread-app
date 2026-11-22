@@ -47,7 +47,7 @@ export default function Models({ onError, onChange }: { onError: (message: strin
         <table>
           <thead><tr><th>Model</th><th>Text</th><th>Pictures</th><th>Speed</th><th>Size</th><th></th></tr></thead>
           <tbody>
-            {models.map((m) => (
+            {models.filter((m) => m.role !== "search").map((m) => (
               <tr key={m.tag} className={m.selected ? "current" : ""}>
                 <td>
                   <b>{m.name}</b>
@@ -73,6 +73,23 @@ export default function Models({ onError, onChange }: { onError: (message: strin
           </tbody>
         </table>
       </div>
+      {models.filter((m) => m.role === "search").map((m) => (
+        <div key={m.tag} className="card searchmodel">
+          <i className="orb" aria-hidden="true" />
+          <span className="who">
+            <b>{m.name}</b>
+            <span className="about"><em className="tag">{m.maker}</em><small>{m.good_for}. It also offers notes that do not name the person you ask about, apart from the rest.</small></span>
+          </span>
+          <span className="size">{m.download_gb} GB</span>
+          {m.installed ? (
+            <span className="status done">On</span>
+          ) : m.downloading !== null ? (
+            <span className="dl"><span className="track"><i style={{ width: `${m.downloading}%` }} /></span>{m.downloading}%</span>
+          ) : (
+            <button className="ghost small" disabled={busy !== ""} onClick={() => run(m.tag, () => api.downloadModel(m.tag))}>{m.failed ? "Try again" : "Download"}</button>
+          )}
+        </div>
+      ))}
       {downloading && <p className="fine">Downloading uses the internet, this once. Your notes are not part of it.</p>}
     </section>
   );

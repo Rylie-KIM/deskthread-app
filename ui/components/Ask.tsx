@@ -64,7 +64,7 @@ function Finding({ point, showStatus, first, onCite }: { point: BriefPoint; show
       {open && (
         <div className="findbody">
           <p className="why">
-            {point.matched.length > 0 ? <>Shown because it mentions {point.matched.map((word) => <em key={word} className="tag">{word}</em>)}</> : "Shown because the AI judged it to be about your question"}
+            {point.related ? point.why : point.matched.length > 0 ? <>Shown because it mentions {point.matched.map((word) => <em key={word} className="tag">{word}</em>)}</> : "Shown because the AI judged it to be about your question"}
           </p>
           {point.note && <p className="note">Written as a question or a maybe, not as a clear promise.</p>}
           <ul>
@@ -90,6 +90,8 @@ function Finding({ point, showStatus, first, onCite }: { point: BriefPoint; show
 function Found({ answer, onCite }: { answer: Answer; onCite: (cite: Citation) => void }) {
   const [details, setDetails] = useState(false);
   const [tech, setTech] = useState(false);
+  const sure = answer.points.filter((p) => !p.related);
+  const maybe = answer.points.filter((p) => p.related);
   return (
     <div className="reply">
       {answer.kind !== "brief" ? (
@@ -104,10 +106,21 @@ function Found({ answer, onCite }: { answer: Answer; onCite: (cite: Citation) =>
             </div>
           )}
           <div className="findings">
-            {answer.points.map((point, index) => (
+            {sure.map((point, index) => (
               <Finding key={index} point={point} showStatus={answer.show_status} first={index === 0} onCite={onCite} />
             ))}
           </div>
+          {maybe.length > 0 && (
+            <>
+              {/* Kept apart on purpose: the person asked about is not named in these notes. */}
+              <p className="maybehead"><b>Possibly related</b><span>The name is not in these notes. Open one to judge it yourself.</span></p>
+              <div className="findings maybe">
+                {maybe.map((point, index) => (
+                  <Finding key={index} point={point} showStatus={false} first={sure.length === 0 && index === 0} onCite={onCite} />
+                ))}
+              </div>
+            </>
+          )}
         </>
       )}
       <p className="looked bits">
@@ -122,7 +135,7 @@ function Found({ answer, onCite }: { answer: Answer; onCite: (cite: Citation) =>
             <li><b>{answer.coverage.searched}</b><span>items read</span></li>
             <li><b>{answer.coverage.given_to_model}</b><span>looked related</span></li>
             <li><b>{answer.coverage.cited}</b><span>quoted word for word</span></li>
-            <li className="last"><b>{answer.points.length}</b><span>{answer.points.length === 1 ? "thing found" : "things found"}</span></li>
+            <li className="last"><b>{sure.length}</b><span>{sure.length === 1 ? "thing found" : "things found"}{maybe.length > 0 ? `, ${maybe.length} possibly related` : ""}</span></li>
           </ol>
           {answer.model_name && <p className="by"><i className="orb small" aria-hidden="true" />Answered by <b>{answer.model_name}</b>, the AI on this Mac</p>}
           <h4>Left out</h4>

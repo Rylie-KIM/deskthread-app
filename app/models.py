@@ -67,6 +67,21 @@ def listing(runtime: Runtime, downloads: Downloads) -> list[ModelInfo]:
             failed=m.tag in downloads.failed,
         )
         for m in config.MODELS
+    ] + [
+        ModelInfo(
+            tag=config.SEARCH_MODEL.tag,
+            name=config.SEARCH_MODEL.name,
+            maker=config.SEARCH_MODEL.maker,
+            download_gb=config.SEARCH_MODEL.download_gb,
+            reads_pictures=False,
+            good_for=config.SEARCH_MODEL.good_for,
+            installed=config.SEARCH_MODEL.tag in installed,
+            selected=False,
+            tested=False,
+            downloading=downloads.percent.get(config.SEARCH_MODEL.tag),
+            failed=config.SEARCH_MODEL.tag in downloads.failed,
+            role="search",
+        )
     ]
 
 
@@ -87,7 +102,7 @@ def register(app: FastAPI, runtime: Runtime) -> Downloads:
 
     @app.post("/api/models/download")
     def download(body: ModelPick) -> list[ModelInfo]:
-        if config.model_choice(body.tag) is None:
+        if not config.approved(body.tag):
             raise DeskThreadError(ErrorCode.BAD_REQUEST, "not an approved model")
         downloads.start(runtime, body.tag)
         return listing(runtime, downloads)

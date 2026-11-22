@@ -65,6 +65,23 @@ MODELS: tuple[ModelChoice, ...] = (
 )  # fmt: skip
 
 
+# Meaning search: a small model that turns a text into numbers, so notes can be compared by
+# what they say and not only by their words. Optional: without it, search is by words.
+SEARCH_MODEL = ModelChoice(
+    "embeddinggemma:300m", "Meaning search", "Google", 0.6, False,
+    "Finds notes that say the same thing in other words",
+)  # fmt: skip
+# How alike a note must be to count as related (0 to 1), and how many are taken at most.
+LIKE_QUESTION = 0.45
+LIKE_NOTES = 0.62  # measured on the demo data: other people's one-to-ones reach 0.60
+RELATED_MAX = 5
+
+
+def approved(tag: str) -> bool:
+    """May this model be downloaded? The answering models and the search model."""
+    return model_choice(tag) is not None or tag == SEARCH_MODEL.tag
+
+
 def model_choice(tag: str) -> ModelChoice | None:
     return next((m for m in MODELS if m.tag == tag), None)
 

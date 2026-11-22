@@ -35,7 +35,7 @@ export interface Citation {
   read_by_model: boolean;
 }
 export type PointStatus = "done" | "open" | "changed" | "superseded";
-export interface BriefPoint { label: string; status: PointStatus; citations: Citation[]; note: string; matched: string[] }
+export interface BriefPoint { label: string; status: PointStatus; citations: Citation[]; note: string; matched: string[]; related: "" | "meaning" | "time"; why: string }
 export interface Coverage {
   accessible: number;
   searched: number;
@@ -131,6 +131,7 @@ export interface ModelInfo {
   installed: boolean;
   selected: boolean;
   tested: boolean;
+  role: "answers" | "search";
   downloading: number | null;
   failed: boolean;
 }

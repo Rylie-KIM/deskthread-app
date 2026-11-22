@@ -7,7 +7,7 @@ disk at any step.
 
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from app import config, coverage, meetings, prompts
 from app.broker import Broker
@@ -23,9 +23,20 @@ from app.gate import (
     summarise,
 )
 from app.images import ImageReader
+from app.meaning import Meaning, likeness
 from app.model import Model, complete_json
 from app.policy import AccessPolicy
-from app.search import Candidate, Query, add_expansion, build_query, find, stem, stems
+from app.search import (
+    Candidate,
+    Query,
+    add_expansion,
+    build_query,
+    find,
+    item_stems,
+    names_in,
+    stem,
+    stems,
+)
 from app.store import SessionStore
 from contracts.api import (
     Answer,
@@ -39,7 +50,7 @@ from contracts.api import (
 from contracts.broker import SourceStatus
 from contracts.errors import DeskThreadError
 from contracts.gates import Gate, GateResult, Outcome
-from contracts.items import Item, Unit
+from contracts.items import Item, ItemKind, Unit
 
 NOT_FOUND = "I could not find this in the notes you shared."
 
@@ -60,6 +71,7 @@ class Assistant:
     ) -> None:
         self._broker, self._store, self._policy, self._model = broker, store, policy, model
         self._images = ImageReader(policy, store, model)
+        self._meaning = Meaning(model)
         self.questions = 0
         self.items_given = 0
         self.given_by: dict[str, int] = {}  # source id -> items shown to the AI
@@ -70,6 +82,7 @@ class Assistant:
         """Forget now: drop every item held in memory. The app stays open."""
         self._store.forget()
         self._images.forget()
+        self._meaning.forget()
 
     @property
     def readings_held(self) -> int:
@@ -162,6 +175,10 @@ class Assistant:
                     query, [str(w) for w in suggested] if isinstance(suggested, list) else []
                 )
             candidates = find(query, items)
+            linked = self._link(query, items, candidates)
+            known = {c.item.item_id for c in candidates}
+            by_id = {i.item_id: i for i in items}
+            candidates += [Candidate(by_id[i], 0.0) for i in linked if i not in known]
             read_note = (
                 f"searched {len(items)} items; {len(self._store.uncounted()) + unread} could not "
                 f"be read; {len(candidates)} passed the relevance rule"
@@ -187,9 +204,10 @@ class Assistant:
                 )
             )
             self._step(5)
-            points, result = check(query, proposed, given, self._model)
+            points, result = check(query, proposed, given, self._model, linked)
             self._step(5)  # a question stopped while the AI was answering ends here
-            summary = summarise(question, points, self._model) if points else ()
+            sure = [p for p in points if not p.related]  # the summary rests on these only
+            summary = summarise(question, sure, self._model) if sure else ()
             self._step(5)
         except DeskThreadError as err:
             trace.append(_gate(Gate.G3_MODEL, Outcome.FAIL, f"the local model failed ({err.code})"))
@@ -213,6 +231,86 @@ class Assistant:
         # A status only means something for things promised or to do.
         commitment = person is not None or bool(COMMITMENT_WORDS & set(stems(question)))
         return answer.model_copy(update={"show_status": commitment})
+
+    # ------------------------------------------------------------------ related notes
+    def _link(
+        self, query: Query, items: list[Item], candidates: list[Candidate]
+    ) -> dict[str, tuple[str, str]]:
+        """Notes worth showing although the words of the question are not in them:
+        item id -> (kind, plain reason).
+
+        - "time": the question names a person, and the note was written around a calendar
+          entry with that person.
+        - "meaning": the note reads like the question (a question about a topic), or like
+          the notes that do name the person (a question about a person).
+        Calendar entries and reminders are not brought in this way: they are short and
+        would match almost anything.
+        """
+        have = {c.item.item_id for c in candidates}
+        loose = (ItemKind.NOTE, ItemKind.DOCUMENT, ItemKind.CHAT, ItemKind.IMAGE, ItemKind.MAIL)
+        pool = [i for i in items if i.units and i.kind in loose and i.item_id not in have]
+        linked: dict[str, tuple[str, str]] = {}
+        name = ", ".join(sorted(names_in(query.question))) or "that person"
+
+        if query.people:
+            # Never a note about somebody else: anyone who appears in a calendar entry and
+            # is not the person asked about rules a note out.
+            others = {
+                stem(word)
+                for event in items
+                if event.kind is ItemKind.EVENT
+                for word in stems(event.meta.get("attendees", "") + " " + event.title)
+                if word[:1].isalpha() and len(word) > 2
+            } & {stem(n.lower()) for i in items for n in names_in(i.title)}
+            others -= query.people
+            pool = [
+                i for i in pool if not query.people & item_stems(i) and not others & item_stems(i)
+            ]
+            for event in items:
+                if event.kind is not ItemKind.EVENT or event.date is None:
+                    continue
+                if not query.people & item_stems(event):
+                    continue
+                start = _aware(event.date) - timedelta(minutes=15)
+                try:
+                    ends = datetime.fromisoformat(event.meta.get("end", ""))
+                except ValueError:
+                    ends = event.date + timedelta(hours=1)
+                end = _aware(ends) + timedelta(minutes=45)
+                for item in pool:
+                    if item.date is not None and start <= _aware(item.date) <= end:
+                        linked.setdefault(
+                            item.item_id,
+                            ("time", f"{name} is not named. Written around “{event.title}”."),
+                        )
+
+        vectors = self._meaning.of_items(items)
+        if vectors:
+            scores: list[tuple[float, Item]] = []
+            if query.people:
+                seeds = [
+                    vectors[c.item.item_id] for c in candidates[:8] if c.item.item_id in vectors
+                ]
+                for item in pool:
+                    if seeds and item.item_id in vectors and item.item_id not in linked:
+                        best = max(likeness(vectors[item.item_id], seed) for seed in seeds)
+                        if best >= config.LIKE_NOTES:
+                            scores.append((best, item))
+                why = f"{name} is not named. It reads like your notes about {name}."
+            elif query.window is None:
+                asked = self._meaning.of_text(query.question)
+                for item in pool:
+                    if asked and item.item_id in vectors:
+                        best = likeness(vectors[item.item_id], asked)
+                        if best >= config.LIKE_QUESTION:
+                            scores.append((best, item))
+                why = "It does not use the words of your question, but says something close."
+            else:
+                why = ""
+            scores.sort(key=lambda pair: (-pair[0], pair[1].item_id))
+            for _, item in scores[: config.RELATED_MAX]:
+                linked[item.item_id] = ("meaning", why)
+        return linked
 
     # ------------------------------------------------------------------ helpers
     def _give(self, candidates: list[Candidate]) -> list[Given]:
@@ -238,6 +336,8 @@ class Assistant:
                 label=p.label,
                 status=PointStatus(p.status),
                 note=p.note,
+                related=p.related,
+                why=p.why,
                 matched=matched_words(query, p.cites) if query else (),
                 citations=tuple(_citation(item, unit, labels) for item, unit in p.cites),
             )
@@ -256,6 +356,10 @@ class Assistant:
             given_item_ids=tuple(g.item.item_id for g in given),
             seconds=round(time.monotonic() - started, 2),
         )
+
+
+def _aware(moment: datetime) -> datetime:
+    return moment if moment.tzinfo else moment.astimezone()
 
 
 def _gate(gate: Gate, outcome: Outcome, detail: str) -> GateResult:

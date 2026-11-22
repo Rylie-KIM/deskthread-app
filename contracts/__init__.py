@@ -11,4 +11,5 @@ package; a change bumps CONTRACT_VERSION (dev rule R14).
 # 1.11 show the original of an item (in Finder, or its app)
 # 1.12 the Mac's free memory, measured
 # 1.13 an answer names its AI model and counts what was left out
-CONTRACT_VERSION = "1.13"
+# 1.14 the search model; points that are only possibly related
+CONTRACT_VERSION = "1.14"

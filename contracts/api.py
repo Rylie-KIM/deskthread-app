@@ -75,6 +75,9 @@ class ModelInfo(_Frozen):
     tested: bool  # run through DeskThread's own tests and pinned to that exact version
     downloading: int | None = None  # percent, while a download runs
     failed: bool = False
+    # "answers": a model that reads and answers. "search": the small model for search by
+    # meaning; it is used automatically once it is on this Mac. (contract 1.14)
+    role: str = "answers"
 
 
 class ModelPick(_Frozen):
@@ -154,6 +157,12 @@ class BriefPoint(_Frozen):
     status: PointStatus
     citations: tuple[Citation, ...]
     note: str = ""  # e.g. "a newer note changed this"
+    # Set when the person asked about is NOT named in the quoted notes: the point is only
+    # possibly related, and is shown apart. "meaning" (it reads like the notes that do name
+    # the person) or "time" (written around a meeting with the person); `why` says it in
+    # plain words. (contract 1.14)
+    related: str = ""
+    why: str = ""
     # Words of the question that occur in the quoted lines: why these lines (contract 1.9).
     matched: tuple[str, ...] = ()
 

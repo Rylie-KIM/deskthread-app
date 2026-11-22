@@ -13,7 +13,7 @@ manager meant; that limit is stated in the README.
 """
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from app import prompts
 from app.model import Model, complete_json
@@ -148,6 +148,8 @@ class Checked:
     status: str
     cites: tuple[tuple[Item, Unit], ...]
     note: str = ""
+    related: str = ""  # "" | "meaning" | "time": the person is not named in these notes
+    why: str = ""
 
 
 def _on_person(query: Query, item: Item, unit: Unit) -> bool:
@@ -162,13 +164,22 @@ def _on_person(query: Query, item: Item, unit: Unit) -> bool:
 
 
 def check(
-    query: Query, proposed: list[ProposedPoint], given: list[Given], model: Model | None
+    query: Query,
+    proposed: list[ProposedPoint],
+    given: list[Given],
+    model: Model | None,
+    linked: dict[str, tuple[str, str]] | None = None,
 ) -> tuple[list[Checked], GateResult]:
+    """`linked`: item id -> (kind, plain reason) for notes that were brought in although
+    they do not name the person asked about. A point resting only on such notes is kept as
+    "possibly related"; it is never mixed into the confirmed points."""
+    linked = linked or {}
     by_alias = {g.alias: g for g in given}
     invalid = off_topic = 0
     kept: list[Checked] = []
     for point in proposed:
         cites: list[tuple[Item, Unit]] = []
+        loose: list[tuple[Item, Unit]] = []
         for cite in point.citations:
             entry = by_alias.get(cite.item_id)
             unit = entry.item.unit(cite.unit) if entry else None
@@ -176,12 +187,19 @@ def check(
                 invalid += 1  # a note that was not given, a line that does not exist
                 continue
             if not _on_person(query, entry.item, unit):
-                off_topic += 1
+                if entry.item.item_id in linked:
+                    if not any(i.item_id == entry.item.item_id and u == unit for i, u in loose):
+                        loose.append((entry.item, unit))
+                else:
+                    off_topic += 1
                 continue
-            if (entry.item, unit) not in cites:
+            if not any(i.item_id == entry.item.item_id and u == unit for i, u in cites):
                 cites.append((entry.item, unit))
         if cites:
             kept.append(Checked(point.label, point.status, tuple(cites)))
+        elif loose:
+            kind, why = linked[loose[0][0].item_id]
+            kept.append(Checked(point.label, point.status, tuple(loose), related=kind, why=why))
 
     # Second look for questions with a topic: is each quoted line really on that topic?
     if kept and query.focus and model is not None:
@@ -204,7 +222,7 @@ def check(
             good = [c for (index, c), ok in zip(flat, verdicts, strict=True) if index == p and ok]
             off_topic += len(checked.cites) - len(good)
             if good:
-                survivors.append(Checked(checked.label, checked.status, tuple(good)))
+                survivors.append(replace(checked, cites=tuple(good)))
         kept = survivors
 
     kept = [_tidy(point) for point in kept]
@@ -235,4 +253,4 @@ def _tidy(point: Checked) -> Checked:
         status = "done"  # a cited line says so in plain words
     if unclear and status == "done":
         status = "open"
-    return Checked(point.label, status, tuple(cites), UNCLEAR if unclear else "")
+    return replace(point, status=status, cites=tuple(cites), note=UNCLEAR if unclear else "")

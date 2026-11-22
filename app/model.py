@@ -66,6 +66,7 @@ class ModelGateway:
         # True for a launch without our own model server (tests, screenshots): such a launch
         # must never look at or unload the models of a server another session is using.
         self.detached = False
+        self._search: bool | None = None  # is the search model on this Mac? asked once
 
     @property
     def reads_pictures(self) -> bool:
@@ -119,7 +120,7 @@ class ModelGateway:
     def pull(self, tag: str, progress: Callable[[int], None]) -> None:
         """Download an approved model. This is the model server using the internet, on the
         user's click: the one moment anything of DeskThread reaches outside this Mac."""
-        if config.model_choice(tag) is None:
+        if not config.approved(tag):
             raise DeskThreadError(ErrorCode.BAD_REQUEST, "not an approved model")
         body = json.dumps({"model": tag, "stream": True}).encode()
         request = urllib.request.Request(self._base + "/api/pull", data=body)  # noqa: S310
@@ -136,6 +137,22 @@ class ModelGateway:
         except (urllib.error.URLError, TimeoutError, ValueError, OSError) as exc:
             raise DeskThreadError(ErrorCode.MODEL_UNAVAILABLE, "the download failed") from exc
         progress(100)
+        self._search = None  # a download may have brought the search model
+
+    def embed(self, texts: list[str]) -> list[list[float]] | None:
+        """Texts as lists of numbers, from the search model on this Mac. None when that
+        model is not on this Mac (meaning search is then off)."""
+        tag = config.SEARCH_MODEL.tag
+        if self.detached:
+            return None
+        if self._search is None:
+            self._search = tag in self.installed()
+        if not self._search:
+            return None
+        body = {"model": tag, "input": texts, "keep_alive": config.MODEL_KEEP_ALIVE}
+        reply = self._call("/api/embed", body, timeout=180)
+        made = reply.get("embeddings") if isinstance(reply, dict) else None
+        return made if isinstance(made, list) else None
 
     def complete(self, prompt: str, images: list[bytes] | None = None) -> str:
         if not self._pinned:

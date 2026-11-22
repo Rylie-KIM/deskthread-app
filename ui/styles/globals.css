@@ -679,3 +679,15 @@ fieldset.period { display: grid; gap: 14px; padding: 14px 16px 16px; }
 .leftout li b { text-align: right; font-weight: 650; color: var(--ink); font-variant-numeric: tabular-nums; }
 .checked .tech { display: inline-block; margin-top: 16px; font-size: .82rem; }
 @media (max-width: 640px) { .funnel { grid-template-columns: repeat(2, minmax(0, 1fr)); } .funnel li::after { display: none; } }
+
+/* possibly related findings, and the search model card */
+.maybehead { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; margin: 22px 0 10px; font-size: .86rem; color: var(--muted); }
+.maybehead b { color: var(--royal); font-weight: 650; }
+.findings.maybe .finding { background: rgba(255, 255, 255, .34); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .8); border: 1px dashed rgba(10, 23, 196, .28); }
+.findings.maybe .finding.open { background: rgba(255, 255, 255, .58); }
+.searchmodel { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 16px; margin-top: 14px; padding: 16px 20px; }
+.searchmodel .who { display: grid; gap: 2px; }
+.searchmodel .about { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 6px; }
+.searchmodel .about small { color: var(--muted); font-size: .86rem; white-space: normal; }
+.searchmodel .size { color: var(--muted); font-size: .9rem; white-space: nowrap; }
+@media (max-width: 700px) { .searchmodel { grid-template-columns: auto 1fr; } }
