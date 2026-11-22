@@ -236,7 +236,7 @@ def test_the_model_list_shows_what_is_approved_installed_and_in_use(runtime: Run
     client = TestClient(create_app(runtime), base_url=BASE, headers={TOKEN_HEADER: runtime.token})
     listed = {m["tag"]: m for m in client.get("/api/models").json()}
     assert listed["gemma4:e4b"]["selected"] and listed["gemma4:e4b"]["tested"]
-    assert listed["gemma4:e2b"]["installed"] is False and listed["gemma4:e2b"]["tested"] is False
+    assert listed["gemma4:e2b"]["installed"] is False and listed["gemma4:e2b"]["tested"] is True
     assert listed["phi4-mini:latest"]["reads_pictures"] is False
 
     picked = client.post("/api/models/select", json={"tag": "phi4-mini:latest"}).json()

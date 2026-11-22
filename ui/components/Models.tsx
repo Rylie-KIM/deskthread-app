@@ -8,7 +8,7 @@ const LINE: Record<string, [string, number]> = {
   "phi4-mini:latest": ["For the fastest text-only answers", 3],
 };
 
-const Mark = ({ yes }: { yes: boolean }) => <span className={yes ? "mark yes" : "mark no"} aria-label={yes ? "yes" : "no"}>{yes ? "✓" : "–"}</span>;
+const Mark = ({ yes }: { yes: boolean }) => <span className={yes ? "cap yes" : "cap no"} aria-label={yes ? "yes" : "no"}>{yes ? "✓" : "–"}</span>;
 const Speed = ({ level }: { level: number }) => (
   <span className="speed" aria-label={`speed ${level} of 3`}>{[1, 2, 3].map((n) => <i key={n} className={n <= level ? "on" : ""} />)}</span>
 );

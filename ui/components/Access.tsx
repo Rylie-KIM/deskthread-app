@@ -131,9 +131,14 @@ export default function Access({ sources, folder, demoFolder, onSources, onError
       <p className="sub">Everything is Off until you switch it on. Switching on gives read permission only.</p>
 
       {files.length === 0 && demoFolder && (
-        <p className="demoline">
-          New here? <button className="link" disabled={busy !== ""} onClick={tryDemo}>{busy === "demo" ? "Setting up…" : "Try it with the demo laptop"}</button> (invented notes, one click).
-        </p>
+        <div className="card offer">
+          <span className="tile" aria-hidden="true">▶</span>
+          <span className="who">
+            <b>New here? Try it with the demo laptop</b>
+            <small>Invented notes of a manager. One click, nothing of yours is read.</small>
+          </span>
+          <button className="primary" disabled={busy !== ""} onClick={tryDemo}>{busy === "demo" ? "Setting up…" : "Try the demo"}</button>
+        </div>
       )}
 
       <div className="row between wrap bar">

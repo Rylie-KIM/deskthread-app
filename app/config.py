@@ -17,8 +17,10 @@ class ModelChoice:
     download_gb: float
     reads_pictures: bool
     good_for: str
-    # The digest the model must have. None: offered, but not yet run through DeskThread's
-    # own tests; whatever digest is installed is shown to the user as "not checked by us".
+    # The digest the model must have: the exact version that was tried. The default model was
+    # run through the full question set; the other two only through the short smoke test
+    # (2026-11-22: Gemma 4 small read the picture and gave valid ids; Phi-4 mini gave valid
+    # JSON and, as a text-only model, is never sent pictures). None would mean "not tried".
     digest: str | None = None
 
 
@@ -30,10 +32,12 @@ MODELS: tuple[ModelChoice, ...] = (
     ModelChoice(
         "gemma4:e2b", "Gemma 4 small", "Google", 4.6, True,
         "Faster, needs less memory. Reads pictures and screenshots.",
+        "45d11505b91d888e353859f5deeeeff3ffc9b3aa42263c00904120c53851ef96",
     ),
     ModelChoice(
         "phi4-mini:latest", "Phi-4 mini", "Microsoft", 2.5, False,
         "Smallest and quickest. Does not read pictures.",
+        "78fad5d182a7c33065e153a5f8ba210754207ba9d91973f57dffa7f487363753",
     ),
 )  # fmt: skip
 

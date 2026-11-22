@@ -92,27 +92,31 @@ export function MyData({ onError, onForgot }: { onError: (message: string) => vo
             <p>sent to the internet</p>
           </div>
         </div>
-        <div className="grid2 dash">
-          <div>
-            <h3>Held from each source</h3>
-            {Object.keys(memory.items_by_source).length === 0 && <p className="fine">Nothing is held.</p>}
-            {Object.entries(memory.items_by_source).sort().map(([name, count]) => (
-              <div key={name} className="meter"><span>{name}</span><div><i style={{ width: `${Math.max(4, Math.round((100 * count) / Math.max(1, memory.items_held)))}%` }} /></div><b>{count}</b></div>
-            ))}
-          </div>
-          <div>
-            <h3>Memory used</h3>
-            {memory.processes.map((p) => (
-              <div key={p.pid} className="meter"><span>{p.name.replace("DeskThread backend", "DeskThread").replace("Model server", "AI server").replace("Model runner", "AI model")}</span><div><i style={{ width: `${Math.max(3, Math.min(100, Math.round(p.memory_mb / 100)))}%` }} /></div><b>{p.memory_mb >= 1024 ? `${(p.memory_mb / 1024).toFixed(1)} GB` : `${Math.round(p.memory_mb)} MB`}</b></div>
-            ))}
-          </div>
+      </div>
+
+      <div className="grid2">
+        <div className="card part">
+          <h2>Held from each source</h2>
+          {Object.keys(memory.items_by_source).length === 0 && <p className="blank">Nothing is held. Switch a source on in Access.</p>}
+          {Object.entries(memory.items_by_source).sort().map(([name, count]) => (
+            <div key={name} className="meter"><span>{name}</span><div><i style={{ width: `${Math.max(4, Math.round((100 * count) / Math.max(1, memory.items_held)))}%` }} /></div><b>{count}</b></div>
+          ))}
         </div>
-        <h3>What happened</h3>
+        <div className="card part">
+          <h2>Memory used</h2>
+          {memory.processes.map((p) => (
+            <div key={p.pid} className="meter"><span>{p.name.replace("DeskThread backend", "DeskThread").replace("Model server", "AI server").replace("Model runner", "AI model")}</span><div><i style={{ width: `${Math.max(3, Math.min(100, Math.round(p.memory_mb / 100)))}%` }} /></div><b>{p.memory_mb >= 1024 ? `${(p.memory_mb / 1024).toFixed(1)} GB` : `${Math.round(p.memory_mb)} MB`}</b></div>
+          ))}
+        </div>
+      </div>
+
+      <div className="card part">
+        <h2>What happened</h2>
+        {proof.audit.length === 0 && <p className="blank">Nothing yet. What you allow, stop and read in this session shows up here.</p>}
         <ul className="timeline">
           {proof.audit.slice(-8).reverse().map((line, i) => (
             <li key={i}><span>{clock(line.at)}</span>{WORDS[line.action] ?? line.action} {line.source_id === "*" ? "everything" : line.source_id.replace(/^(mac|folder):/, "")}{line.action === "read" ? ` · ${line.count} items` : ""}</li>
           ))}
-          {proof.audit.length === 0 && <li>Nothing yet.</li>}
         </ul>
       </div>
     </section>
