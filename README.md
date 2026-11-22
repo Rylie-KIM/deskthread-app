@@ -26,8 +26,10 @@ This is a work in progress. The table says plainly what exists.
 | Reading chosen folders: notes, mail (`.eml`), calendar (`.ics`), reminders, Teams and Slack text exports, `.docx`, `.pdf`, `.csv`, `.txt`, `.md`, images | **Built and tested** |
 | Access rules, consent with instant revoke, locked private apps | **Built and tested** |
 | Local model gateway, search with no stored index, answer check, coverage, "prepare my next meeting" | **Built and tested**; runs in the terminal (`scripts/ask.py`) |
-| Browser interface, launcher, proof and memory panels, end-of-session receipt, `verify` script | **Not built yet** |
-| Leak tests (canary) and network tests on the full flow | **Not built yet** |
+| Local API with a per-launch token, Origin and Host checks, strict content-security-policy | **Built and tested** |
+| Browser interface: sources and permission request, Prepare, ask, brief, source viewer, Proof, Memory, End session with a receipt | **Built**; the main click path was checked by hand in the browser (see Tests) |
+| One-click launcher (`DeskThread.command`) with a clean stop | **Built and tested** on the real process |
+| `verify` script (an independent check after quitting), canary leak tests, Wi-Fi-off run | **Not built or not run yet** |
 | Connectors to the Mac's own Notes, Calendar, Reminders and Mail apps | **Not built yet** (a read-only Calendar test worked; see Limitations) |
 | Windows | **Not tested** |
 
@@ -42,18 +44,27 @@ This is a work in progress. The table says plainly what exists.
 | It is honest | The model returns a note id and a line number; code copies the quote, so a quote cannot be invented; a quote on another subject is rejected; nothing left means "not found" | U3, salary case |
 | Notes are data, not orders | Lines that read like instructions to an assistant are withheld from the model and can never be cited | U4 |
 
-"How a user could tell" (the proof panel, the memory panel, the receipt and the independent `verify` script) is designed but not built yet, so it is not claimed here.
+### How a user can tell
+
+| In the app | What it shows | Test |
+|---|---|---|
+| **Proof** | Open connections of DeskThread's own programs, sampled with the Mac's `lsof` (anything not on `127.0.0.1` is flagged); a fingerprint of your folder when you chose it and now (names, sizes, times; no file is opened); the number of files the backend opened for writing; what it cannot prove | connection parsing, fingerprint, write audit (L-4) |
+| **Memory** | Items held per source, image readings, whether the model is loaded, and the memory of each program as the operating system reports it. **Forget now** clears the items and unloads the model | memory tests |
+| **End session** | A receipt with counts only, then the programs stop and the address refuses connections | receipt canary test, N-6 on the real process |
+
+The independent `verify` script (a check from outside the app after it has quit) is not built yet. Until then, Activity Monitor is the outside check.
 
 ## Installation
 
-Requirements: macOS on Apple silicon, about 10 GB of free disk for the model, [Homebrew](https://brew.sh).
+Requirements: macOS on Apple silicon, about 10 GB of free disk for the model, [Homebrew](https://brew.sh), Node.js 22 (only to build the page once).
 
 ```bash
 git clone https://github.com/Rylie-KIM/deskthread-app.git && cd deskthread-app
 brew install ollama uv          # the model server (not the desktop app) and the Python installer
 make setup                      # installs the locked Python dependencies into .venv
+make ui                         # installs the locked UI packages (no install scripts) and builds the page
 
-# Download the model once. This and the two lines above are the only steps that use the network.
+# Download the model once. This and the three lines above are the only steps that use the network.
 OLLAMA_HOST=127.0.0.1:11435 OLLAMA_NO_CLOUD=1 ollama serve &
 OLLAMA_HOST=127.0.0.1:11435 ollama pull gemma4:e4b
 kill %1
@@ -61,28 +72,41 @@ kill %1
 
 ## How to run
 
-There is no browser interface yet: DeskThread runs in the terminal. Do the [Installation](#installation) steps once, then:
+Do the [Installation](#installation) steps once, then:
 
 **1. Build the invented demo laptop** (65 made-up files in `./demo-laptop`; safe to delete and rebuild):
 
 ```bash
-uv run python demo-data/make_demo_data.py
+make demo-data
 ```
 
-**2. Start DeskThread on it:**
+**2. Start DeskThread:** double-click `DeskThread.command` in Finder, or run:
+
+```bash
+make run
+```
+
+It starts its own model server and the backend on `127.0.0.1` (a random free port) and opens the page in your browser. The address carries a secret token for this launch; nothing answers without it.
+
+**3. In the page:**
+
+1. **Sources**: press **Choose folder…** and pick `demo-laptop` (or type its path). Everything is Off. Press **Work profile**, or turn sources on one by one: each asks first and shows what will be read. WhatsApp and KakaoTalk show as "detected, locked off".
+2. **Prepare**: tomorrow's one-to-one is shown as a card. Press **Prepare**. The first answer takes about 30 seconds (the model loads and reads the images). Click any quote to open its source, read-only.
+3. Ask your own question, for example `What salary did I promise Sam?` (the honest answer is "not found").
+4. **Proof** and **Memory**: see [How a user can tell](#how-a-user-can-tell). **Stop access** on any source, or **Stop all**, takes effect at once.
+5. **End session**: you get a receipt, and both programs stop.
+
+To use the demo's story clock (the evening of Sun 22 Nov 2026, the day before the meeting) start it as `DESKTHREAD_NOW=2026-11-22T19:00:00+00:00 make run`. It is a test and demo setting only; without it the real time is used and "tomorrow's one-to-one" will not be found in the demo calendar.
+
+To use your own folder, choose it in step 1. Only that folder is read. Inside it, a folder named `Personal` or `Private`, a file whose name starts with `PRIVATE`, and any folder holding a file named `.deskthread-off-limits` are never opened.
+
+### In the terminal instead
 
 ```bash
 uv run python -m scripts.ask
 ```
 
-It starts its own model server on `127.0.0.1:11435`, switches on the "Work profile" (work sources On, the personal calendar Off, private apps locked), finds tomorrow's one-to-one in the work calendar and prints the brief: each point with its status, the exact quotes, where each came from, the coverage numbers and the gate trace. The first answer takes about 30 seconds because the model loads and reads the images. Then type your own questions, for example:
-
-```
-Ask (empty line to end the session): What salary did I promise Sam?
-Ask (empty line to end the session): Is the conference in February still happening for Sam?
-```
-
-Press Enter on an empty line to end the session: sources are revoked, memory is cleared, the model is unloaded and the model server stops.
+The same pipeline without the page: it prepares the next one-to-one on `demo-laptop` with the story clock, then takes questions; an empty line ends the session.
 
 **One question and exit:**
 
@@ -96,14 +120,10 @@ uv run python -m scripts.ask "What did I promise Sam?"
 uv run python -m scripts.ask --folder ~/Documents/Work --now ""
 ```
 
-Only that folder is read. Inside it, a folder named `Personal` or `Private`, a file whose name starts with `PRIVATE`, and any folder holding a file named `.deskthread-off-limits` are never opened. The answers print your own notes in your terminal; nothing is written to disk and nothing is sent anywhere.
-
-The demo uses a fixed clock (the evening of Sun 22 Nov 2026, the day before the story's meeting) so that "tomorrow's one-to-one" is always found. `--now ""` or the `DESKTHREAD_NOW` setting changes it; it is a test and demo setting only.
-
 **Checks and the measured run:**
 
 ```bash
-make check                                            # lint, type check and 100 tests (no model needed)
+make check                                            # lint, type checks and 127 tests (no model needed)
 DESKTHREAD_NOW=2026-11-22T19:00:00+00:00 \
   uv run python -m eval.run --set tuning -v           # scores eight questions against the ground truth
 ```
@@ -124,7 +144,8 @@ Time per question: about 4 to 28 seconds; the first is slowest because the five 
 
 | Part | Tech | Whose it is and why |
 |---|---|---|
-| Backend | Python 3.13, Pydantic; FastAPI for the local API (next step) | Open source; typed data shapes between every part |
+| Page | React 19 and Next.js 16, built once into static files | Meta and Vercel (US), MIT; served by the local backend, nothing loaded from outside |
+| Backend | Python 3.13, FastAPI, Pydantic | Open source; typed data shapes between every part; bound to `127.0.0.1` |
 | Model runtime | Ollama server 0.40.9 on `127.0.0.1:11435` | Ollama Inc. (US), MIT; runs the model on the laptop |
 | Model | `gemma4:e4b`, digest `eb2177adf7646d15faead94fdad6d3e170dc8015653418a3b7d5d52a6380be5b` | Google (US), Apache-2.0; one model for answers and for reading images; a different digest is refused |
 
@@ -144,8 +165,8 @@ Gates between your files and an answer; a trace line with each answer says what 
 
 ```
 deskthread-app/
-├── app/          backend: policy (G1), sources, readers, broker, store, model gateway,
-│                 search, answer gate, assistant
+├── app/          backend: policy (G1), sources, readers, broker, store, model gateway, search,
+│                 answer gate, assistant, local API, proof/ (evidence, memory, end session)
 ├── contracts/    frozen data shapes and interfaces shared by all parts; the live-run output guard
 ├── demo-data/    generator of the invented laptop (the output, demo-laptop/, is not committed)
 ├── eval/         ground truth, question sets, scorer
@@ -153,12 +174,13 @@ deskthread-app/
 ├── tests/        contract, data and unit tests
 ├── docs/         dependency register
 ├── site/         static download page (no external resources, no analytics)
-└── ui/           browser interface (empty for now)
+├── ui/           browser interface (Next.js static export)
+└── DeskThread.command   double-click launcher
 ```
 
 ## Tests
 
-`make check` runs lint, a strict type check and 100 tests in about 3 seconds, without the model.
+`make check` runs lint, strict type checks (Python and TypeScript) and 127 tests in about 7 seconds, without the model.
 
 | Group | What it proves | Result |
 |---|---|---|
@@ -169,9 +191,13 @@ deskthread-app/
 | Readers (U8) | each file type gives text, a title and the writer's date; broken and unsupported files are counted | pass |
 | Model gateway (U6) | loopback only; pinned digest; unload verified against a fake server; no database or index library | pass |
 | Answer path (U3, U4, U7, U9, U10) | invented citations dropped; injection withheld; superseded and undated handled; coverage adds up; a deleted note is gone at once | pass, with a scripted fake model |
+| Local API (U5) | no token, wrong Origin or wrong Host is refused; replies are not stored; only the page's own start-up script may run | pass |
+| Proof, memory, end session | local-only connections, fingerprint without opening files, zero writes (L-4), Forget now, receipt without note text | pass |
+| Launch (N-6) | the real process listens on `127.0.0.1` only, needs the token, and refuses connections after End session | pass |
 | Evaluation with the real model | tuning set against the ground truth | 7 of 8 |
+| Browser click path, by hand | choose folder, permission request, Work profile, Prepare, source viewer, Proof, End session receipt, on the demo laptop with the real model | worked once; Memory tab, the folder dialog button and phone width not checked |
 
-Leak tests (L-1 to L-7), network tests (N-1 to N-6) and the token test (U5) are not written yet.
+Not written or not run yet: the canary leak tests on the full flow (L-1, L-5, L-6, L-7), the Wi-Fi-off run (N-2), and an automated check that the page makes no outside request (N-3; today the content-security-policy forbids it).
 
 ## Data
 
