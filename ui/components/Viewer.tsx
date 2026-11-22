@@ -6,6 +6,7 @@ import { api, day, type Citation, type ItemView } from "../lib/api";
 export default function Viewer({ cite, onClose }: { cite: Citation; onClose: () => void }) {
   const [item, setItem] = useState<ItemView | null>(null);
   const [gone, setGone] = useState(false);
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     setItem(null);
@@ -25,6 +26,14 @@ export default function Viewer({ cite, onClose }: { cite: Citation; onClose: () 
           <>
             <h2>{item.title}</h2>
             <p className="fine bits"><em className="tag">{item.source_label}</em><span>{day(item.date)}</span><span>{item.location}</span></p>
+            {item.origin !== "" && (
+              <div className="original">
+                <button className="ghost small" onClick={() => { api.reveal(item.item_id).catch(() => setFailed(true)); }}>
+                  {item.origin === "file" ? "Show the original in Finder" : `Open ${item.source_label}`}
+                </button>
+                {failed && <span className="fine">It could not be shown.</span>}
+              </div>
+            )}
             <div className={item.has_image ? "sidebyside" : ""}>
               {item.has_image && <img src={api.imageUrl(item.item_id)} alt="The image this text was read from" />}
               <div>

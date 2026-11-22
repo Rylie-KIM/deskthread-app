@@ -21,7 +21,7 @@ from fastapi.staticfiles import StaticFiles
 import contracts
 from app import config, models
 from app.clock import now
-from app.icons import app_icon
+from app.icons import APPS, app_icon, show_original
 from app.proof import ending, evidence, memory
 from app.runtime import Runtime
 from app.sources.folder import kinds_in
@@ -42,7 +42,7 @@ from contracts.api import (
 )
 from contracts.broker import PermissionRequest, SourceState
 from contracts.errors import DeskThreadError, ErrorCode
-from contracts.items import ItemKind
+from contracts.items import Item, ItemKind
 
 _INLINE_SCRIPT = re.compile(
     rb"<script(?![^>]*\bsrc=)(?![^>]*application/json)[^>]*>(.*?)</script>", re.S
@@ -218,13 +218,9 @@ def create_app(runtime: Runtime, ui_dir: Path | None = None) -> FastAPI:
             return runtime.require().assistant.ask(body.question)
 
     # ------------------------------------------------------------------ the source viewer
-    @app.get("/api/items/{item_id}")
-    def item(item_id: str) -> ItemView:
-        session = runtime.require()
-        found = session.store.get(item_id)  # only items of sources that are On right now
-        if found is None:
-            raise DeskThreadError(ErrorCode.SOURCE_NOT_ALLOWED, "not visible")
-        labels = {s.source_id: s.label for s in session.broker.states()}
+    def _view(found: Item) -> ItemView:
+        labels = {s.source_id: s.label for s in runtime.require().broker.states()}
+        origin = "file" if found.meta.get("path") else "app" if found.source_id in APPS else ""
         return ItemView(
             item_id=found.item_id,
             source_label=labels.get(found.source_id, found.source_id),
@@ -235,7 +231,29 @@ def create_app(runtime: Runtime, ui_dir: Path | None = None) -> FastAPI:
             units=tuple(UnitView(number=u.number, text=u.text) for u in found.units),
             read_by_model=found.read_by_model,
             has_image=found.kind is ItemKind.IMAGE,
+            origin=origin,
         )
+
+    def _visible(item_id: str) -> Item:
+        found = runtime.require().store.get(item_id)  # only items of sources that are On now
+        if found is None:
+            raise DeskThreadError(ErrorCode.SOURCE_NOT_ALLOWED, "not visible")
+        return found
+
+    @app.get("/api/items/{item_id}")
+    def item(item_id: str) -> ItemView:
+        return _view(_visible(item_id))
+
+    @app.post("/api/items/{item_id}/reveal")
+    def reveal(item_id: str) -> ItemView:
+        """Show the original to the user. The path is the item's own, checked again (G1);
+        the page cannot name a path."""
+        found = _visible(item_id)
+        path = found.meta.get("path")
+        real = runtime.require().policy.check_read(Path(path)) if path else None
+        if not show_original(found.source_id, real):
+            raise DeskThreadError(ErrorCode.BAD_REQUEST)
+        return _view(found)
 
     @app.get("/api/items/{item_id}/image")
     def image(item_id: str) -> Response:

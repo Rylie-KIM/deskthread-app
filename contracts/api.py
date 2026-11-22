@@ -33,6 +33,7 @@ ROUTES: dict[str, str] = {
     "POST /api/cancel": "Progress",  # stop the running question (contract 1.8)
     "GET /api/items/{item_id}": "ItemView",
     "GET /api/items/{item_id}/image": "bytes",
+    "POST /api/items/{item_id}/reveal": "ItemView",  # select the file in Finder, or open its app
     "GET /api/models": "list[ModelInfo]",
     "POST /api/models/select": "list[ModelInfo]",  # body: ModelPick
     "POST /api/models/download": "list[ModelInfo]",  # body: ModelPick; runs in the background
@@ -210,6 +211,9 @@ class ItemView(_Frozen):
     units: tuple[UnitView, ...]
     read_by_model: bool
     has_image: bool
+    # Where the original lives: "file" (can be shown in Finder), "app" (its Mac app can be
+    # opened) or "" (contract 1.11). DeskThread never opens or changes the original itself.
+    origin: str = ""
 
 
 class ProcessInfo(_Frozen):

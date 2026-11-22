@@ -4,6 +4,7 @@ The picture is asked from macOS and turned into PNG bytes in memory. Nothing is 
 disk and no file of the app is read by us.
 """
 
+import subprocess
 import threading
 from pathlib import Path
 
@@ -15,6 +16,18 @@ APPS = {
 }
 _CACHE: dict[str, bytes] = {}
 _LOCK = threading.Lock()
+
+
+def show_original(source_id: str, path: Path | None) -> bool:
+    """Take the user to the original: select the file in Finder, or bring up the Mac app the
+    item came from. The Mac's own `open` does it; DeskThread does not open the file."""
+    if path is not None:
+        command = ["/usr/bin/open", "-R", str(path)]
+    elif source_id in APPS:
+        command = ["/usr/bin/open", APPS[source_id]]
+    else:
+        return False
+    return subprocess.run(command, check=False, capture_output=True).returncode == 0
 
 
 def app_icon(source_id: str, size: int = 128) -> bytes | None:

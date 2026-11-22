@@ -354,3 +354,28 @@ def test_folders_say_what_they_hold_and_what_cannot_be_read(
     (info,) = client.get("/api/folders").json()
     assert (info["files"], info["pictures"], info["videos"], info["other"]) == (2, 1, 2, 1)
     assert client.get("/api/memory").json()["mac_memory_mb"] > 1000
+
+
+def test_the_original_of_an_item_is_shown_by_its_own_checked_path_only(
+    client: TestClient, runtime: Runtime, demo_laptop: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ran: list[list[str]] = []
+
+    class Done:
+        returncode = 0
+
+    def fake_run(command: list[str], **_: object) -> Done:
+        ran.append(command)
+        return Done()
+
+    monkeypatch.setattr("app.icons.subprocess.run", fake_run)
+    _work_profile(client, demo_laptop)
+    held = runtime.session.store.items()
+    note = next(i for i in held if i.meta.get("path"))
+    shown = client.post(f"/api/items/{note.item_id}/reveal")
+    assert shown.status_code == 200 and shown.json()["origin"] == "file"
+    assert ran == [["/usr/bin/open", "-R", note.meta["path"]]]  # selected in Finder, not opened
+    assert Path(note.meta["path"]).is_relative_to(demo_laptop.resolve())
+    client.post("/api/sources/revoke-all")
+    assert client.post(f"/api/items/{note.item_id}/reveal").status_code != 200  # Off: not shown
+    assert len(ran) == 1

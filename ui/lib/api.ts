@@ -69,6 +69,7 @@ export interface ItemView {
   units: { number: number; text: string }[];
   read_by_model: boolean;
   has_image: boolean;
+  origin: "file" | "app" | "";
 }
 export interface ProcessInfo { name: string; pid: number; memory_mb: number }
 export interface MemoryState {
@@ -182,6 +183,7 @@ export const api = {
   progress: () => call<Progress>("GET", "/api/progress"),
   cancel: () => call<Progress>("POST", "/api/cancel"),
   item: (itemId: string) => call<ItemView>("GET", `/api/items/${id(itemId)}`),
+  reveal: (itemId: string) => call<ItemView>("POST", `/api/items/${id(itemId)}/reveal`),
   imageUrl: (itemId: string) => `/api/items/${id(itemId)}/image?t=${id(readToken())}`,
   models: () => call<ModelInfo[]>("GET", "/api/models"),
   selectModel: (tag: string) => call<ModelInfo[]>("POST", "/api/models/select", { tag }),
