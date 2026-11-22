@@ -11,6 +11,7 @@ from datetime import datetime
 from app import config, coverage, prompts
 from app.broker import Broker
 from app.gate import Checked, Given, check, instruction_units, parse_points
+from app.images import ImageReader
 from app.model import Model, complete_json
 from app.policy import AccessPolicy
 from app.search import Candidate, add_expansion, build_query, find
@@ -30,12 +31,18 @@ class Assistant:
         self, broker: Broker, store: SessionStore, policy: AccessPolicy, model: Model
     ) -> None:
         self._broker, self._store, self._policy, self._model = broker, store, policy, model
+        self._images = ImageReader(policy, store, model)
         self.questions = 0
         self.items_given = 0
 
     def forget(self) -> None:
         """Forget now: drop every item held in memory. The app stays open."""
         self._store.forget()
+        self._images.forget()
+
+    @property
+    def readings_held(self) -> int:
+        return self._images.held
 
     # ------------------------------------------------------------------ one question
     def ask(self, question: str, person: str | None = None) -> Answer:
@@ -48,7 +55,7 @@ class Assistant:
             return self._answer(AnswerKind.NO_SOURCES, question, NO_SOURCES, [], [], trace, started)
 
         self._store.refresh()  # read again each time: a deleted file is gone at once (U10)
-        unread = 0  # images have no text yet: the image reader is a later step
+        unread = self._images.read_pending()  # the local model reads new images
         items = self._store.items()
         coverage_note = (
             f"{len(items)} items readable in {len(allowed)} allowed sources; "
