@@ -58,6 +58,7 @@ from contracts.errors import DeskThreadError, ErrorCode
 from contracts.gates import Gate, GateResult, Outcome
 from contracts.items import Item, ItemKind, Unit
 
+READY_SECONDS = 4.0  # how long "Pictures ready" stays on the screen
 NOT_FOUND = "I could not find this in the notes you shared."
 
 
@@ -87,6 +88,7 @@ class Assistant:
         self.preparing = Preparing()  # pictures being read after a switch is turned on
         self._prep_lock = threading.Lock()
         self._prep_jobs = 0
+        self._ready_until = 0.0
         self._stop = threading.Event()  # set when the user stops the running question
 
     def forget(self) -> None:
@@ -328,7 +330,12 @@ class Assistant:
         switching Pictures on and the first question; the screen keeps the chat closed until
         it is done."""
 
+        pictures = 0
+
         def show(done: int, total: int, phase: str) -> None:
+            nonlocal pictures
+            if phase == "text":
+                pictures = max(pictures, total)
             what = "Reading pictures" if phase == "text" else "Looking at pictures without text"
             self.preparing = Preparing(active=True, done=done, total=total, what=what)
 
@@ -338,7 +345,23 @@ class Assistant:
             with self._prep_lock:
                 self._prep_jobs = max(0, self._prep_jobs - 1)
                 if self._prep_jobs == 0:
-                    self.preparing = Preparing()
+                    # macOS reads a picture in a tenth of a second, so the whole job can be
+                    # over before anyone looks: "ready" stays visible for a few seconds.
+                    self._ready_until = time.monotonic() + READY_SECONDS
+                    self.preparing = (
+                        Preparing(
+                            active=False, done=pictures, total=pictures, what="Pictures ready"
+                        )
+                        if pictures
+                        else Preparing()
+                    )
+
+    def preparing_now(self) -> Preparing:
+        """What the screen shows: the running job, or "Pictures ready" for a few seconds."""
+        with self._prep_lock:
+            if not self.preparing.active and time.monotonic() > self._ready_until:
+                self.preparing = Preparing()
+            return self.preparing
 
     # ------------------------------------------------------------ the items behind the numbers
     def _details(self, answer: Answer) -> dict[str, object]:

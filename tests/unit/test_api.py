@@ -369,7 +369,9 @@ def test_the_pictures_are_prepared_in_the_background_and_say_how_far_they_are(
     wait_until_prepared(client)
     assert [s["done"] for s in seen] == [1, 2, 3, 4, 5] and all(s["total"] == 5 for s in seen)
     assert all(s["active"] is True for s in seen)
-    assert client.get("/api/preparing").json()["active"] is False  # then the chat opens
+    ready = client.get("/api/preparing").json()
+    assert ready["active"] is False  # the chat opens
+    assert ready["what"] == "Pictures ready" and ready["done"] == ready["total"] == 5
     assert runtime.session.assistant.readings_held == 5
 
 

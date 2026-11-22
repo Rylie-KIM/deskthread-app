@@ -285,7 +285,7 @@ export default function Ask({ now, anyOn, visible, thread, onAnswer, onCite, onE
   useEffect(() => {
     const look = () => api.preparing().then(setPrep).catch(() => undefined);
     look();
-    const timer = setInterval(look, 500);
+    const timer = setInterval(look, 250);
     return () => clearInterval(timer);
   }, []);
 
@@ -348,10 +348,10 @@ export default function Ask({ now, anyOn, visible, thread, onAnswer, onCite, onE
         </div>
       )}
 
-      {prep.active && (
-        <div className="card prepare" role="status" aria-live="polite">
-          <div className="row between"><b>{prep.what || "Reading pictures"}</b><span>{prep.total ? `${prep.done} of ${prep.total}` : "Starting"}</span></div>
-          <div className="prepbar" aria-hidden="true"><i style={{ width: `${prep.total ? Math.max(4, Math.round((100 * prep.done) / prep.total)) : 4}%` }} /></div>
+      {(prep.active || prep.what !== "") && (
+        <div className={prep.active ? "card prepare" : "card prepare ready"} role="status" aria-live="polite">
+          <div className="row between"><b>{prep.what || "Reading pictures"}</b><span>{prep.total ? `${prep.active ? prep.done : prep.total} of ${prep.total}` : "Starting"}</span></div>
+          <div className="prepbar" aria-hidden="true"><i style={{ width: `${prep.active ? (prep.total ? Math.max(4, Math.round((100 * prep.done) / prep.total)) : 4) : 100}%` }} /></div>
         </div>
       )}
 

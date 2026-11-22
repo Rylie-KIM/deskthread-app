@@ -237,7 +237,7 @@ def create_app(runtime: Runtime, ui_dir: Path | None = None) -> FastAPI:
 
     @app.get("/api/preparing")
     def preparing() -> Preparing:
-        return runtime.session.assistant.preparing if runtime.session else Preparing()
+        return runtime.session.assistant.preparing_now() if runtime.session else Preparing()
 
     @app.post("/api/cancel")
     def cancel() -> Progress:
