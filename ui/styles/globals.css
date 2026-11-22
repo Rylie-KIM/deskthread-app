@@ -620,4 +620,5 @@ fieldset.period { display: grid; gap: 14px; padding: 14px 16px 16px; }
 .connbox thead th { position: sticky; top: 0; z-index: 1; padding-top: 6px; padding-bottom: 4px; background: rgba(244, 248, 255, .96); }
 .pair.closing { max-width: none; margin-top: 28px; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, .9); }
 
-.copyline .primary.small { padding: 9px 16px; white-space: nowrap; font-size: .84rem; }
+.copyline .primary.small { padding: 9px 16px; white-space: nowrap; font-size: .9rem; min-width: 84px; }
+.copyline .ghost.small { min-width: 84px; }
