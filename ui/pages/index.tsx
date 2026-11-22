@@ -83,6 +83,7 @@ export default function Home() {
           <>
             {tab === "sources" && (
               <Sources sources={sources} folder={folder} refresh={refresh} onError={setError}
+                demoFolder={info?.demo_folder ?? ""} onReady={() => setTab("prepare")}
                 onSources={(next, chosen) => { setSources(next); if (chosen !== undefined) { setFolder(chosen); setAnswer(null); } }} />
             )}
             {tab === "prepare" && info && <Ask now={info.now} anyOn={anyOn} answer={answer} onAnswer={(a) => { setAnswer(a); void refresh(); }} onCite={setCite} onError={setError} />}

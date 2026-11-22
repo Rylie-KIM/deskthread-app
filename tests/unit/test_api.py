@@ -62,6 +62,20 @@ def test_u5_a_wrong_origin_or_host_is_rejected(client: TestClient, runtime: Runt
     assert client.get("/api/session", headers={"Origin": BASE}).status_code == 200
 
 
+def test_the_demo_folder_is_offered_only_if_our_generator_built_it(
+    demo_laptop: Path, tmp_path: Path
+) -> None:
+    def offered(folder: Path | None) -> str:
+        runtime = Runtime(FakeModel(lambda q: []), PORT, demo_folder=folder)
+        client = TestClient(
+            create_app(runtime), base_url=BASE, headers={TOKEN_HEADER: runtime.token}
+        )
+        return str(client.get("/api/session").json()["demo_folder"])
+
+    assert offered(demo_laptop) == str(demo_laptop)
+    assert offered(tmp_path) == "" and offered(None) == ""  # some other folder is never offered
+
+
 def test_a_new_launch_gets_a_new_token() -> None:
     first, second = Runtime(FakeModel(lambda q: []), PORT), Runtime(FakeModel(lambda q: []), PORT)
     assert first.token != second.token and len(first.token) >= 40

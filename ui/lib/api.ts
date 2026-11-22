@@ -105,6 +105,7 @@ export interface SessionInfo {
   model_digest: string;
   prompt_version: string;
   now: string;
+  demo_folder: string;
 }
 
 export class ApiError extends Error {

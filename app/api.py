@@ -131,6 +131,7 @@ def create_app(runtime: Runtime, ui_dir: Path | None = None) -> FastAPI:
             model_digest=config.MODEL_DIGEST,
             prompt_version=config.PROMPT_VERSION,
             now=now(),
+            demo_folder=str(runtime.demo_folder) if runtime.demo_folder else "",
         )
 
     @app.get("/api/sources")

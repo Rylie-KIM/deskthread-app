@@ -4,4 +4,4 @@ Everything here is an interface or a plain data shape. Only the main session cha
 package; a change bumps CONTRACT_VERSION (dev rule R14).
 """
 
-CONTRACT_VERSION = "1.0"
+CONTRACT_VERSION = "1.1"  # 1.1: SessionInfo.demo_folder (additive)

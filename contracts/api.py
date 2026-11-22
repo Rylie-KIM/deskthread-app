@@ -45,6 +45,9 @@ class SessionInfo(_Frozen):
     model_digest: str
     prompt_version: str
     now: datetime  # the session clock (fixable for tests and the recording)
+    # Path of the invented demo laptop when it has been built, so the first screen can offer
+    # "try it with the demo". Empty when there is none. (contract 1.1)
+    demo_folder: str = ""
 
 
 class FolderChoice(_Frozen):

@@ -14,6 +14,7 @@ from app.model import Model, ModelGateway, ModelServer
 from app.session import Session, open_folder
 from contracts.errors import DeskThreadError, ErrorCode
 
+DEMO_MARKER = ".deskthread-demo"
 CHOOSE_FOLDER = 'POSIX path of (choose folder with prompt "Choose the folder DeskThread may read")'
 
 
@@ -24,8 +25,13 @@ class Runtime:
         port: int,
         gateway: ModelGateway | None = None,
         server: ModelServer | None = None,
+        demo_folder: Path | None = None,
     ) -> None:
         self.model, self.port, self.gateway, self.server = model, port, gateway, server
+        # Offered on the first screen only if it is a folder our generator built.
+        self.demo_folder = (
+            demo_folder if demo_folder and (demo_folder / DEMO_MARKER).is_file() else None
+        )
         # A fresh random token for each launch; the page gets it in the address fragment,
         # which a browser never sends over the network (FT-23).
         self.token = secrets.token_urlsafe(32)

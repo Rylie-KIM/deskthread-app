@@ -14,9 +14,11 @@ interface Props {
   onSources: (sources: SourceState[], folder?: string) => void;
   onError: (message: string) => void;
   refresh: () => Promise<void>;
+  demoFolder: string;
+  onReady: () => void;
 }
 
-export default function Sources({ sources, folder, onSources, onError, refresh }: Props) {
+export default function Sources({ sources, folder, onSources, onError, refresh, demoFolder, onReady }: Props) {
   const [path, setPath] = useState("");
   const [busy, setBusy] = useState("");
   const [request, setRequest] = useState<PermissionRequest | null>(null);
@@ -68,6 +70,19 @@ export default function Sources({ sources, folder, onSources, onError, refresh }
       await refresh();
     });
 
+  // One click: the invented demo laptop, the Work profile, then straight to Prepare.
+  const tryDemo = () =>
+    run("demo", async () => {
+      const found = await api.chooseFolder(demoFolder);
+      for (const source of found.filter((s) => s.status === "off")) {
+        const asked = await api.request(source.source_id);
+        const scopes = asked.scopes.filter((s) => !/personal/i.test(s.scope_id)).map((s) => s.scope_id);
+        if (scopes.length) await api.grant(source.source_id, scopes);
+      }
+      onSources(await api.sources(), "the demo laptop (invented data)");
+      onReady();
+    });
+
   const on = sources.filter((s) => s.status === "on");
   const held = on.reduce((sum, s) => sum + s.items_in_memory, 0);
 
@@ -88,7 +103,20 @@ export default function Sources({ sources, folder, onSources, onError, refresh }
       </div>
 
       {sources.length === 0 ? (
-        <p className="empty">No folder chosen yet. Nothing can be read.</p>
+        <div className="start">
+          {demoFolder && (
+            <button className="startcard" disabled={busy !== ""} onClick={tryDemo}>
+              <span className="kicker">Fastest way to see it</span>
+              <b>{busy === "demo" ? "Setting up…" : "Try it with the demo laptop"}</b>
+              <span>65 invented files of a manager called Seoyeon. One click switches on the work sources and takes you to tomorrow's one-to-one.</span>
+            </button>
+          )}
+          <button className="startcard plain" disabled={busy !== ""} onClick={() => choose("")}>
+            <span className="kicker">Your own files</span>
+            <b>Choose my folder…</b>
+            <span>Pick a folder. Everything in it starts Off: you allow each source yourself, and you can stop it at any time.</span>
+          </button>
+        </div>
       ) : (
         <>
           <div className="row wrap between bar">
