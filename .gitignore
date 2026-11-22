@@ -1,0 +1,41 @@
+# Planning documents, hackathon material and brand samples: never committed (user decision, 2026-11-21)
+plan/
+design-sample/
+
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Node
+node_modules/
+.next/
+out/
+
+# Secrets, models, data and recordings
+.env
+.env.*
+*.gguf
+*.safetensors
+models/
+demo-laptop/
+*.mov
+*.mp4
+
+# Build output and tool caches
+dist/
+build/
+*.egg-info/
+*.tsbuildinfo
+.coverage
+htmlcov/
+
+# Local assistant settings
+.claude/settings.local.json
