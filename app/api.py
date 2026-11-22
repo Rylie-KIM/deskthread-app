@@ -18,6 +18,7 @@ from fastapi.staticfiles import StaticFiles
 import contracts
 from app import config
 from app.clock import now
+from app.proof import memory
 from app.runtime import Runtime
 from contracts.api import (
     TOKEN_HEADER,
@@ -178,6 +179,8 @@ def create_app(runtime: Runtime, ui_dir: Path | None = None) -> FastAPI:
             data = handle.read()
         kind = mimetypes.guess_type(real.name)[0] or "application/octet-stream"
         return Response(content=data, media_type=kind)
+
+    memory.register(app, runtime)
 
     if ui_dir is not None and ui_dir.is_dir():
         app.mount("/", StaticFiles(directory=ui_dir, html=True), name="ui")
