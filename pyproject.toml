@@ -55,6 +55,7 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S105", "S106", "S108"]
 "tests/unit/test_mac_apps.py" = ["S105", "S106", "S108", "E501"]  # canned app replies, kept on one line each
+"app/window.py" = ["N802"]  # method names are dictated by Apple's frameworks
 "demo-data/content.py" = ["E501"]  # invented note text is kept as written
 
 [tool.mypy]

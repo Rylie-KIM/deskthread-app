@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, ApiError, clock, day, type Answer, type Citation, type Meeting } from "../lib/api";
 
+const STEP: Record<string, string> = { G1: "Access rules", G2: "Reading", G3: "AI on this Mac", G4: "Answer check", G6: "Record" };
 const STATUS_TEXT = { done: "Done", open: "Open", changed: "Changed", superseded: "Superseded" } as const;
 
 function when(meeting: Meeting, nowIso: string): string {
@@ -43,10 +44,9 @@ export default function Ask({ now, anyOn, answer, onAnswer, onCite, onError }: P
 
   return (
     <section>
-      <p className="kicker">Prepare</p>
-      <h1>What is coming up, and what you wrote about it.</h1>
+      <h1>Your next meetings.</h1>
 
-      {!anyOn && <p className="empty">No source is On. Go to Sources first: nothing can be read yet.</p>}
+      {!anyOn && <p className="empty">Nothing is switched on yet. Go to Access first.</p>}
 
       {meetings.length > 0 && (
         <div className="meetings">
@@ -61,13 +61,14 @@ export default function Ask({ now, anyOn, answer, onAnswer, onCite, onError }: P
           ))}
         </div>
       )}
-      {anyOn && meetings.length === 0 && <p className="fine">No one-to-one found in an allowed calendar for the next seven days.</p>}
+      {anyOn && meetings.length === 0 && <p className="fine">No one-to-one in the next seven days in the calendars you switched on.</p>}
+      <h2 className="asktitle">Ask about your notes.</h2>
 
       <form className="card row ask" onSubmit={(e) => { e.preventDefault(); if (question.trim()) void run("ask", () => api.ask(question.trim())); }}>
         <input aria-label="Your question" placeholder="Ask about your own notes, e.g. What salary did I promise Sam?" value={question} maxLength={500} onChange={(e) => setQuestion(e.target.value)} />
         <button className="primary" disabled={busy !== "" || !question.trim() || !anyOn}>{busy === "ask" ? "Looking…" : "Ask"}</button>
       </form>
-      {busy !== "" && <p className="fine" role="status">The model on this laptop is working. The first answer takes longest, because it loads and reads the images.</p>}
+      {busy !== "" && <p className="fine" role="status">Reading on this Mac… the first answer takes the longest.</p>}
 
       {answer && (
         <div className="answer" aria-live="polite">
@@ -76,7 +77,7 @@ export default function Ask({ now, anyOn, answer, onAnswer, onCite, onError }: P
           {answer.points.map((point, index) => (
             <article key={index} className="point">
               <header className="row wrap">
-                <span className={`chip ${point.status}`}>{STATUS_TEXT[point.status]}</span>
+                <span className={`status ${point.status}`}>{STATUS_TEXT[point.status]}</span>
                 <h3>{point.label}</h3>
               </header>
               {point.note && <p className="note">{point.note}</p>}
@@ -87,7 +88,7 @@ export default function Ask({ now, anyOn, answer, onAnswer, onCite, onError }: P
                       <span className="quote">“{cite.quote}”</span>
                       <span className="from">
                         {cite.source_label} · {cite.title} · <span className={cite.undated ? "undated" : ""}>{day(cite.date)}</span>
-                        {cite.read_by_model && " · read from the image by the model"}
+                        {cite.read_by_model && " · read from the picture by the AI"}
                       </span>
                     </button>
                   </li>
@@ -97,19 +98,14 @@ export default function Ask({ now, anyOn, answer, onAnswer, onCite, onError }: P
           ))}
 
           <div className="coverage">
-            <p>
-              <b>What it looked at:</b> {answer.coverage.accessible} readable · {answer.coverage.searched} searched · {answer.coverage.unsupported} could not be read · {answer.coverage.given_to_model} shown to the model · {answer.coverage.cited} cited · {answer.seconds}s
-            </p>
-            <p>
-              <b>Out of reach:</b>{" "}
-              {Object.entries(answer.coverage.not_accessible).map(([name, count]) => `${name}: ${count === null ? "locked" : count}`).join(" · ")}
-            </p>
-            <button className="link" onClick={() => setDetails(!details)}>{details ? "Hide the checks" : "Show the checks behind this answer"}</button>
+            <p>Looked through <b>{answer.coverage.searched}</b> items · showed <b>{answer.coverage.given_to_model}</b> to the AI · quoted <b>{answer.coverage.cited}</b></p>
+            <button className="link" onClick={() => setDetails(!details)}>{details ? "Hide details" : "How this answer was checked"}</button>
             {details && (
               <ul className="trace">
                 {answer.gate_trace.map((gate) => (
-                  <li key={gate.gate}><span className={`chip ${gate.outcome}`}>{gate.gate} {gate.outcome}</span> {gate.detail}</li>
+                  <li key={gate.gate}><b>{STEP[gate.gate] ?? gate.gate}</b> {gate.detail}</li>
                 ))}
+                <li><b>Not allowed</b> {Object.entries(answer.coverage.not_accessible).map(([name, count]) => `${name}${count === null ? "" : `: ${count}`}`).join(" · ") || "nothing"}</li>
               </ul>
             )}
           </div>

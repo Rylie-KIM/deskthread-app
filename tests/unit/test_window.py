@@ -45,3 +45,20 @@ def test_the_web_view_keeps_nothing_on_disk_and_no_browser_is_started() -> None:
     assert (
         "webbrowser" not in source and "Google Chrome" not in source and "subprocess" not in source
     )
+
+
+def test_the_page_can_ask_the_window_for_two_things_only() -> None:
+    restarted: list[bool] = []
+    bridge = window.Bridge.alloc().init()
+    bridge.on_restart = lambda: restarted.append(True)
+
+    class Message:
+        def __init__(self, text: str) -> None:
+            self.text = text
+
+        def body(self) -> str:
+            return self.text
+
+    for text in ("restart", "delete everything", "open https://example.com", ""):
+        bridge.userContentController_didReceiveScriptMessage_(None, Message(text))
+    assert restarted == [True]  # only "restart" did anything; unknown requests are ignored

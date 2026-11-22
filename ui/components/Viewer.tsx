@@ -17,7 +17,7 @@ export default function Viewer({ cite, onClose }: { cite: Citation; onClose: () 
     <div className="scrim" role="dialog" aria-modal="true" aria-label="Source" onClick={onClose}>
       <div className="dialog wide" onClick={(e) => e.stopPropagation()}>
         <div className="row between">
-          <p className="kicker">Source · read-only</p>
+          <p className="fine">Read only</p>
           <button className="link" onClick={onClose}>Close</button>
         </div>
         {gone && <p className="empty">Not visible. Its source is Off now, or the file is gone.</p>}
@@ -28,7 +28,7 @@ export default function Viewer({ cite, onClose }: { cite: Citation; onClose: () 
             <div className={item.has_image ? "sidebyside" : ""}>
               {item.has_image && <img src={api.imageUrl(item.item_id)} alt="The image this text was read from" />}
               <div>
-                {item.read_by_model && <p className="note">Read from the image by the model on this laptop. It may contain errors: compare with the picture.</p>}
+                {item.read_by_model && <p className="note">Read from the picture by the AI on this Mac. Compare it with the picture.</p>}
                 <ol className="lines">
                   {item.units.map((unit) => (
                     <li key={unit.number} className={unit.number === cite.unit ? "hit" : ""}>{unit.text}</li>

@@ -1,16 +1,16 @@
 import Head from "next/head";
 import { useCallback, useEffect, useState } from "react";
 import Ask from "../components/Ask";
-import { MemoryPanel, ProofPanel, ReceiptScreen } from "../components/Panels";
-import Sources from "../components/Sources";
+import Access from "../components/Access";
+import { MyData, SessionEnded } from "../components/MyData";
 import Viewer from "../components/Viewer";
 import { api, readToken, type Answer, type Citation, type Receipt, type SessionInfo, type SourceState } from "../lib/api";
 
-type Tab = "sources" | "prepare" | "proof" | "memory";
-const TABS: [Tab, string][] = [["sources", "Sources"], ["prepare", "Prepare"], ["proof", "Proof"], ["memory", "Memory"]];
+type Tab = "access" | "ask" | "data";
+const TABS: [Tab, string][] = [["access", "Access"], ["ask", "Ask"], ["data", "My data"]];
 
 export default function Home() {
-  const [tab, setTab] = useState<Tab>("sources");
+  const [tab, setTab] = useState<Tab>("access");
   const [info, setInfo] = useState<SessionInfo | null>(null);
   const [sources, setSources] = useState<SourceState[]>([]);
   const [folder, setFolder] = useState("");
@@ -19,6 +19,7 @@ export default function Home() {
   const [error, setError] = useState("");
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [stopped, setStopped] = useState(false);
+  const [confirm, setConfirm] = useState(false);
   const [state, setState] = useState<"loading" | "ready" | "locked">("loading");
 
   const refresh = useCallback(async () => setSources(await api.sources()), []);
@@ -36,6 +37,7 @@ export default function Home() {
   }, [receipt, stopped]);
 
   async function end() {
+    setConfirm(false);
     try { setReceipt(await api.endSession()); setAnswer(null); setCite(null); } catch { setError("End session failed."); }
   }
 
@@ -66,12 +68,28 @@ export default function Home() {
               <stop offset="0" stopColor="#2f9bff" stopOpacity=".34" />
               <stop offset="1" stopColor="#ffffff" stopOpacity=".7" />
             </linearGradient>
-            <filter id="soften" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="1.2" /></filter>
+            <linearGradient id="edge" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" stopColor="#ffffff" stopOpacity="1" />
+              <stop offset=".5" stopColor="#ffffff" stopOpacity=".25" />
+              <stop offset="1" stopColor="#ffffff" stopOpacity=".95" />
+            </linearGradient>
+            <filter id="glass" x="-10%" y="-10%" width="120%" height="130%">
+              <feDropShadow dx="0" dy="18" stdDeviation="16" floodColor="#0a17c4" floodOpacity=".16" />
+            </filter>
+            <filter id="sheen" x="-5%" y="-5%" width="110%" height="110%"><feGaussianBlur stdDeviation="5" /></filter>
           </defs>
-          <g className="ribbons" filter="url(#soften)" stroke="#ffffff" strokeOpacity=".95" strokeWidth="2">
-            <path fill="url(#ribbonB)" d="M760 -90 C1080 150 640 400 1000 620 S1500 760 1560 990 L1380 990 C1320 820 900 800 770 560 S840 130 590 -90 Z" />
-            <path fill="url(#ribbonA)" d="M-120 110 C300 -70 520 420 900 250 S1480 20 1600 210 L1600 420 C1400 250 1180 520 880 470 S320 150 -120 390 Z" />
-            <path fill="url(#ribbonC)" d="M-120 540 C260 380 520 780 900 580 S1380 320 1600 540 L1600 650 C1380 480 1150 830 900 720 S300 540 -120 710 Z" />
+          <g className="ribbons">
+            <g filter="url(#glass)" stroke="url(#edge)" strokeWidth="3">
+              <path fill="url(#ribbonB)" d="M760 -90 C1080 150 640 400 1000 620 S1500 760 1560 990 L1380 990 C1320 820 900 800 770 560 S840 130 590 -90 Z" />
+              <path fill="url(#ribbonA)" d="M-120 110 C300 -70 520 420 900 250 S1480 20 1600 210 L1600 420 C1400 250 1180 520 880 470 S320 150 -120 390 Z" />
+              <path fill="url(#ribbonC)" d="M-120 540 C260 380 520 780 900 580 S1380 320 1600 540 L1600 650 C1380 480 1150 830 900 720 S300 540 -120 710 Z" />
+            </g>
+            {/* light running along the inside of each band */}
+            <g fill="none" stroke="#ffffff" strokeOpacity=".7" strokeWidth="14" filter="url(#sheen)">
+              <path d="M-120 150 C300 -30 520 450 900 285 S1480 60 1600 250" />
+              <path d="M-120 575 C260 415 520 810 900 612 S1380 355 1600 572" />
+              <path d="M720 -90 C1040 150 610 400 965 625 S1450 770 1500 990" />
+            </g>
           </g>
         </svg>
         <i className="s1" /><i className="s2" /><i className="s3" />
@@ -80,14 +98,14 @@ export default function Home() {
         <div className="wrap row between">
           <div className="row">
             <span className="mark">DeskThread</span>
-            <span className="chip pass">Stays on this laptop</span>
+            <span className="private">Private: runs only on this Mac</span>
           </div>
           {state === "ready" && !receipt && (
             <nav className="row" aria-label="Sections">
               {TABS.map(([key, label]) => (
                 <button key={key} className={tab === key ? "tab active" : "tab"} aria-current={tab === key ? "page" : undefined} onClick={() => setTab(key)}>{label}</button>
               ))}
-              <button className="danger" onClick={end}>End session</button>
+              <button className="ghost" onClick={() => setConfirm(true)}>End session</button>
             </nav>
           )}
         </div>
@@ -102,21 +120,32 @@ export default function Home() {
             <p className="sub">Each launch creates a new secret address. Start DeskThread again (double-click DeskThread.command) and use the address it opens. Nothing is reachable without it.</p>
           </section>
         )}
-        {receipt && <ReceiptScreen receipt={receipt} stopped={stopped} />}
+        {receipt && <SessionEnded receipt={receipt} stopped={stopped} />}
         {state === "ready" && !receipt && (
           <>
-            {tab === "sources" && (
-              <Sources sources={sources} folder={folder} refresh={refresh} onError={setError}
-                demoFolder={info?.demo_folder ?? ""} onReady={() => setTab("prepare")}
+            {tab === "access" && (
+              <Access sources={sources} folder={folder} refresh={refresh} onError={setError}
+                demoFolder={info?.demo_folder ?? ""} onReady={() => setTab("ask")}
                 onSources={(next, chosen) => { setSources(next); if (chosen !== undefined) { setFolder(chosen); setAnswer(null); } }} />
             )}
-            {tab === "prepare" && info && <Ask now={info.now} anyOn={anyOn} answer={answer} onAnswer={(a) => { setAnswer(a); void refresh(); }} onCite={setCite} onError={setError} />}
-            {tab === "proof" && <ProofPanel onError={setError} />}
-            {tab === "memory" && <MemoryPanel onError={setError} onForgot={() => { setAnswer(null); void refresh(); }} />}
+            {tab === "ask" && info && <Ask now={info.now} anyOn={anyOn} answer={answer} onAnswer={(a) => { setAnswer(a); void refresh(); }} onCite={setCite} onError={setError} />}
+            {tab === "data" && <MyData onError={setError} onForgot={() => { setAnswer(null); void refresh(); }} />}
           </>
         )}
       </main>
       {cite && <Viewer cite={cite} onClose={() => setCite(null)} />}
+      {confirm && (
+        <div className="scrim" role="dialog" aria-modal="true" aria-labelledby="end-title">
+          <div className="dialog">
+            <h2 id="end-title">End this session?</h2>
+            <p>Everything from this session is cleared: the answers, what was read, and what the AI was holding. Your own notes are not touched. Afterwards you can start a new session.</p>
+            <div className="row end">
+              <button className="ghost" onClick={() => setConfirm(false)}>Cancel</button>
+              <button className="primary" onClick={end}>End session</button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

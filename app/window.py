@@ -65,10 +65,10 @@ def serve(launch: Launch) -> threading.Thread:
 class AppDelegate(NSObject):
     launch: Launch | None = None
 
-    def applicationShouldTerminateAfterLastWindowClosed_(self, _app: Any) -> bool:  # noqa: N802
+    def applicationShouldTerminateAfterLastWindowClosed_(self, _app: Any) -> bool:
         return True
 
-    def applicationWillTerminate_(self, _note: Any) -> None:  # noqa: N802
+    def applicationWillTerminate_(self, _note: Any) -> None:
         if self.launch is not None:
             end_session(self.launch)
 
@@ -98,44 +98,87 @@ def _menu() -> Any:
     return bar
 
 
-def open_window(address: str, delegate: AppDelegate) -> None:
-    """Create the app, the window and the web view, and run until the window closes."""
-    info = NSBundle.mainBundle().localizedInfoDictionary() or NSBundle.mainBundle().infoDictionary()
-    if info is not None:
-        info["CFBundleName"] = NAME  # the name in the menu bar, instead of "Python"
-    app = NSApplication.sharedApplication()
-    app.setActivationPolicy_(NSApplicationActivationPolicyRegular)
-    app.setDelegate_(delegate)
-    app.setMainMenu_(_menu())
-    if ICON.is_file():
-        app.setApplicationIconImage_(NSImage.alloc().initWithContentsOfFile_(str(ICON)))
+class Bridge(NSObject):
+    """Receives the two requests the page can make of the window after a session has ended:
+    "restart" (start a new session in this window) and "quit". Nothing else is accepted."""
 
-    config = WKWebViewConfiguration.alloc().init()
-    # Nothing the page does is kept on disk: no history, no cache, no cookies.
-    config.setWebsiteDataStore_(WKWebsiteDataStore.nonPersistentDataStore())
-    style = (
-        NSWindowStyleMaskTitled
-        | NSWindowStyleMaskClosable
-        | NSWindowStyleMaskMiniaturizable
-        | NSWindowStyleMaskResizable
-    )
-    window = NSWindow.alloc().initWithContentRect_styleMask_backing_defer_(
-        NSMakeRect(0, 0, 1280, 860), style, NSBackingStoreBuffered, False
-    )
-    window.setTitle_(NAME)
-    window.setReleasedWhenClosed_(False)
-    window.setMinSize_((760, 560))
-    view = WKWebView.alloc().initWithFrame_configuration_(window.contentView().bounds(), config)
-    view.setAutoresizingMask_(18)  # width and height follow the window
-    window.setContentView_(view)
-    view.loadRequest_(NSURLRequest.requestWithURL_(NSURL.URLWithString_(address)))
-    # Ctrl+C or a plain `kill` also ends the session cleanly instead of leaving programs behind.
-    for number in (signal.SIGINT, signal.SIGTERM):
-        MachSignals.signal(number, lambda _signal: app.terminate_(None))
-    window.center()
-    window.makeKeyAndOrderFront_(None)
-    app.activateIgnoringOtherApps_(True)
-    app.run()
+    on_restart: Any = None
+
+    def userContentController_didReceiveScriptMessage_(
+        self, _controller: Any, message: Any
+    ) -> None:
+        request = str(message.body())
+        if request == "quit":
+            NSApplication.sharedApplication().terminate_(None)
+        elif request == "restart" and self.on_restart is not None:
+            self.on_restart()
+
+
+class Window:
+    """The app, its one window and the web view inside it."""
+
+    def __init__(self, launch: Launch, backend: threading.Thread) -> None:
+        self.launch, self.backend = launch, backend
+        self.delegate = AppDelegate.alloc().init()
+        self.delegate.launch = launch
+        self.bridge = Bridge.alloc().init()
+        self.bridge.on_restart = self.restart
+        self.view: Any = None
+
+    def restart(self) -> None:
+        """Start a new session in the same window: new programs, new secret address."""
+        end_session(self.launch)  # the old session is already over; this makes sure
+        self.backend.join(timeout=10)
+        launch = prepare()
+        if launch is None:
+            return
+        self.launch, self.backend = launch, serve(launch)
+        self.delegate.launch = launch
+        self.view.loadRequest_(NSURLRequest.requestWithURL_(NSURL.URLWithString_(launch.address)))
+
+    def run(self) -> None:
+        """Create the app, the window and the web view, and run until the window closes."""
+        bundle = NSBundle.mainBundle()
+        info = bundle.localizedInfoDictionary() or bundle.infoDictionary()
+        if info is not None:
+            info["CFBundleName"] = NAME  # the name in the menu bar, instead of "Python"
+        app = NSApplication.sharedApplication()
+        app.setActivationPolicy_(NSApplicationActivationPolicyRegular)
+        app.setDelegate_(self.delegate)
+        app.setMainMenu_(_menu())
+        if ICON.is_file():
+            app.setApplicationIconImage_(NSImage.alloc().initWithContentsOfFile_(str(ICON)))
+
+        config = WKWebViewConfiguration.alloc().init()
+        # Nothing the page does is kept on disk: no history, no cache, no cookies.
+        config.setWebsiteDataStore_(WKWebsiteDataStore.nonPersistentDataStore())
+        config.userContentController().addScriptMessageHandler_name_(self.bridge, "deskthread")
+        style = (
+            NSWindowStyleMaskTitled
+            | NSWindowStyleMaskClosable
+            | NSWindowStyleMaskMiniaturizable
+            | NSWindowStyleMaskResizable
+        )
+        window = NSWindow.alloc().initWithContentRect_styleMask_backing_defer_(
+            NSMakeRect(0, 0, 1280, 860), style, NSBackingStoreBuffered, False
+        )
+        window.setTitle_(NAME)
+        window.setReleasedWhenClosed_(False)
+        window.setMinSize_((760, 560))
+        self.view = WKWebView.alloc().initWithFrame_configuration_(
+            window.contentView().bounds(), config
+        )
+        self.view.setAutoresizingMask_(18)  # width and height follow the window
+        window.setContentView_(self.view)
+        address = NSURL.URLWithString_(self.launch.address)
+        self.view.loadRequest_(NSURLRequest.requestWithURL_(address))
+        # Ctrl+C or a plain `kill` also ends the session cleanly instead of leaving programs behind.
+        for number in (signal.SIGINT, signal.SIGTERM):
+            MachSignals.signal(number, lambda _signal: app.terminate_(None))
+        window.center()
+        window.makeKeyAndOrderFront_(None)
+        app.activateIgnoringOtherApps_(True)
+        app.run()
 
 
 def main() -> int:
@@ -147,14 +190,12 @@ def main() -> int:
         launch.stop_model()
         print("The page is not built yet (ui/out is missing): run `make ui` once.")
         return 2
-    backend = serve(launch)
-    delegate = AppDelegate.alloc().init()
-    delegate.launch = launch
+    window = Window(launch, serve(launch))
     try:
-        open_window(launch.address, delegate)
+        window.run()
     finally:
-        end_session(launch)
-        backend.join(timeout=10)
+        end_session(window.launch)
+        window.backend.join(timeout=10)
     return 0
 
 
