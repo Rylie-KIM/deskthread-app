@@ -126,6 +126,10 @@ class FolderAdapter:
             for scope in self._scopes
         ]
 
+    def off_limits_names(self) -> list[str]:
+        """Where each of this source's off-limits files is (a name, never opened)."""
+        return [self._key(p) for s in self._scopes for p in self._files(s) if not self._readable(p)]
+
     def off_limits_count(self) -> int:
         """How many of this source's files the policy keeps out of reach (a count only)."""
         return sum(1 for s in self._scopes for p in self._files(s) if not self._readable(p))

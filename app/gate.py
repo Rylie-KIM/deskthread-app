@@ -169,6 +169,7 @@ def check(
     given: list[Given],
     model: Model | None,
     linked: dict[str, tuple[str, str]] | None = None,
+    dropped: list[tuple[Item, Unit, str]] | None = None,
 ) -> tuple[list[Checked], GateResult]:
     """`linked`: item id -> (kind, plain reason) for notes that were brought in although
     they do not name the person asked about. A point resting only on such notes is kept as
@@ -192,6 +193,8 @@ def check(
                         loose.append((entry.item, unit))
                 else:
                     off_topic += 1
+                    if dropped is not None:
+                        dropped.append((entry.item, unit, "Not about the person asked about"))
                 continue
             if not any(i.item_id == entry.item.item_id and u == unit for i, u in cites):
                 cites.append((entry.item, unit))
@@ -218,6 +221,10 @@ def check(
         if len(verdicts) != len(flat):
             verdicts = [False] * len(flat)  # an unusable check supports nothing
         survivors: list[Checked] = []
+        if dropped is not None:
+            for (_p, c), ok in zip(flat, verdicts, strict=True):
+                if not ok:
+                    dropped.append((c[0], c[1], "Not about the question"))
         for p, checked in enumerate(kept):
             good = [c for (index, c), ok in zip(flat, verdicts, strict=True) if index == p and ok]
             off_topic += len(checked.cites) - len(good)

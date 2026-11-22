@@ -190,6 +190,32 @@ class Coverage(_Frozen):
     not_accessible: dict[str, int | None]  # Off and Locked sources: counts only, or unknown
 
 
+class ItemRef(_Frozen):
+    """An item named by what a person recognises: its title, where it is from, its date."""
+
+    item_id: str
+    title: str
+    source_label: str
+    kind: str
+    date: datetime | None = None
+
+
+class RelatedRef(_Frozen):
+    item: ItemRef
+    how: str  # why it looked related, in plain words
+
+
+class DroppedQuote(_Frozen):
+    item: ItemRef
+    quote: str  # the line, copied from the note
+    why: str  # why the check dropped it
+
+
+class Unread(_Frozen):
+    location: str  # where the file is, inside its folder
+    why: str
+
+
 class AnswerKind(StrEnum):
     BRIEF = "brief"
     NOT_FOUND = "not_found"
@@ -218,6 +244,15 @@ class Answer(_Frozen):
     # orders to an assistant). Only what is above zero is listed. (contract 1.13)
     model_name: str = ""
     left_out: dict[str, int] = Field(default_factory=dict)
+    # The items behind each stage of "how this was checked" (contract 1.19): everything read,
+    # what looked related (and how), the quotes the check dropped, what could not be read,
+    # the names of files kept out of reach, the notes that held instructions.
+    read_items: tuple[ItemRef, ...] = ()
+    related_items: tuple[RelatedRef, ...] = ()
+    dropped_quotes: tuple[DroppedQuote, ...] = ()
+    unread: tuple[Unread, ...] = ()
+    off_limits_names: tuple[str, ...] = ()
+    instruction_notes: tuple[ItemRef, ...] = ()
 
 
 class UnitView(_Frozen):

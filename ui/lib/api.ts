@@ -36,6 +36,10 @@ export interface Citation {
   read_by_model: boolean;
 }
 export type PointStatus = "done" | "open" | "changed" | "superseded";
+export interface ItemRef { item_id: string; title: string; source_label: string; kind: string; date: string | null }
+export interface RelatedRef { item: ItemRef; how: string }
+export interface DroppedQuote { item: ItemRef; quote: string; why: string }
+export interface Unread { location: string; why: string }
 export interface BriefPoint { label: string; status: PointStatus; citations: Citation[]; note: string; matched: string[]; related: "" | "meaning" | "time"; why: string }
 export interface Coverage {
   accessible: number;
@@ -61,6 +65,12 @@ export interface Answer {
   label?: string;  // what the user pressed, when the question asked was another (Prepare)
   model_name: string;
   left_out: Record<string, number>;
+  read_items: ItemRef[];
+  related_items: RelatedRef[];
+  dropped_quotes: DroppedQuote[];
+  unread: Unread[];
+  off_limits_names: string[];
+  instruction_notes: ItemRef[];
 }
 export interface Progress { step: string; number: number; of: number; detail: string }
 export interface ItemView {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, clock, day, plain, type Answer, type BriefPoint, type Citation, type Meeting, type Progress } from "../lib/api";
+import { api, clock, day, plain, type Answer, type BriefPoint, type Citation, type ItemRef, type Meeting, type Progress } from "../lib/api";
 
 // Plain words for the status of something promised or to do.
 const STATUS_TEXT = { done: "Done", open: "Still to do", changed: "Changed", superseded: "No longer valid" } as const;
@@ -8,6 +8,7 @@ const STEPS = ["Reading your folders", "Reading pictures", "Finding the right it
 const STEP: Record<string, string> = { G1: "Allowed to read", G2: "Searched", G3: "AI used", G4: "Answer check", G6: "Record kept" };
 
 // What was left out on the way to an answer, in plain words (one, many).
+const SHOWS: Record<string, Stage> = { off_limits: "off", unreadable: "unread", dropped: "dropped", instructions: "instructions" };
 const LEFT: [string, string, string][] = [
   ["off_limits", "file was skipped because you marked it off-limits", "files were skipped because you marked them off-limits"],
   ["unreadable", "item could not be read", "items could not be read"],
@@ -15,6 +16,91 @@ const LEFT: [string, string, string][] = [
   ["nowhere", "reference by the AI pointed at a line that does not exist and was dropped", "references by the AI pointed at lines that do not exist and were dropped"],
   ["instructions", "note contained instructions to an assistant; they were ignored", "notes contained instructions to an assistant; they were ignored"],
 ];
+
+// An item named in a list, opened in the same viewer as a quote.
+const refCite = (ref: ItemRef): Citation => ({
+  item_id: ref.item_id, unit: 0, quote: "", source_id: "", source_label: ref.source_label, title: ref.title,
+  date: ref.date, undated: false, read_by_model: false,
+});
+
+type Stage = "read" | "related" | "quoted" | "dropped" | "unread" | "off" | "instructions";
+
+// The items behind one number of "How this was checked". Opening a row opens the item.
+function StageDialog({ answer, stage, onClose, onCite }: { answer: Answer; stage: Stage; onClose: () => void; onCite: (cite: Citation) => void }) {
+  const [find, setFind] = useState("");
+  const q = find.trim().toLowerCase();
+  const hit = (...parts: string[]) => !q || parts.some((part) => part.toLowerCase().includes(q));
+  const quoted = new Map<string, { ref: ItemRef; quotes: number }>();
+  for (const point of answer.points) for (const c of point.citations) {
+    const held = quoted.get(c.item_id);
+    if (held) held.quotes += 1;
+    else quoted.set(c.item_id, { ref: { item_id: c.item_id, title: c.title, source_label: c.source_label, kind: "", date: c.date }, quotes: 1 });
+  }
+  const row = (ref: ItemRef, extra?: React.ReactNode, key?: string) => (
+    <li key={key ?? ref.item_id}>
+      <button type="button" className="stagerow" onClick={() => onCite(refCite(ref))} title="Open this item">
+        <b>{ref.title}</b>
+        <span className="origin"><em className="tag">{ref.source_label}</em><span>{ref.date ? day(ref.date) : "No date"}</span>{extra}</span>
+      </button>
+    </li>
+  );
+  const plainRow = (key: string, main: string, tags: React.ReactNode) => (
+    <li key={key}><div className="stagerow still"><b>{main}</b><span className="origin">{tags}</span></div></li>
+  );
+  let title = "";
+  let rows: React.ReactNode[] = [];
+  let total = 0;
+  if (stage === "read") {
+    title = "Items read";
+    const list = answer.read_items.filter((r) => hit(r.title, r.source_label));
+    total = answer.read_items.length; rows = list.map((r) => row(r));
+  } else if (stage === "related") {
+    title = "Looked related";
+    const list = answer.related_items.filter((r) => hit(r.item.title, r.how));
+    total = answer.related_items.length; rows = list.map((r) => row(r.item, <span>{r.how}</span>));
+  } else if (stage === "quoted") {
+    title = "Notes quoted";
+    const list = [...quoted.values()].filter((x) => hit(x.ref.title));
+    total = quoted.size; rows = list.map((x) => row(x.ref, <span>{x.quotes} {x.quotes === 1 ? "quote" : "quotes"}</span>));
+  } else if (stage === "dropped") {
+    title = "Quotes dropped";
+    const list = answer.dropped_quotes.filter((d) => hit(d.quote, d.item.title));
+    total = answer.dropped_quotes.length;
+    rows = list.map((d, i) => (
+      <li key={i}>
+        <button type="button" className="stagerow" onClick={() => onCite(refCite(d.item))} title="Open the note">
+          <span className="quote">“{d.quote.replace(/^[-*•]\s*/, "")}”</span>
+          <span className="origin"><span>{d.item.title}</span><span>{d.item.date ? day(d.item.date) : "No date"}</span><em className="tag">{d.why}</em></span>
+        </button>
+      </li>
+    ));
+  } else if (stage === "unread") {
+    title = "Could not be read";
+    const list = answer.unread.filter((u) => hit(u.location, u.why));
+    total = answer.unread.length; rows = list.map((u, i) => plainRow(`${i}`, u.location, <em className="tag">{u.why}</em>));
+  } else if (stage === "off") {
+    title = "Kept out of reach (never opened)";
+    const list = answer.off_limits_names.filter((n) => hit(n));
+    total = answer.off_limits_names.length; rows = list.map((n, i) => plainRow(`${i}`, n, <em className="tag">Marked off-limits</em>));
+  } else {
+    title = "Notes that held instructions";
+    const list = answer.instruction_notes.filter((r) => hit(r.title));
+    total = answer.instruction_notes.length; rows = list.map((r) => row(r, <em className="tag">Treated as plain text</em>));
+  }
+  return (
+    <div className="scrim" role="dialog" aria-modal="true" aria-label={title} onClick={onClose}>
+      <div className="dialog wide" onClick={(e) => e.stopPropagation()}>
+        <div className="row between">
+          <h2>{title} <span className="count">{total}</span></h2>
+          <button className="iconbtn" aria-label="Close" onClick={onClose}>×</button>
+        </div>
+        {total > 10 && <input className="stagefind" aria-label="Find in this list" placeholder="Find" value={find} onChange={(e) => setFind(e.target.value)} />}
+        {total === 0 ? <p className="empty">Nothing here.</p> : <ul className="stagelist">{rows}</ul>}
+        {q && rows.length === 0 && total > 0 && <p className="empty">No match.</p>}
+      </div>
+    </div>
+  );
+}
 
 // How long an answer took, in plain words.
 const took = (seconds: number) => (seconds < 60 ? `${Math.max(1, Math.round(seconds))} s` : `${Math.floor(seconds / 60)} min ${Math.round(seconds % 60)} s`);
@@ -90,6 +176,7 @@ function Finding({ point, showStatus, first, onCite }: { point: BriefPoint; show
 function Found({ answer, onCite }: { answer: Answer; onCite: (cite: Citation) => void }) {
   const [details, setDetails] = useState(false);
   const [tech, setTech] = useState(false);
+  const [stage, setStage] = useState<Stage | null>(null);
   const sure = answer.points.filter((p) => !p.related);
   const maybe = answer.points.filter((p) => p.related);
   return (
@@ -123,6 +210,7 @@ function Found({ answer, onCite }: { answer: Answer; onCite: (cite: Citation) =>
           )}
         </>
       )}
+      {stage && <StageDialog answer={answer} stage={stage} onClose={() => setStage(null)} onCite={(cite) => { setStage(null); onCite(cite); }} />}
       <p className="looked bits">
         <span>Looked through <b>{answer.coverage.searched}</b> items</span>
         <span className="took">Answered in {took(answer.seconds)}</span>
@@ -132,9 +220,9 @@ function Found({ answer, onCite }: { answer: Answer; onCite: (cite: Citation) =>
         <div className="checked">
           {/* From everything read down to what is shown: each step keeps fewer items. */}
           <ol className="funnel">
-            <li><b>{answer.coverage.searched}</b><span>items read</span></li>
-            <li><b>{answer.coverage.given_to_model}</b><span>looked related</span></li>
-            <li><b>{answer.coverage.cited}</b><span>{answer.coverage.cited === 1 ? "note quoted" : "notes quoted"}</span></li>
+            <li className="click" role="button" tabIndex={0} onClick={() => setStage("read")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setStage("read"); }}><b>{answer.coverage.searched}</b><span>items read</span></li>
+            <li className="click" role="button" tabIndex={0} onClick={() => setStage("related")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setStage("related"); }}><b>{answer.coverage.given_to_model}</b><span>looked related</span></li>
+            <li className="click" role="button" tabIndex={0} onClick={() => setStage("quoted")} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setStage("quoted"); }}><b>{answer.coverage.cited}</b><span>{answer.coverage.cited === 1 ? "note quoted" : "notes quoted"}</span></li>
             <li className="last"><b>{sure.length}</b><span>{sure.length === 1 ? "thing found" : "things found"}{maybe.length > 0 ? `, ${maybe.length} possibly related` : ""}</span></li>
           </ol>
           {answer.model_name && <p className="by"><i className="orb tiny" aria-hidden="true" />Answered by <b>{answer.model_name}</b>, the AI on this Mac</p>}
@@ -145,7 +233,8 @@ function Found({ answer, onCite }: { answer: Answer; onCite: (cite: Citation) =>
             <ul className="leftout">
               {LEFT.filter(([key]) => (answer.left_out[key] ?? 0) > 0).map(([key, one, many]) => {
                 const count = answer.left_out[key] ?? 0;
-                return <li key={key}><b>{count}</b><span>{count === 1 ? one : many}</span></li>;
+                const opens = SHOWS[key];
+                return <li key={key}><b>{count}</b><span>{count === 1 ? one : many}</span>{opens ? <button type="button" className="link" onClick={() => setStage(opens)}>Show</button> : <i />}</li>;
               })}
             </ul>
           )}

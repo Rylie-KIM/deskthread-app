@@ -44,12 +44,16 @@ from contracts.api import (
     AnswerKind,
     BriefPoint,
     Citation,
+    DroppedQuote,
+    ItemRef,
     Meeting,
     PointStatus,
     Progress,
+    RelatedRef,
+    Unread,
 )
 from contracts.broker import SourceStatus
-from contracts.errors import DeskThreadError
+from contracts.errors import DeskThreadError, ErrorCode
 from contracts.gates import Gate, GateResult, Outcome
 from contracts.items import Item, ItemKind, Unit
 
@@ -140,13 +144,16 @@ class Assistant:
     def ask(self, question: str, person: str | None = None) -> Answer:
         self._stop.clear()
         self._left: dict[str, int] = {}
+        self._dropped: list[tuple[Item, Unit, str]] = []  # quotes the check dropped
+        self._seen: tuple[Query, dict[str, tuple[str, str]]] | None = None  # query, linked
         started = time.monotonic()
         try:
             answer = self._ask(question, person)
             choice = config.model_choice(getattr(self._model, "tag", config.MODEL_TAG))
             named = choice.name if choice else getattr(self._model, "tag", "")
             kept = {k: v for k, v in self._left.items() if v > 0}
-            return answer.model_copy(update={"model_name": named, "left_out": kept})
+            update = {"model_name": named, "left_out": kept, **self._details(answer)}
+            return answer.model_copy(update=update)
         except _StoppedError:
             return self._answer(AnswerKind.STOPPED, question, "Stopped.", [], [], [], started)
         finally:
@@ -191,6 +198,7 @@ class Assistant:
                 )
             candidates = find(query, items)
             linked = self._link(query, items, candidates)
+            self._seen = (query, linked)
             known = {c.item.item_id for c in candidates}
             by_id = {i.item_id: i for i in items}
             candidates += [Candidate(by_id[i], 0.0) for i in linked if i not in known]
@@ -278,7 +286,7 @@ class Assistant:
         )
         proposed = parse_points(complete_json(self._model, prompt))
         self._step(5)
-        points, result = check(query, proposed, given, self._model, linked)
+        points, result = check(query, proposed, given, self._model, linked, self._dropped)
         self._step(5)  # a question stopped while the AI was answering ends here
         return given, points, result
 
@@ -301,6 +309,55 @@ class Assistant:
         ]
         scored.sort(key=lambda pair: (-pair[0], pair[1].item_id))
         return [Candidate(i, score) for score, i in scored[:8] if score >= config.LIKE_WIDER]
+
+    # ------------------------------------------------------------ the items behind the numbers
+    def _details(self, answer: Answer) -> dict[str, object]:
+        """The items of each stage of "how this was checked", so that every number can be
+        opened: all that was read, what looked related and how, the quotes that were dropped,
+        what could not be read, the files kept out of reach, the notes with instructions."""
+        labels = {s.source_id: s.label for s in self._broker.states()}
+
+        def ref(item: Item) -> ItemRef:
+            return ItemRef(
+                item_id=item.item_id,
+                title=item.title,
+                source_label=labels.get(item.source_id, item.source_id),
+                kind=item.kind.value,
+                date=item.date,
+            )
+
+        items = self._store.items()
+        given = set(answer.given_item_ids)
+        query, linked = self._seen if self._seen else (None, {})
+        why = {
+            ErrorCode.UNSUPPORTED_TYPE.value: "Format not supported",
+            ErrorCode.READ_FAILED.value: "The file could not be opened",
+        }
+        unread = [
+            Unread(location=u.location, why=why.get(u.reason, "Could not be read"))
+            for u in self._store.uncounted()
+        ] + [
+            Unread(location=i.location, why="Picture not read: the AI in use could not read it")
+            for i in items
+            if i.kind is ItemKind.IMAGE and i.meta.get("reading") == "pending"
+        ]
+        return {
+            "read_items": tuple(ref(i) for i in items),
+            "related_items": tuple(
+                RelatedRef(item=ref(i), how=_how(query, i, linked))
+                for i in items
+                if i.item_id in given
+            ),
+            "dropped_quotes": tuple(
+                DroppedQuote(item=ref(item), quote=unit.text, why=reason)
+                for item, unit, reason in self._dropped
+            ),
+            "unread": tuple(unread),
+            "off_limits_names": tuple(coverage.off_limit_names(self._broker)),
+            "instruction_notes": tuple(
+                ref(i) for i in items if i.item_id in given and instruction_units(i)
+            ),
+        }
 
     # ------------------------------------------------------------------ related notes
     def _link(
@@ -440,6 +497,23 @@ def _attendees(item: Item) -> list[str]:
         if _TEAM_LIST.match(body):
             people += [n for n in re.split(r",\s*|\s+and\s+", body.rstrip(".")) if n]
     return list(dict.fromkeys(people))
+
+
+def _how(query: Query | None, item: Item, linked: dict[str, tuple[str, str]]) -> str:
+    """Why an item looked related, in plain words."""
+    if item.item_id in linked:
+        return linked[item.item_id][1]
+    if query is None:
+        return "Found by its words"
+    have = set(item_stems(item))
+    words = [w for w in query.focus_words if stem(w) in have]
+    names = sorted(n for n in names_in(query.question) if stem(n.lower()) in have)
+    found = [*names, *[w for w in words if w not in names]]
+    if found:
+        return "Mentions " + ", ".join(found)
+    if query.window is not None:
+        return f"Dated {query.window_name}"
+    return "Found by its words"
 
 
 def _aware(moment: datetime) -> datetime:

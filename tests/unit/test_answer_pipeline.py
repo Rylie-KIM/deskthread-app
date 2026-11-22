@@ -253,3 +253,17 @@ def test_a_note_that_does_not_name_the_person_is_shown_apart_as_possibly_related
             session.store.load(state.source_id)
     plain = session.assistant.ask("What did I promise Sam?")
     assert [p.label for p in plain.points] == ["Analytics course"]  # as before, by words only
+
+
+def test_every_number_of_how_it_was_checked_can_be_opened(demo_laptop: Path) -> None:
+    model = FakeModel(lambda _question: SAM_BRIEF, verify="no")  # the check drops every quote
+    _session, assistant = open_work(demo_laptop, model)
+    answer = assistant.ask("What did I promise Sam about the course?")  # a topic: it is checked
+    assert len(answer.read_items) == answer.coverage.searched > 20  # everything that was read
+    assert {r.item.item_id for r in answer.related_items} == set(answer.given_item_ids)
+    assert all(r.how for r in answer.related_items)
+    assert answer.dropped_quotes and all(d.quote and d.why for d in answer.dropped_quotes)
+    assert len(answer.dropped_quotes) == answer.left_out["dropped"]  # the count is the list
+    assert all(i.item_id in set(answer.given_item_ids) for i in answer.instruction_notes)
+    assert len(answer.unread) == answer.left_out.get("unreadable", 0)
+    assert answer.off_limits_names and len(answer.off_limits_names) == answer.left_out["off_limits"]

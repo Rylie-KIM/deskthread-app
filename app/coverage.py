@@ -23,6 +23,15 @@ def off_limits(broker: Broker) -> int:
     return total
 
 
+def off_limit_names(broker: Broker) -> list[str]:
+    names: list[str] = []
+    for state in broker.states():
+        adapter = broker.adapter(state.source_id)
+        if state.status is SourceStatus.ON and isinstance(adapter, FolderAdapter):
+            names += adapter.off_limits_names()
+    return names
+
+
 def build(broker: Broker, store: SessionStore, given: int, cited: int) -> Coverage:
     items, uncounted = store.items(), store.uncounted()
     by_source: dict[str, int] = {}
