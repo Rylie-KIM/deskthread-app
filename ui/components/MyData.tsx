@@ -240,7 +240,7 @@ export function MyData({ onError, onClear, onEnd }: { onError: (message: string)
             </ol>
             <div className="copyline">
               <code className="cmd">{check.command}</code>
-              <button className="ghost small" onClick={() => copy(check.command)}>{copied ? "Copied" : "Copy"}</button>
+              <button className={copied ? "primary small" : "ghost small"} onClick={() => copy(check.command)}>{copied ? "Copied" : "Copy"}</button>
               {macWindow() && <button className="ghost small" onClick={() => macWindow()?.postMessage("open-terminal")}>Open Terminal</button>}
             </div>
             <div className="pair closing">
