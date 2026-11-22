@@ -29,7 +29,7 @@ This is a work in progress. The table says plainly what exists.
 | Local API with a per-launch token, Origin and Host checks, strict content-security-policy | **Built and tested** |
 | Browser interface: sources and permission request, Prepare, ask, brief, source viewer, Proof, Memory, End session with a receipt | **Built**; the main click path was checked by hand in the browser (see Tests) |
 | Launcher with a clean stop (`make run`, `DeskThread.command`) | **Built and tested** on the real process |
-| `DeskThread.app`: double-click start with first-start setup | **Built**; opened once on the development Mac (backend and model server came up on `127.0.0.1`); the first-start setup branches were not exercised |
+| `DeskThread.app`: double-click start in its own Mac window, with first-start setup | **Built**; the window was opened on the development Mac and showed the first screen (checked by asking the web view), and a quit stopped every program; the first-start setup branches were not exercised |
 | `verify` script (an independent check after quitting), canary leak tests, Wi-Fi-off run | **Not built or not run yet** |
 | Connectors to the Mac's own Notes, Calendar, Reminders and Mail apps | **Not built yet** (a read-only Calendar test worked; see Limitations) |
 | Windows | **Not tested** |
@@ -76,7 +76,7 @@ kill %1
 **Double-click `DeskThread.app`** in the project folder (you can drag it to the Dock). That is all.
 
 - On the first start it prepares what is missing by itself: the Python parts, the page, the invented demo laptop. If the model is not on the Mac yet, it asks before the one large download (about 9 GB). These are the only steps that use the network; `brew install ollama uv` and Node.js must already be there.
-- Then it starts its own model server and the backend on `127.0.0.1` and opens DeskThread in its own window (in Chrome if installed, otherwise in your default browser). The address carries a secret token for this launch; nothing answers without it.
+- Then it starts its own model server and the backend on `127.0.0.1` and opens DeskThread in **its own Mac window: no browser is involved**. The window holds macOS's built-in web view, set to keep no history, cache or cookies on disk. The address inside carries a secret token for this launch; nothing answers without it.
 - macOS may ask once whether to open an app from an unidentified developer: the app is a small unsigned script. Right-click it and choose Open.
 
 **In the window:**
@@ -84,9 +84,9 @@ kill %1
 1. Click **Try it with the demo laptop**. One click chooses the invented folder, switches on the work sources and shows tomorrow's one-to-one. (Or click **Choose my folder…** for your own files: everything in it starts Off and you allow each source yourself.)
 2. Click **Prepare**. The first answer takes about 30 seconds (the model loads and reads the images). Click any quote to open its source, read-only. Ask your own questions in the box.
 3. **Proof** and **Memory** show what it connected to, what it holds and what it wrote. **Stop access** or **Stop all** takes effect at once.
-4. **End session** gives you a receipt and stops both programs. Closing the window alone does not stop them.
+4. **End session** gives you a receipt and stops both programs. Closing the window (or Cmd+Q) ends the session too: sources are revoked, memory is cleared, the model is unloaded and everything stops.
 
-Without the app bundle, `make run` (or `DeskThread.command`) does the same from a terminal, after `make setup ui demo-data`.
+Without the app bundle, `make run` (or `DeskThread.command`) does the same from a terminal, after `make setup ui demo-data`. `make run-browser` opens the page in your default browser instead of the window.
 
 To use the demo's story clock (the evening of Sun 22 Nov 2026, the day before the meeting) start it as `DESKTHREAD_NOW=2026-11-22T19:00:00+00:00 make run`. It is a test and demo setting only; without it the real time is used and "tomorrow's one-to-one" will not be found in the demo calendar.
 
@@ -115,7 +115,7 @@ uv run python -m scripts.ask --folder ~/Documents/Work --now ""
 **Checks and the measured run:**
 
 ```bash
-make check                                            # lint, type checks and 127 tests (no model needed)
+make check                                            # lint, type checks and 130 tests (no model needed)
 DESKTHREAD_NOW=2026-11-22T19:00:00+00:00 \
   uv run python -m eval.run --set tuning -v           # scores eight questions against the ground truth
 ```
@@ -136,6 +136,7 @@ Time per question: about 4 to 28 seconds; the first is slowest because the five 
 
 | Part | Tech | Whose it is and why |
 |---|---|---|
+| Window | A native macOS window with the system web view (WebKit), opened from Python through pyobjc | Apple's frameworks; pyobjc is open source (MIT). No browser, and a non-persistent store: nothing the page does is kept on disk |
 | Page | React 19 and Next.js 16, built once into static files | Meta and Vercel (US), MIT; served by the local backend, nothing loaded from outside |
 | Backend | Python 3.13, FastAPI, Pydantic | Open source; typed data shapes between every part; bound to `127.0.0.1` |
 | Model runtime | Ollama server 0.40.9 on `127.0.0.1:11435` | Ollama Inc. (US), MIT; runs the model on the laptop |
@@ -173,7 +174,7 @@ deskthread-app/
 
 ## Tests
 
-`make check` runs lint, strict type checks (Python and TypeScript) and 127 tests in about 7 seconds, without the model.
+`make check` runs lint, strict type checks (Python and TypeScript) and 130 tests in about 7 seconds, without the model.
 
 | Group | What it proves | Result |
 |---|---|---|

@@ -46,9 +46,9 @@ if [[ ! -d "$HOME/.ollama/models/manifests/registry.ollama.ai/library/gemma4" ]]
   (( PULLED == 0 )) || fail "The model download did not finish. Start DeskThread again to retry."
 fi
 
-# --- start: the model server, the backend and the page, all on 127.0.0.1 ----------------
+# --- start: the model server, the backend and the window, all on 127.0.0.1 --------------
 notify "Starting on this Mac only…"
-uv run --frozen --no-dev python -B -m app --window >/dev/null 2>&1
+uv run --frozen --no-dev python -B -m app.window >/dev/null 2>&1   # its own Mac window, no browser
 code=$?
 (( code == 0 )) || say_box "DeskThread stopped unexpectedly (code $code). To see why, run in Terminal:\n\ncd '$REPO' && make run" caution
 exit $code

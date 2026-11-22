@@ -11,7 +11,7 @@ export HF_HUB_DISABLE_TELEMETRY := 1
 
 UV := uv run --frozen
 
-.PHONY: setup check lint format typecheck test test-live ui ui-check run demo-data
+.PHONY: setup check lint format typecheck test test-live ui ui-check run run-browser demo-data
 
 setup:            ## install the locked dependencies into .venv (the one network step besides the model)
 	uv sync --frozen
@@ -44,5 +44,8 @@ ui-check:         ## strict TypeScript check of the UI (needs `make ui` once)
 demo-data:        ## build the invented demo laptop in ./demo-laptop
 	$(UV) python -B demo-data/make_demo_data.py
 
-run:              ## start DeskThread (model server, backend, page) on this Mac only
+run:              ## start DeskThread in its own Mac window (model server, backend, page), on this Mac only
 	./DeskThread.command
+
+run-browser:      ## the same, but the page opens in your default browser
+	$(UV) python -B -m app

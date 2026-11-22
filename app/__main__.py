@@ -11,6 +11,7 @@ import socket
 import subprocess
 import sys
 import webbrowser
+from dataclasses import dataclass
 from pathlib import Path
 
 sys.dont_write_bytecode = True
@@ -47,24 +48,36 @@ def open_page(address: str, own_window: bool) -> None:
     webbrowser.open(address)
 
 
-def main() -> int:
-    parser = argparse.ArgumentParser(description="DeskThread")
-    parser.add_argument("--port", type=int, default=0, help="default: a random free port")
-    parser.add_argument("--no-browser", action="store_true", help="do not open the page")
-    parser.add_argument("--no-model-server", action="store_true", help="for tests")
-    parser.add_argument("--window", action="store_true", help="open as its own window")
-    args = parser.parse_args()
+@dataclass
+class Launch:
+    """Everything a start needs: the session state, the web server and the page address."""
 
+    runtime: Runtime
+    web: uvicorn.Server
+    gateway: ModelGateway
+    server: ModelServer | None
+
+    @property
+    def address(self) -> str:
+        return f"{self.runtime.origin}/#t={self.runtime.token}"
+
+    def stop_model(self) -> None:
+        if self.server is not None:
+            self.gateway.unload()
+            self.server.stop()
+
+
+def prepare(port: int = 0, model_server: bool = True) -> Launch | None:
+    """Start the model server and build the backend. None if the model server is missing."""
     os.environ.update(config.QUIET_ENV)  # telemetry and cloud features off, for us and children
     install_write_audit()  # count every file this backend opens for writing
 
     gateway = ModelGateway()
-    server = None if args.no_model_server else ModelServer()
+    server = ModelServer() if model_server else None
     if server is not None and not server.start(gateway):
-        print("The local model server did not start. Is Ollama installed (brew install ollama)?")
-        return 2
+        return None
 
-    port = args.port or free_port()
+    port = port or free_port()
     runtime = Runtime(
         gateway, port, gateway=gateway, server=server, demo_folder=REPO / "demo-laptop"
     )
@@ -78,19 +91,30 @@ def main() -> int:
         )
     )
     runtime.stop = lambda: setattr(web, "should_exit", True)
+    return Launch(runtime, web, gateway, server)
 
-    address = f"{runtime.origin}/#t={runtime.token}"
-    print(f"DeskThread is running on this Mac only.\nOpen: {address}", flush=True)
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description="DeskThread")
+    parser.add_argument("--port", type=int, default=0, help="default: a random free port")
+    parser.add_argument("--no-browser", action="store_true", help="do not open the page")
+    parser.add_argument("--no-model-server", action="store_true", help="for tests")
+    parser.add_argument("--window", action="store_true", help="open as its own window")
+    args = parser.parse_args()
+
+    launch = prepare(args.port, not args.no_model_server)
+    if launch is None:
+        print("The local model server did not start. Is Ollama installed (brew install ollama)?")
+        return 2
+    print(f"DeskThread is running on this Mac only.\nOpen: {launch.address}", flush=True)
     if not UI_DIR.is_dir():
         print("The page is not built yet (ui/out is missing): run `make ui` once.", flush=True)
     if not args.no_browser:
-        open_page(address, args.window)
+        open_page(launch.address, args.window)
     try:
-        web.run()
+        launch.web.run()
     finally:
-        if server is not None:
-            gateway.unload()
-            server.stop()
+        launch.stop_model()
     print("DeskThread has stopped. Nothing is listening any more.", flush=True)
     return 0
 
