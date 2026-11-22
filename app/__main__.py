@@ -75,6 +75,7 @@ def prepare(port: int = 0, model_server: bool = True, mac: bool = True) -> Launc
     install_write_audit()  # count every file this backend opens for writing
 
     gateway = ModelGateway()
+    gateway.detached = not model_server  # without our own server, touch no one else's
     server = ModelServer() if model_server else None
     if server is not None and not server.start(gateway):
         return None

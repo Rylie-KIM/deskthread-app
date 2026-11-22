@@ -63,6 +63,9 @@ class ModelGateway:
         self.calls = 0
         self.tag = config.MODEL_TAG  # the model in use; the user may choose another
         self.digest = ""  # the digest of the model in use, once checked
+        # True for a launch without our own model server (tests, screenshots): such a launch
+        # must never look at or unload the models of a server another session is using.
+        self.detached = False
 
     @property
     def reads_pictures(self) -> bool:
@@ -157,6 +160,8 @@ class ModelGateway:
 
     def _held(self) -> list[str]:
         """Names of the models our server has in memory right now."""
+        if self.detached:
+            return []
         try:
             models = self._call("/api/ps", timeout=5).get("models", [])
         except DeskThreadError:
