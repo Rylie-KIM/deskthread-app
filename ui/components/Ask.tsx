@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, ApiError, clock, day, type Answer, type Citation, type Meeting } from "../lib/api";
+import Models from "./Models";
 
 const STEP: Record<string, string> = { G1: "Access rules", G2: "Reading", G3: "AI on this Mac", G4: "Answer check", G6: "Record" };
 const STATUS_TEXT = { done: "Done", open: "Open", changed: "Changed", superseded: "Superseded" } as const;
@@ -111,6 +112,7 @@ export default function Ask({ now, anyOn, answer, onAnswer, onCite, onError }: P
           </div>
         </div>
       )}
+      <Models onError={onError} />
     </section>
   );
 }

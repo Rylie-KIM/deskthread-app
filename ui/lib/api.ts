@@ -108,6 +108,20 @@ export interface SessionInfo {
   demo_folder: string;
 }
 
+export interface ModelInfo {
+  tag: string;
+  name: string;
+  maker: string;
+  download_gb: number;
+  reads_pictures: boolean;
+  good_for: string;
+  installed: boolean;
+  selected: boolean;
+  tested: boolean;
+  downloading: number | null;
+  failed: boolean;
+}
+
 export class ApiError extends Error {
   constructor(public code: string, message: string, public status: number) {
     super(message);
@@ -155,6 +169,9 @@ export const api = {
   ask: (question: string) => call<Answer>("POST", "/api/ask", { question }),
   item: (itemId: string) => call<ItemView>("GET", `/api/items/${id(itemId)}`),
   imageUrl: (itemId: string) => `/api/items/${id(itemId)}/image?t=${id(readToken())}`,
+  models: () => call<ModelInfo[]>("GET", "/api/models"),
+  selectModel: (tag: string) => call<ModelInfo[]>("POST", "/api/models/select", { tag }),
+  downloadModel: (tag: string) => call<ModelInfo[]>("POST", "/api/models/download", { tag }),
   memory: () => call<MemoryState>("GET", "/api/memory"),
   forget: () => call<MemoryState>("POST", "/api/forget"),
   proof: () => call<Proof>("GET", "/api/proof"),

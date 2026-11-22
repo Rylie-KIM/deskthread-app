@@ -233,3 +233,7 @@ details[open] > summary { margin-bottom: 10px; }
 .ended .row { margin-top: 18px; }
 .trace b { color: var(--ink); font-weight: 650; margin-right: 6px; }
 @media (max-width: 860px) { .facts { grid-template-columns: 1fr; } }
+.models { margin-top: 34px; }
+.models .rows { grid-template-columns: 1fr; }
+.models .who b, .models .who small { white-space: normal; }
+.small { padding: 7px 16px; font-size: .9rem; }
