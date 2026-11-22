@@ -51,7 +51,7 @@ export default function Models({ onError, onChange }: { onError: (message: strin
               <tr key={m.tag} className={m.selected ? "current" : ""}>
                 <td>
                   <b>{m.name}</b>
-                  <span className="about"><em className="tag">{m.maker}</em><small>{LINE[m.tag]?.[0] ?? m.good_for}</small>{!m.tested && <em className="tag plain">Not tested</em>}</span>
+                  <span className="about"><em className="tag">{m.maker}</em><small>{LINE[m.tag]?.[0] ?? m.good_for}</small></span>
                 </td>
                 <td><Mark yes /></td>
                 <td><Mark yes={m.reads_pictures} /></td>
