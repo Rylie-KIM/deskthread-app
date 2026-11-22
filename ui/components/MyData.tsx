@@ -72,11 +72,17 @@ export function MyData({ onError, onForgot, onEnd }: { onError: (message: string
             <button className="primary" disabled={busy} onClick={async () => { setBusy(true); try { setMemory(await api.forget()); onForgot(); } catch { onError("Clear memory did not work."); } finally { setBusy(false); } }}>
               {busy ? "Clearing…" : "Clear memory"}
             </button>
-            <small>Clears this conversation, what was read and what the AI holds. Your switches stay on.</small>
+            <ul className="effects">
+              <li><b>Removed</b> the files that were read, the AI model in memory, this conversation</li>
+              <li><b>Kept</b> your access settings: what you switched on stays on</li>
+            </ul>
           </div>
           <div className="action">
             <button className="ghost" onClick={onEnd}>End session</button>
-            <small>Clears all of that, switches everything off and stops DeskThread.</small>
+            <ul className="effects">
+              <li><b>Removed</b> the same, and your access settings: everything is reset to Off, DeskThread stops</li>
+              <li><b>Kept</b> only your own files and notes, untouched</li>
+            </ul>
           </div>
         </div>
         {/* What is where, live: your sources -> DeskThread -> the AI. Nothing leads off this Mac. */}

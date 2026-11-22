@@ -123,7 +123,7 @@ export default function Home() {
               {TABS.map(([key, label]) => (
                 <button key={key} className={tab === key ? "tab active" : "tab"} aria-current={tab === key ? "page" : undefined} onClick={() => setTab(key)}>{label}</button>
               ))}
-              <button className="ghost" title="Clears everything, switches everything off and stops DeskThread" onClick={() => setConfirm(true)}>End session</button>
+              <button className="ghost" title="Removes what was read, the AI model in memory, the conversation and your access settings; DeskThread stops" onClick={() => setConfirm(true)}>End session</button>
             </nav>
           )}
         </div>
@@ -163,7 +163,11 @@ export default function Home() {
         <div className="scrim" role="dialog" aria-modal="true" aria-labelledby="end-title">
           <div className="dialog">
             <h2 id="end-title">End this session?</h2>
-            <p>Clears this conversation, what was read and what the AI holds, switches everything off and stops DeskThread. Your own notes are not touched. Afterwards you can start a new session.</p>
+            <ul className="effects">
+              <li><b>Removed</b> the files that were read, the AI model in memory, this conversation, and your access settings: everything is reset to Off and DeskThread stops</li>
+              <li><b>Kept</b> only your own files and notes, untouched</li>
+            </ul>
+            <p className="fine">Afterwards you can start a new session.</p>
             <div className="row end">
               <button className="ghost" onClick={() => setConfirm(false)}>Cancel</button>
               <button className="primary" onClick={end}>End session</button>
