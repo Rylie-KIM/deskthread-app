@@ -11,7 +11,8 @@ from collections.abc import Callable
 from pathlib import Path
 
 from app.model import Model, ModelGateway, ModelServer
-from app.session import Session, open_folder
+from app.session import Session, choose_folder, new_session
+from contracts.adapters import SourceAdapter
 from contracts.errors import DeskThreadError, ErrorCode
 
 DEMO_MARKER = ".deskthread-demo"
@@ -26,6 +27,7 @@ class Runtime:
         gateway: ModelGateway | None = None,
         server: ModelServer | None = None,
         demo_folder: Path | None = None,
+        apps: list[SourceAdapter] | None = None,
     ) -> None:
         self.model, self.port, self.gateway, self.server = model, port, gateway, server
         # Offered on the first screen only if it is a folder our generator built.
@@ -35,7 +37,8 @@ class Runtime:
         # A fresh random token for each launch; the page gets it in the address fragment,
         # which a browser never sends over the network (FT-23).
         self.token = secrets.token_urlsafe(32)
-        self.session: Session | None = None
+        # One session per launch. Apps on this Mac are listed from the start, all Off.
+        self.session: Session = new_session(model, apps)
         self.root: Path | None = None
         self.ask_lock = threading.Lock()  # one question at a time; revoke never waits on it
         self.on_folder: list[Callable[[Path], None]] = []
@@ -46,20 +49,16 @@ class Runtime:
         return f"http://127.0.0.1:{self.port}"
 
     def require(self) -> Session:
-        if self.session is None:
-            raise DeskThreadError(ErrorCode.SOURCE_NOT_ALLOWED, "no folder chosen yet")
         return self.session
 
     def choose(self, path: str) -> Session:
-        """Start over on a folder. An empty path opens the Mac's own folder dialog (FT-33)."""
+        """Use a folder. An empty path opens the Mac's own folder dialog (FT-33). The old
+        folder's sources are revoked and dropped from memory first."""
         folder = Path(path).expanduser() if path else self._dialog()
         if not folder.is_dir():
             raise DeskThreadError(ErrorCode.BAD_REQUEST, "that folder does not exist")
-        if self.session is not None:
-            self.session.broker.revoke_all()  # the old choice is dropped from memory first
-            self.session.assistant.forget()
         self.root = folder.resolve()
-        self.session = open_folder(self.root, self.model)
+        choose_folder(self.session, self.root)
         for callback in self.on_folder:
             callback(self.root)
         return self.session

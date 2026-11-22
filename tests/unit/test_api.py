@@ -110,7 +110,8 @@ def test_the_api_serves_exactly_the_routes_of_the_contract_so_far(runtime: Runti
 def test_before_a_folder_is_chosen_there_is_nothing(client: TestClient) -> None:
     assert client.get("/api/sources").json() == []
     assert client.get("/api/meetings").json() == []
-    assert client.post("/api/ask", json={"question": "anything"}).status_code == 409
+    asked = client.post("/api/ask", json={"question": "anything"}).json()
+    assert asked["kind"] == "no_sources" and asked["coverage"]["accessible"] == 0
 
 
 def test_choose_folder_work_profile_prepare_and_revoke(
@@ -171,11 +172,15 @@ def test_choosing_a_new_folder_drops_the_old_one_from_memory(
     client: TestClient, runtime: Runtime, demo_laptop: Path, tmp_path: Path
 ) -> None:
     _work_profile(client, demo_laptop)
-    assert runtime.session is not None
-    old = runtime.session
+    assert len(runtime.session.store.items()) > 40
     (tmp_path / "Work").mkdir()
     assert client.post("/api/folder", json={"path": str(tmp_path)}).is_success
-    assert old.store.items() == [] and all(s.status.value != "on" for s in old.broker.states())
+    assert runtime.session.store.items() == []  # the old folder's items left memory
+    assert all(s.status.value == "off" for s in runtime.session.broker.states())
+    assert {s.source_id for s in runtime.session.broker.states()} == {
+        "folder:documents",
+        "folder:images",
+    }
     assert client.post("/api/folder", json={"path": str(tmp_path / "missing")}).status_code == 400
 
 

@@ -79,6 +79,19 @@ class Broker:
         with self._lock:
             self._adapters.clear()
 
+    def replace(self, prefix: str, adapters: list[SourceAdapter]) -> None:
+        """Swap every source whose id starts with the prefix: revoke them, then register
+        the new ones. Used when the user chooses another folder; other sources keep their state."""
+        with self._lock:
+            old = [s for s in self._adapters if s.startswith(prefix)]
+        for source_id in old:
+            self.revoke(source_id, quiet=True)
+        with self._lock:
+            for source_id in old:
+                del self._adapters[source_id]
+            for adapter in adapters:
+                self._adapters[adapter.source_id] = adapter
+
     def on_revoke(self, callback: Callable[[str], None]) -> None:
         self._on_revoke.append(callback)
 

@@ -38,6 +38,11 @@ class AccessPolicy:
     def roots(self) -> list[Path]:
         return list(self._roots)
 
+    def set_roots(self, roots: list[Path]) -> None:
+        """Choose another folder. Earlier session marks do not carry over."""
+        self._roots = [r.resolve() for r in roots]
+        self._session_off_limits.clear()
+
     def mark_off_limits(self, path: Path) -> None:
         """A choice for this session only; nothing is saved."""
         self._session_off_limits.add(path.resolve())

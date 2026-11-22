@@ -10,6 +10,7 @@ from app.model import Model
 from app.policy import PERSONAL_CHAT_NAMES, AccessPolicy
 from app.sources.folder import scan
 from app.store import SessionStore
+from contracts.adapters import SourceAdapter
 
 
 @dataclass
@@ -20,14 +21,27 @@ class Session:
     assistant: Assistant
 
 
-def open_folder(root: Path, model: Model) -> Session:
-    """A new session on one folder. Every source starts Off."""
-    policy = AccessPolicy([root])
+def new_session(model: Model, apps: list[SourceAdapter] | None = None) -> Session:
+    """A new session with no folder chosen yet. Apps on this Mac are listed, all Off."""
+    policy = AccessPolicy([])
     broker = Broker()
-    for adapter in scan(root, policy):
+    for adapter in apps or []:
         broker.register(adapter)
     store = SessionStore(broker)
     return Session(policy, broker, store, Assistant(broker, store, policy, model))
+
+
+def choose_folder(session: Session, root: Path) -> None:
+    """Point the session at a folder. Its sources start Off; app sources keep their state."""
+    session.policy.set_roots([root])
+    session.broker.replace("folder:", list(scan(root, session.policy)))
+
+
+def open_folder(root: Path, model: Model) -> Session:
+    """A new session on one folder. Every source starts Off."""
+    session = new_session(model)
+    choose_folder(session, root)
+    return session
 
 
 NOT_WORK = re.compile("personal|" + "|".join(sorted(PERSONAL_CHAT_NAMES)), re.I)

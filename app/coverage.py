@@ -32,9 +32,12 @@ def build(broker: Broker, store: SessionStore, given: int, cited: int) -> Covera
         by_source[miss.source_id] = by_source.get(miss.source_id, 0) + 1
     not_accessible: dict[str, int | None] = {}
     for state in broker.states():
-        if state.status is SourceStatus.OFF:
-            scopes = broker.adapter(state.source_id).list_scopes()  # names and counts only
+        adapter = broker.adapter(state.source_id)
+        if state.status is SourceStatus.OFF and isinstance(adapter, FolderAdapter):
+            scopes = adapter.list_scopes()  # file names and counts only; apps are not asked
             not_accessible[state.label] = sum(s.item_count or 0 for s in scopes)
+        elif state.status is SourceStatus.OFF:
+            not_accessible[state.label] = None  # an app that is Off is not even counted
     not_accessible[OFF_LIMITS_KEY] = off_limits(broker)
     return Coverage(
         accessible=len(items) + len(uncounted),

@@ -23,6 +23,7 @@ from app.api import create_app  # noqa: E402
 from app.model import ModelGateway, ModelServer  # noqa: E402
 from app.proof.evidence import install_write_audit  # noqa: E402
 from app.runtime import Runtime  # noqa: E402
+from app.sources.mac import mac_apps  # noqa: E402
 
 REPO = Path(__file__).resolve().parent.parent
 UI_DIR = REPO / "ui" / "out"
@@ -67,7 +68,7 @@ class Launch:
             self.server.stop()
 
 
-def prepare(port: int = 0, model_server: bool = True) -> Launch | None:
+def prepare(port: int = 0, model_server: bool = True, mac: bool = True) -> Launch | None:
     """Start the model server and build the backend. None if the model server is missing."""
     os.environ.update(config.QUIET_ENV)  # telemetry and cloud features off, for us and children
     install_write_audit()  # count every file this backend opens for writing
@@ -79,7 +80,12 @@ def prepare(port: int = 0, model_server: bool = True) -> Launch | None:
 
     port = port or free_port()
     runtime = Runtime(
-        gateway, port, gateway=gateway, server=server, demo_folder=REPO / "demo-laptop"
+        gateway,
+        port,
+        gateway=gateway,
+        server=server,
+        demo_folder=REPO / "demo-laptop",
+        apps=list(mac_apps()) if mac else [],
     )
     web = uvicorn.Server(
         uvicorn.Config(
