@@ -95,3 +95,31 @@ def test_d6_no_file_supports_a_pay_promise_to_sam(demo_laptop: Path) -> None:
         assert "salary" not in low and "pay rise" not in low and "bonus" not in low, path
         if re.search(r"\bpay\b", low):
             assert "sam" not in low, path
+
+
+def test_d7_the_rich_layer_follows_the_same_rules_and_leaves_the_first_layer_alone(
+    generator: ModuleType, tmp_path: Path
+) -> None:
+    core, rich = generator.files(), generator.files(rich=True)
+    assert len(core) == TRUTH["counts"]["total_files"] and len(rich) > 2 * len(core)
+    calendar = "App-exports/Calendar/work.ics"  # the only file that grows: more events
+    assert all(rich[path] == data for path, data in core.items() if path != calendar)
+    assert rich[calendar].count(b"BEGIN:VEVENT") > core[calendar].count(b"BEGIN:VEVENT")
+    root = tmp_path / "demo-laptop"
+    hashes = generator.build(root, rich=True)
+    assert hashes == generator.build(tmp_path / "again" / "demo-laptop", rich=True)  # repeatable
+    texts = _texts(root)
+    address = re.compile(r"[\w.+-]+@[\w-]+(?:\.[\w-]+)+")
+    for path, text in texts.items():
+        low = text.lower()
+        assert not re.search(r"\b(development|goals?)\b", low), path
+        assert "salary" not in low and "pay rise" not in low and "bonus" not in low, path
+        if re.search(r"\bpay\b", low):
+            assert "sam" not in low, path
+        assert all(a.endswith(".example") for a in address.findall(text)), path
+    work = (root / "App-exports/Calendar/work.ics").read_text()
+    assert work.count("BEGIN:VEVENT") == TRUTH["counts"]["work_events"] + 28
+    # the first layer's story is still found where it was
+    for promise in TRUTH["promises"]:
+        for source in promise["sources"]:
+            assert (root / source["path"]).is_file(), source["path"]

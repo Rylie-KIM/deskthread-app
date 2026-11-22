@@ -62,6 +62,7 @@ ignore = [
 "app/icons.py" = ["E501"]  # one very long method name from Apple's frameworks
 "app/window.py" = ["N802"]  # method names are dictated by Apple's frameworks
 "demo-data/content.py" = ["E501"]  # invented note text is kept as written
+"demo-data/content_more.py" = ["E501"]  # invented note text is kept as written
 
 [tool.mypy]
 python_version = "3.13"

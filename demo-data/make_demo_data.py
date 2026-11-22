@@ -12,6 +12,7 @@ import argparse
 import hashlib
 import io
 import os
+import re
 import shutil
 import sys
 import zipfile
@@ -24,6 +25,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 sys.path.insert(0, str(Path(__file__).parent))
 import content
+import content_more
 
 # A file is dated by its own changed-time (user, 2026-11-22). Each demo file gets the time
 # of the date written in it; a file with no date in it gets this one, two days before the
@@ -161,8 +163,33 @@ def _image(lines: list[str], suffix: str) -> bytes:
     return buf.getvalue()
 
 
-def files(canary: str | None = None) -> dict[str, bytes]:
-    """Every file of the demo laptop as path -> bytes, in a fixed order."""
+def _add_more(out: dict[str, bytes]) -> None:
+    """The second layer of the story (content_more.py). It never replaces a file of the first."""
+
+    def put(path: str, data: bytes) -> None:
+        assert path not in out, f"{path} is already in the demo laptop"
+        out[path] = data
+
+    for path, text in {
+        **content_more.NOTE_FILES,
+        **content_more.CHAT_FILES,
+        **content_more.REMINDER_FILES,
+        **content_more.DOC_FILES,
+    }.items():
+        put(path, text.encode("utf-8"))
+    for name, sender, to, subject, date, body in content_more.MAILS_MORE:
+        put(f"{content.MAIL}/{name}", _eml(sender, to, subject, date, body))
+    for path, (title, lines) in content_more.DOCX_FILES.items():
+        put(path, _docx(title, lines))
+    for path, (title, lines) in content_more.PDF_FILES.items():
+        put(path, _pdf(title, lines))
+    for path, lines in content_more.IMAGES_MORE.items():
+        put(path, _image(lines, Path(path).suffix))
+
+
+def files(canary: str | None = None, rich: bool = False) -> dict[str, bytes]:
+    """Every file of the demo laptop as path -> bytes, in a fixed order. `rich` adds the
+    second layer of the story (content_more.py); the tests and the evaluation use the first."""
     out: dict[str, bytes] = {}
     for path, text in content.TEXT_FILES.items():
         if canary and path == CANARY_NOTE:
@@ -180,7 +207,8 @@ def files(canary: str | None = None) -> dict[str, bytes]:
         content.NEWSLETTER_HTML,
         html=True,
     )
-    out["App-exports/Calendar/work.ics"] = _ics("Work", content.WORK_EVENTS).encode()
+    extra = content_more.WORK_EVENTS_MORE if rich else []
+    out["App-exports/Calendar/work.ics"] = _ics("Work", [*content.WORK_EVENTS, *extra]).encode()
     out["App-exports/Calendar/personal.ics"] = _ics("Personal", content.PERSONAL_EVENTS).encode()
     out["Downloads/hr-learning-budget-policy.pdf"] = _pdf(
         content.HR_POLICY_TITLE, content.HR_POLICY_LINES
@@ -196,6 +224,8 @@ def files(canary: str | None = None) -> dict[str, bytes]:
             lines = [*lines, canary]
         out[path] = _image(lines, Path(path).suffix)
     out.update(content.UNSUPPORTED)
+    if rich:
+        _add_more(out)
     return dict(sorted(out.items()))
 
 
@@ -213,7 +243,22 @@ def _written(path: Path) -> float | None:
     return datetime.fromisoformat(f"{day}T12:00:00+00:00").timestamp() if day else None
 
 
-def build(root: Path, canary: str | None = None) -> dict[str, str]:
+SHOT = re.compile(r"Screenshot (\d{4})-(\d\d)-(\d\d) at (\d\d)\.(\d\d)\.(\d\d)")
+
+
+def _stamp(rel: str, path: Path) -> float:
+    """The file time of a demo file: a time given for it, the time in a screenshot's name,
+    the noon of the date written in it, or the export time."""
+    if rel in content_more.FILE_TIMES:
+        return datetime(*content_more.FILE_TIMES[rel], tzinfo=UTC).timestamp()
+    shot = SHOT.search(rel)
+    if shot:
+        year, month, day, hour, minute, second = map(int, shot.groups())
+        return datetime(year, month, day, hour, minute, second, tzinfo=UTC).timestamp()
+    return _written(path) or EXPORT_TIME
+
+
+def build(root: Path, canary: str | None = None, rich: bool = False) -> dict[str, str]:
     """Write the folder (replacing an earlier build) and return path -> sha256."""
     if root.exists():
         marker = root / ".deskthread-demo"
@@ -225,11 +270,11 @@ def build(root: Path, canary: str | None = None) -> dict[str, str]:
     root.mkdir(parents=True)
     (root / ".deskthread-demo").write_text("Invented demo data. Safe to delete.\n")
     hashes: dict[str, str] = {}
-    for rel, data in files(canary).items():
+    for rel, data in files(canary, rich).items():
         path = root / rel
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
-        stamp = _written(path) or EXPORT_TIME
+        stamp = _stamp(rel, path)
         os.utime(path, (stamp, stamp))
         hashes[rel] = hashlib.sha256(data).hexdigest()
     return hashes
@@ -239,8 +284,9 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--out", type=Path, default=Path("demo-laptop"))
     parser.add_argument("--canary", default=None)
+    parser.add_argument("--core", action="store_true", help="only the first layer (65 files)")
     args = parser.parse_args()
-    hashes = build(args.out, args.canary)
+    hashes = build(args.out, args.canary, rich=not args.core)
     combined = hashlib.sha256("".join(f"{p}:{h}\n" for p, h in hashes.items()).encode()).hexdigest()
     print(f"built {len(hashes)} files in {args.out}  sha256 {combined[:16]}")
     return 0

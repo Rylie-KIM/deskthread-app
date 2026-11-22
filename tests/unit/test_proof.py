@@ -25,6 +25,11 @@ ollama   4102 me     7u  IPv6 0x5      0t0  TCP *:11434 (LISTEN)
 """
 
 
+def _files_in(folder: Path) -> int:
+    """Every file under the folder, the demo marker included (the fingerprint covers all)."""
+    return sum(1 for p in folder.rglob("*") if p.is_file())
+
+
 @pytest.fixture(autouse=True)
 def clock(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("DESKTHREAD_NOW", STORY_NOW)
@@ -66,7 +71,7 @@ def test_the_fingerprint_matches_after_questions_and_changes_when_a_file_changes
     client.post("/api/ask", json={"question": "What did I promise Sam?"})
     folder = client.get("/api/proof").json()["folders"][0]
     assert folder["unchanged"] is True and folder["before"] == folder["now"]
-    assert folder["label"] == "demo-laptop" and folder["files"] == 66
+    assert folder["label"] == "demo-laptop" and folder["files"] == _files_in(laptop)
     (laptop / "Desktop" / "todo-scribble.txt").write_text("changed outside the app")
     assert client.get("/api/proof").json()["folders"][0]["unchanged"] is False
 
@@ -77,7 +82,9 @@ def test_the_fingerprint_opens_no_file(laptop: Path, monkeypatch: pytest.MonkeyP
 
     monkeypatch.setattr("builtins.open", refuse)
     monkeypatch.setattr(Path, "open", refuse)
-    assert evidence.fingerprint(laptop)[1] == 66  # private and off-limits files are covered too
+    assert evidence.fingerprint(laptop)[1] == _files_in(
+        laptop
+    )  # private and off-limits files are covered too
 
 
 def test_the_write_audit_counts_writes_and_ignores_reads(tmp_path: Path) -> None:

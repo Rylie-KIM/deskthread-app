@@ -11,7 +11,7 @@ export HF_HUB_DISABLE_TELEMETRY := 1
 
 UV := uv run --frozen
 
-.PHONY: setup check lint format typecheck test test-live ui ui-check run run-browser demo-data
+.PHONY: setup check lint format typecheck test test-live ui ui-check run run-browser demo-data demo-data-core
 
 setup:            ## install the locked dependencies into .venv (the one network step besides the model)
 	uv sync --frozen
@@ -41,8 +41,11 @@ ui:               ## install the locked UI packages (no install scripts) and bui
 ui-check:         ## strict TypeScript check of the UI (needs `make ui` once)
 	@if [ -d ui/node_modules ]; then cd ui && npm run --silent typecheck; else echo "ui-check skipped: run make ui first"; fi
 
-demo-data:        ## build the invented demo laptop in ./demo-laptop
+demo-data:        ## build the rich invented demo laptop in ./demo-laptop (143 files)
 	$(UV) python -B demo-data/make_demo_data.py
+
+demo-data-core:   ## build only the first layer of it (65 files), the one the tests and eval/ use
+	$(UV) python -B demo-data/make_demo_data.py --core
 
 run:              ## start DeskThread in its own Mac window (model server, backend, page), on this Mac only
 	./DeskThread.command
