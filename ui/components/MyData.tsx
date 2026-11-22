@@ -221,7 +221,7 @@ export function MyData({ onError, onClear, onEnd }: { onError: (message: string)
             <li key={line.key}>
               <span>{clock(line.at)}</span>
               <b>{WORDS[line.action] ?? line.action} {line.source_id === "*" ? "everything" : line.source_id.replace(/^(mac|folder|dir):/, "")}</b>
-              {line.action === "read" ? <em>{line.count} items{line.times > 1 ? `, ${line.times} times` : ""}</em> : line.times > 1 ? <em>{line.times} times</em> : <em />}
+              {line.action === "read" ? <em>{line.count} items{line.times > 1 ? `, checked again ${line.times - 1} times` : ""}</em> : line.times > 1 ? <em>{line.times} times</em> : <em />}
             </li>
           ))}
         </ul>
