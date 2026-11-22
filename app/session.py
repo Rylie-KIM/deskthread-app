@@ -58,10 +58,13 @@ def choose_folder(session: Session, root: Path) -> None:
     roots = session.policy.roots
     if root.resolve() not in roots:
         set_folders(session, [*roots, root.resolve()])
+        session.broker.note_folder(True, root.resolve().name)
 
 
 def remove_folder(session: Session, root: Path) -> None:
-    set_folders(session, [r for r in session.policy.roots if r != root.resolve()])
+    if root.resolve() in session.policy.roots:
+        set_folders(session, [r for r in session.policy.roots if r != root.resolve()])
+        session.broker.note_folder(False, root.resolve().name)
 
 
 def open_folder(root: Path, model: Model) -> Session:

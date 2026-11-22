@@ -696,3 +696,7 @@ fieldset.period { display: grid; gap: 14px; padding: 14px 16px 16px; }
 fieldset.choose { padding: 12px 16px 8px; }
 .choosehead { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-bottom: 8px; margin-bottom: 4px; border-bottom: 1px solid rgba(255, 255, 255, .9); font-size: .86rem; font-weight: 600; color: var(--muted); }
 .choosehead .ghost.small { padding: 6px 14px; font-size: .82rem; }
+
+/* the log keeps all of the session; it scrolls inside its card */
+.timeline { max-height: 320px; overflow-y: auto; padding-right: 6px; }
+

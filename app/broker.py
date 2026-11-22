@@ -117,6 +117,12 @@ class Broker:
     def _note(self, action: AuditAction, source_id: str, count: int = 0) -> None:
         self._audit.append(AuditLine(at=now(), action=action, source_id=source_id, count=count))
 
+    def note_folder(self, added: bool, name: str) -> None:
+        """The user chose or removed a folder. Only its name is recorded, never its content."""
+        with self._lock:
+            action = AuditAction.FOLDER_ADDED if added else AuditAction.FOLDER_REMOVED
+            self._note(action, f"dir:{name}")
+
     def note_read(self, source_id: str, count: int) -> None:
         with self._lock:
             self._note(AuditAction.READ, source_id, count)

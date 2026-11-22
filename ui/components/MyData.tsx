@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { api, clock, day, macWindow, type ConnectionCheck, type FolderHash, type MemoryState, type Progress, type Proof, type Receipt } from "../lib/api";
+import { api, clock, day, macWindow, type AuditLine, type ConnectionCheck, type FolderHash, type MemoryState, type Progress, type Proof, type Receipt } from "../lib/api";
 
-const WORDS: Record<string, string> = { grant: "You allowed reading", revoke: "You stopped", revoke_all: "You stopped", read: "Read", denied: "Refused" };
+const WORDS: Record<string, string> = { grant: "You allowed reading", revoke: "You stopped", revoke_all: "You stopped", read: "Read", denied: "Refused", folder_added: "You added the folder", folder_removed: "You removed the folder" };
 
 function Details({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -10,6 +10,20 @@ function Details({ title, children }: { title: string; children: React.ReactNode
       {children}
     </details>
   );
+}
+
+// The same thing done again and again (a folder is read for every question) is one line
+// with how many times; the newest is first. The whole log of the session is kept.
+function grouped(lines: AuditLine[]): (AuditLine & { times: number; key: string })[] {
+  const out: (AuditLine & { times: number; key: string })[] = [];
+  lines.forEach((line, index) => {
+    const last = out[out.length - 1];
+    if (last && last.action === line.action && last.source_id === line.source_id && last.count === line.count) {
+      last.times += 1;
+      last.at = line.at;  // the time of the latest one
+    } else out.push({ ...line, times: 1, key: `${index}-${line.at}` });
+  });
+  return out.reverse();
 }
 
 const WHAT = { added: "Added", changed: "Changed", removed: "Removed" } as const;
@@ -213,8 +227,12 @@ export function MyData({ onError, onClear, onEnd }: { onError: (message: string)
         <h2>What happened</h2>
         {proof.audit.length === 0 && <p className="blank">Nothing yet. What you allow, stop and read in this session shows up here.</p>}
         <ul className="timeline">
-          {proof.audit.slice(-8).reverse().map((line, i) => (
-            <li key={i}><span>{clock(line.at)}</span><b>{WORDS[line.action] ?? line.action} {line.source_id === "*" ? "everything" : line.source_id.replace(/^(mac|folder):/, "")}</b>{line.action === "read" && <em>{line.count} items</em>}</li>
+          {grouped(proof.audit).map((line) => (
+            <li key={line.key}>
+              <span>{clock(line.at)}</span>
+              <b>{WORDS[line.action] ?? line.action} {line.source_id === "*" ? "everything" : line.source_id.replace(/^(mac|folder|dir):/, "")}</b>
+              {line.action === "read" ? <em>{line.count} items{line.times > 1 ? `, ${line.times} times` : ""}</em> : line.times > 1 ? <em>{line.times} times</em> : <em />}
+            </li>
           ))}
         </ul>
       </div>

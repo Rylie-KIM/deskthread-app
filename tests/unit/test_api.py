@@ -392,3 +392,22 @@ def test_spellings_of_a_name_are_kept_for_the_session_and_survive_clear_memory(
     client.post("/api/forget")
     assert client.get("/api/people").json() == saved.json()
     assert client.post("/api/people", json=[{"name": "", "also": []}]).status_code == 422
+
+
+def test_choosing_and_removing_a_folder_is_logged_once_each(
+    client: TestClient, tmp_path: Path
+) -> None:
+    (tmp_path / "a.txt").write_text("x")
+    client.post("/api/folder", json={"path": str(tmp_path)})
+    client.post("/api/folder", json={"path": str(tmp_path)})  # the same folder again: no new line
+    client.post("/api/folder/remove", json={"path": str(tmp_path)})
+    client.post("/api/folder/remove", json={"path": str(tmp_path)})
+    lines = [
+        (a["action"], a["source_id"])
+        for a in client.get("/api/proof").json()["audit"]
+        if a["action"].startswith("folder_")
+    ]
+    assert lines == [
+        ("folder_added", f"dir:{tmp_path.name}"),
+        ("folder_removed", f"dir:{tmp_path.name}"),
+    ]

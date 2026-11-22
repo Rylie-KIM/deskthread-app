@@ -51,6 +51,8 @@ class AuditAction(StrEnum):
     REVOKE_ALL = "revoke_all"
     DENIED = "denied"
     READ = "read"
+    FOLDER_ADDED = "folder_added"  # the user chose a folder (contract 1.16)
+    FOLDER_REMOVED = "folder_removed"
 
 
 class AuditLine(BaseModel):
