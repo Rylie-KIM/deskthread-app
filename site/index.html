@@ -91,7 +91,10 @@
   .chip { font-size: .7rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 3px 10px; border-radius: 999px; }
   .done { background: #dbf4e8; color: #0a6e44; } .open { background: var(--royal-soft); color: var(--royal); } .gone { background: #ececf2; color: #5a5f78; }
   .quote { margin: 6px 0 2px; font-size: .96rem; }
-  .from { margin: 0; font-size: .8rem; color: var(--muted); }
+  .from { margin: 0; font-size: .8rem; color: var(--muted); display: flex; gap: 12px; }
+  .from b { color: var(--ink); font-weight: 600; }
+  .cov { display: flex; flex-wrap: wrap; column-gap: 20px; row-gap: 4px; }
+  .cov b { color: var(--ink); font-weight: 600; }
   .cov { margin: 16px 0 0; font-size: .8rem; color: var(--muted); border-top: 1px solid var(--hair); padding-top: 12px; }
   .side p { color: var(--muted); margin: 0 0 14px; }
   .side .num { font-size: 4.6rem; font-weight: 700; letter-spacing: -.04em; line-height: 1; margin: 0;
@@ -202,19 +205,19 @@
         <div class="item">
           <div class="row"><span class="chip done">Done</span><b>Online course</b></div>
           <p class="quote">"Budget approved up to 800 for Sam's online course"</p>
-          <p class="from">Mail · 10 Nov 2026</p>
+          <p class="from"><b>Mail</b><span>10 Nov 2026</span></p>
         </div>
         <div class="item">
           <div class="row"><span class="chip gone">Superseded</span><b>February conference</b></div>
           <p class="quote">"Feb conference: dropped. no travel budget this half."</p>
-          <p class="from">Notes · 6 Nov 2026, replaces a note of 23 Oct</p>
+          <p class="from"><b>Notes</b><span>6 Nov 2026, replaces a note of 23 Oct</span></p>
         </div>
         <div class="item">
           <div class="row"><span class="chip open">Open</span><b>Stretch project</b></div>
           <p class="quote">"stretch project: lead the Q1 launch readiness checklist"</p>
-          <p class="from">Screenshot · undated, read from the image on this laptop</p>
+          <p class="from"><b>Screenshot</b><span>No date, read from the image on this laptop</span></p>
         </div>
-        <p class="cov">Looked through 70 items · showed 22 to the AI · quoted 9</p>
+        <p class="cov"><span>Looked through <b>70</b> items</span><span>Showed <b>22</b> to the AI</span><span>Quoted <b>9</b></span></p>
       </div>
       <div class="side">
         <p class="num">0</p>
@@ -261,7 +264,7 @@ make run</code></pre>
     </div>
   </section>
 
-  <footer><span>DeskThread · prototype, November 2026 · all sample data is invented</span><span>No licence chosen yet</span></footer>
+  <footer><span>DeskThread prototype, November 2026</span><span>All sample data is invented</span><span>No licence chosen yet</span></footer>
 </div>
 </body>
 </html>

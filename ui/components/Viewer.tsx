@@ -24,7 +24,7 @@ export default function Viewer({ cite, onClose }: { cite: Citation; onClose: () 
         {item && (
           <>
             <h2>{item.title}</h2>
-            <p className="fine">{item.source_label} · {day(item.date)} · {item.location}</p>
+            <p className="fine bits"><em className="tag">{item.source_label}</em><span>{day(item.date)}</span><span>{item.location}</span></p>
             <div className={item.has_image ? "sidebyside" : ""}>
               {item.has_image && <img src={api.imageUrl(item.item_id)} alt="The image this text was read from" />}
               <div>

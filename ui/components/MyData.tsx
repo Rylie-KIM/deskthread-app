@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, clock, macWindow, type MemoryState, type Progress, type Proof, type Receipt } from "../lib/api";
+import { api, clock, day, macWindow, type FolderHash, type MemoryState, type Progress, type Proof, type Receipt } from "../lib/api";
 
 const WORDS: Record<string, string> = { grant: "You allowed reading", revoke: "You stopped", revoke_all: "You stopped", read: "Read", denied: "Refused" };
 
@@ -10,6 +10,52 @@ function Details({ title, children }: { title: string; children: React.ReactNode
       {children}
     </details>
   );
+}
+
+const WHAT = { added: "Added", changed: "Changed", removed: "Removed" } as const;
+
+// Which files are different from when the folder was chosen: name, time and owning account.
+function Changes({ folder }: { folder: FolderHash }) {
+  return (
+    <div className="changes">
+      <table>
+        <thead><tr><th>File</th><th></th><th>When</th><th>Account</th></tr></thead>
+        <tbody>
+          {folder.changes.map((c) => (
+            <tr key={c.name}>
+              <td title={c.name}>{c.name}</td>
+              <td><em className="tag">{WHAT[c.what]}</em></td>
+              <td>{c.when ? `${day(c.when)} ${clock(c.when)}` : ""}</td>
+              <td>{c.owner}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {folder.changes_total > folder.changes.length && <p className="fine">The newest {folder.changes.length} of {folder.changes_total} are shown.</p>}
+      <p className="fine">macOS records the account that owns a file, not the app that changed it. DeskThread itself saved 0 files.</p>
+    </div>
+  );
+}
+
+// One line of the receipt; its details open only when asked for.
+function Line({ name, value, children }: { name: string; value: string; children?: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <li className={open ? "open" : ""}>
+      <div className="line">
+        <span>{name}</span>
+        <b>{value}</b>
+        {children ? <button type="button" className="ghost small" aria-expanded={open} onClick={() => setOpen(!open)}>{open ? "Hide" : "Details"}</button> : <i />}
+      </div>
+      {open && <div className="more">{children}</div>}
+    </li>
+  );
+}
+
+function Counts({ by }: { by: Record<string, number> }) {
+  const rows = Object.entries(by).filter(([, n]) => n > 0).sort((a, b) => b[1] - a[1]);
+  if (rows.length === 0) return <p className="fine">Nothing.</p>;
+  return <ul className="counts">{rows.map(([name, n]) => <li key={name}><span>{name}</span><b>{n}</b></li>)}</ul>;
 }
 
 // A small "?" in the corner: the explanation opens only when asked for.
@@ -67,27 +113,26 @@ export function MyData({ onError, onClear, onEnd }: { onError: (message: string)
             <p className="fine">Or switch Wi-Fi off: DeskThread keeps answering.</p>
           </Details>
         </div>
-        <div className="card fact">
-          <span className={untouched ? "dot" : "dot warn"} />
+        <div className={untouched ? "card fact" : "card fact blink"}>
+          <span className="dot" />
           <h2>{proof.folders.length === 0 ? "No folder chosen yet." : untouched ? "Your files are untouched." : "A file in your folders changed."}</h2>
           {proof.folders.length > 0 && <p>{untouched ? "Nothing was added, changed or removed since you chose them." : "Not by DeskThread: it cannot write, and it saved 0 files. You or another app changed it."}</p>}
           {proof.folders.length > 0 && (
-            <table className="compare">
-              <thead><tr><th>Folder</th><th>Files</th><th>Since you chose it</th></tr></thead>
-              <tbody>{proof.folders.map((f) => <tr key={f.label}><td>{f.label}</td><td>{f.files}</td><td><b className={f.unchanged ? "" : "changed"}>{f.unchanged ? "Same" : "Changed"}</b></td></tr>)}</tbody>
-            </table>
+            <ul className="folders">
+              {proof.folders.map((f) => (
+                <li key={f.label}><b>{f.label}</b><span>{f.files} files</span><em className={f.unchanged ? "tag" : "tag strong"}>{f.unchanged ? "Same" : "Changed"}</em></li>
+              ))}
+            </ul>
           )}
-        </div>
-        <div className="card fact">
-          <span className={proof.files_written_by_app === 0 ? "dot" : "dot bad"} />
-          <h2>{proof.files_written_by_app === 0 ? "DeskThread saved nothing." : `DeskThread saved ${proof.files_written_by_app} files.`}</h2>
-          <p>No copy of your notes is kept on this Mac.</p>
+          {proof.folders.filter((f) => !f.unchanged).map((f) => (
+            <Details key={f.label} title={`What changed in ${f.label}`}><Changes folder={f} /></Details>
+          ))}
         </div>
       </div>
 
       <div className="card live">
         <div className="row between wrap">
-          <h2>Right now</h2>
+          <h2>Session status</h2>
         </div>
         <div className="actions">
           <div className="action">
@@ -136,7 +181,7 @@ export function MyData({ onError, onClear, onEnd }: { onError: (message: string)
           {Object.keys(memory.items_by_source).length === 0 && <p className="blank">Nothing is held. Switch a source on in Access.</p>}
           {Object.entries(memory.items_by_source).sort().map(([name, count]) => {
             const share = Math.round((100 * count) / Math.max(1, memory.items_held));
-            return <div key={name} className="meter"><span>{name}</span><div><i style={{ width: `${Math.max(3, share)}%` }} /></div><b>{count} · {share}%</b></div>;
+            return <div key={name} className="meter"><span>{name}</span><div><i style={{ width: `${Math.max(3, share)}%` }} /></div><b>{count}</b><em>{share}%</em></div>;
           })}
         </div>
         <div className="card part">
@@ -144,7 +189,7 @@ export function MyData({ onError, onClear, onEnd }: { onError: (message: string)
           <p className="basis">A full bar would be all {size(mac)} of this Mac.</p>
           {memory.processes.map((p) => {
             const share = (100 * p.memory_mb) / mac;
-            return <div key={p.pid} className="meter"><span>{p.name.replace("DeskThread backend", "DeskThread").replace("Model server", "AI server").replace("Model runner", "AI model")}</span><div><i style={{ width: `${Math.max(2, Math.min(100, Math.round(share)))}%` }} /></div><b>{size(p.memory_mb)} · {share < 1 ? "<1" : Math.round(share)}%</b></div>;
+            return <div key={p.pid} className="meter"><span>{p.name.replace("DeskThread backend", "DeskThread").replace("Model server", "AI server").replace("Model runner", "AI model")}</span><div><i style={{ width: `${Math.max(2, Math.min(100, Math.round(share)))}%` }} /></div><b>{size(p.memory_mb)}</b><em>{share < 1 ? "<1" : Math.round(share)}%</em></div>;
           })}
         </div>
       </div>
@@ -154,7 +199,7 @@ export function MyData({ onError, onClear, onEnd }: { onError: (message: string)
         {proof.audit.length === 0 && <p className="blank">Nothing yet. What you allow, stop and read in this session shows up here.</p>}
         <ul className="timeline">
           {proof.audit.slice(-8).reverse().map((line, i) => (
-            <li key={i}><span>{clock(line.at)}</span>{WORDS[line.action] ?? line.action} {line.source_id === "*" ? "everything" : line.source_id.replace(/^(mac|folder):/, "")}{line.action === "read" ? ` · ${line.count} items` : ""}</li>
+            <li key={i}><span>{clock(line.at)}</span><b>{WORDS[line.action] ?? line.action} {line.source_id === "*" ? "everything" : line.source_id.replace(/^(mac|folder):/, "")}</b>{line.action === "read" && <em>{line.count} items</em>}</li>
           ))}
         </ul>
       </div>
@@ -164,24 +209,39 @@ export function MyData({ onError, onClear, onEnd }: { onError: (message: string)
 
 export function SessionEnded({ receipt, stopped }: { receipt: Receipt; stopped: boolean }) {
   const app = macWindow();
-  const rows: [string, string][] = [
-    ["Questions asked", String(receipt.questions)],
-    ["Items read", String(receipt.items_read)],
-    ["Items shown to the AI", String(receipt.items_given_to_model)],
-    ["Cleared from memory", receipt.memory_cleared ? "Yes" : "No"],
-    ["Saved by DeskThread", receipt.files_written_by_app === 0 ? "Nothing" : `${receipt.files_written_by_app} files`],
-    ["Sent to the internet", receipt.all_connections_local ? "Nothing" : "Something"],
-    ["Your files", receipt.folders.every((f) => f.unchanged) ? "Untouched" : "Changed"],
-  ];
+  const changed = receipt.folders.filter((f) => !f.unchanged);
   return (
     <section className="ended">
       <h1>Session ended.</h1>
       <p className="sub">Everything from this session is cleared. Your notes are where they were, and nowhere else.</p>
       <div className="card">
-        <table><tbody>{rows.map(([name, value]) => <tr key={name}><td>{name}</td><td><b>{value}</b></td></tr>)}</tbody></table>
+        <ul className="receipt">
+          <Line name="Questions asked" value={String(receipt.questions)} />
+          <Line name="Items read" value={String(receipt.items_read)}><Counts by={receipt.read_by_source} /></Line>
+          <Line name="Items shown to the AI" value={String(receipt.items_given_to_model)}><Counts by={receipt.given_by_source} /></Line>
+          <Line name="Cleared from memory" value={receipt.memory_cleared && receipt.model_unloaded ? "Yes" : "No"}>
+            <ul className="counts">
+              <li><span>What was read</span><b>{receipt.memory_cleared ? "Removed" : "Still held"}</b></li>
+              <li><span>AI model</span><b>{receipt.model_unloaded ? "Out of memory" : "Still in memory"}</b></li>
+            </ul>
+          </Line>
+          <Line name="Saved by DeskThread" value={receipt.files_written_by_app === 0 ? "Nothing" : `${receipt.files_written_by_app} files`}>
+            <p className="fine">How it is counted: DeskThread counts every file it opens for writing while it runs. The count for this session is {receipt.files_written_by_app}.</p>
+            <p className="fine">How to check it yourself: “Your files” below compares your folders with how they were when you chose them, using the Mac's own file times. An AI model you download is the one thing kept on this Mac.</p>
+          </Line>
+          <Line name="Sent to the internet" value={receipt.all_connections_local ? "Nothing" : "Something"}>
+            <p className="fine">How it is counted: the open connections of DeskThread's programs were read from macOS. Every one went to 127.0.0.1, which is this Mac.</p>
+            <p className="fine">How to check it yourself: in a session, open My data and “Check it yourself” for a Terminal command, or switch Wi-Fi off and keep working.</p>
+          </Line>
+          <Line name="Your files" value={receipt.folders.length === 0 ? "No folder" : changed.length === 0 ? "Untouched" : "Changed"}>
+            {changed.length === 0 ? <p className="fine">Every folder is the same as when you chose it.</p> : changed.map((f) => (
+              <div key={f.label}><p className="fine"><b>{f.label}</b></p><Changes folder={f} /></div>
+            ))}
+          </Line>
+        </ul>
       </div>
       {app ? (
-        <div className="row">
+        <div className="pair">
           <button className="primary" disabled={!stopped} onClick={() => app.postMessage("restart")}>{stopped ? "Start a new session" : "Stopping…"}</button>
           <button className="ghost" onClick={() => app.postMessage("quit")}>Quit DeskThread</button>
         </div>

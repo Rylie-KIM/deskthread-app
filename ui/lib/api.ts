@@ -35,7 +35,7 @@ export interface Citation {
   read_by_model: boolean;
 }
 export type PointStatus = "done" | "open" | "changed" | "superseded";
-export interface BriefPoint { label: string; status: PointStatus; citations: Citation[]; note: string }
+export interface BriefPoint { label: string; status: PointStatus; citations: Citation[]; note: string; matched: string[] }
 export interface Coverage {
   accessible: number;
   searched: number;
@@ -56,6 +56,7 @@ export interface Answer {
   given_item_ids: string[];
   seconds: number;
   show_status: boolean;
+  summary: string[];
 }
 export interface Progress { step: string; number: number; of: number; detail: string }
 export interface ItemView {
@@ -79,7 +80,8 @@ export interface MemoryState {
   mac_memory_mb: number;
 }
 export interface Connection { process: string; pid: number; remote: string; local_only: boolean }
-export interface FolderHash { label: string; files: number; before: string; now: string; unchanged: boolean }
+export interface FileChange { name: string; what: "added" | "changed" | "removed"; when: string | null; owner: string }
+export interface FolderHash { label: string; files: number; before: string; now: string; unchanged: boolean; changes: FileChange[]; changes_total: number }
 export interface AuditLine { at: string; action: string; source_id: string; count: number }
 export interface Proof {
   sampled_at: string;
@@ -101,6 +103,8 @@ export interface Receipt {
   all_connections_local: boolean;
   folders: FolderHash[];
   limits: string;
+  read_by_source: Record<string, number>;
+  given_by_source: Record<string, number>;
 }
 export interface SessionInfo {
   app: string;
@@ -166,8 +170,8 @@ export const api = {
   chooseFolder: (path: string) => call<SourceState[]>("POST", "/api/folder", { path }),
   removeFolder: (path: string) => call<SourceState[]>("POST", "/api/folder/remove", { path }),
   request: (sourceId: string) => call<PermissionRequest>("GET", `/api/sources/${id(sourceId)}/request`),
-  grant: (sourceId: string, scopeIds: string[], days?: number) =>
-    call<SourceState>("POST", `/api/sources/${id(sourceId)}/grant`, { scope_ids: scopeIds, days: days ?? null }),
+  grant: (sourceId: string, scopeIds: string[], period: { days?: number; since?: string; until?: string } = {}) =>
+    call<SourceState>("POST", `/api/sources/${id(sourceId)}/grant`, { scope_ids: scopeIds, days: period.days ?? null, since: period.since ?? null, until: period.until ?? null }),
   iconUrl: (sourceId: string) => `/api/sources/${id(sourceId)}/icon?t=${id(readToken())}`,
   revoke: (sourceId: string) => call<SourceState>("POST", `/api/sources/${id(sourceId)}/revoke`),
   revokeAll: () => call<SourceState[]>("POST", "/api/sources/revoke-all"),

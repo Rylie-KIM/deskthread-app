@@ -17,6 +17,7 @@ export default function Home() {
   const [folder, setFolder] = useState("");
   const [thread, setThread] = useState<Answer[]>([]);  // this session's questions and answers
   const [model, setModel] = useState("");
+  const [ai, setAi] = useState<"rest" | "ready" | "use">("rest");
   const [first, setFirst] = useState("");
   const [cite, setCite] = useState<Citation | null>(null);
   const [error, setError] = useState("");
@@ -60,12 +61,6 @@ export default function Home() {
     const timer = setInterval(() => api.memory().then(setSeen).catch(() => undefined), 400);
     return () => clearInterval(timer);
   }, [closing]);
-  // End session is finished when the address no longer answers.
-  useEffect(() => {
-    if (closing !== "end" || !stopped) return;
-    const timer = setTimeout(() => setClosing(""), 900);
-    return () => clearTimeout(timer);
-  }, [closing, stopped]);
 
   async function end() {
     setConfirm(false); setSeen(null); setCalled(false); setClosing("end");
@@ -84,10 +79,8 @@ export default function Home() {
       setSeen(after); setCalled(true); setThread([]); setCite(null);
       await refresh();
       if (after.model_loaded || after.items_held > 0) setError("Something is still in memory. Use End session to stop everything.");
-      await new Promise((done) => setTimeout(done, 900));  // long enough to see every step ticked
-    } catch { setError("Clear memory did not work."); }
-    finally { setClosing(""); }
-  }
+    } catch { setError("Clear memory did not work."); setClosing(""); }
+  }  // the pop-up stays until the user presses OK
 
   const emptied = seen !== null && seen.items_held === 0;
   const modelGone = receipt ? receipt.model_unloaded : seen !== null && !seen.model_loaded;
@@ -95,6 +88,18 @@ export default function Home() {
     ? [["What was read leaves memory", emptied], ["The AI model leaves memory", emptied && modelGone], ["This conversation is removed", called]]
     : [["Access is switched off and what was read leaves memory", called || emptied], ["The AI model leaves memory", (called || emptied) && modelGone], ["The receipt is written", called], ["DeskThread stops", stopped]];
   const firstOpen = closingSteps.findIndex(([, done]) => !done);
+  const closed = closing === "clear" ? called : stopped;  // everything asked for has happened
+
+  // What the AI is doing right now, for the chip in the bar.
+  useEffect(() => {
+    if (state !== "ready" || receipt) return;
+    const look = () => Promise.all([api.memory(), api.progress()])
+      .then(([memory, progress]) => setAi(progress.number >= 2 ? "use" : memory.model_loaded ? "ready" : "rest"))
+      .catch(() => undefined);
+    look();
+    const timer = setInterval(look, 1500);
+    return () => clearInterval(timer);
+  }, [state, receipt]);
 
   const anyOn = sources.some((s) => s.status === "on");
 
@@ -153,9 +158,12 @@ export default function Home() {
         <div className="wrap row between">
           <div className="row">
             <span className="mark">DeskThread</span>
-            <span className="private">Private: runs only on this Mac</span>
             {model && state === "ready" && !receipt && (
-              <button className="modelpill" onClick={() => setTab("model")} title="Choose the AI model">{model} <span>Learn more</span></button>
+              <button className="aichip" onClick={() => setTab("model")} title="Choose the AI model">
+                <i className="orb" aria-hidden="true" />
+                <span className="ainame"><b>{model}</b><small>AI on this Mac</small></span>
+                <em className={`aistate ${ai}`}>{ai === "use" ? "In use" : ai === "ready" ? "Ready" : "Resting"}</em>
+              </button>
             )}
           </div>
           {state === "ready" && !receipt && (
@@ -203,12 +211,15 @@ export default function Home() {
       {closing && (
         <div className="scrim" role="dialog" aria-modal="true" aria-labelledby="closing-title">
           <div className="dialog">
-            <h2 id="closing-title">{closing === "clear" ? "Clearing memory" : "Ending the session"}</h2>
+            <h2 id="closing-title">{closing === "clear" ? (closed ? "Memory cleared" : "Clearing memory") : closed ? "Session ended" : "Ending the session"}</h2>
             <ol className="steps" role="status">
               {closingSteps.map(([name, done], index) => (
                 <li key={name} className={done ? "past" : index === firstOpen ? "now" : "next"}><i>{done ? "✓" : index + 1}</i>{name}</li>
               ))}
             </ol>
+            <div className="row end">
+              <button className="primary" disabled={!closed} onClick={() => setClosing("")}>{closed ? "OK" : "Working…"}</button>
+            </div>
           </div>
         </div>
       )}
@@ -216,11 +227,7 @@ export default function Home() {
         <div className="scrim" role="dialog" aria-modal="true" aria-labelledby="end-title">
           <div className="dialog">
             <h2 id="end-title">End this session?</h2>
-            <ul className="effects">
-              <li><b>Removed</b> the files that were read, the AI model in memory, this conversation, and your access settings: everything is reset to Off and DeskThread stops</li>
-              <li><b>Kept</b> only your own files and notes, untouched</li>
-            </ul>
-            <p className="fine">Afterwards you can start a new session.</p>
+            <p className="lead">DeskThread stops and everything is reset to Off. Your own files and notes stay untouched.</p>
             <div className="row end">
               <button className="ghost" onClick={() => setConfirm(false)}>Cancel</button>
               <button className="primary" onClick={end}>End session</button>

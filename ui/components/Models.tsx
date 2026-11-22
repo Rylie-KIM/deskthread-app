@@ -49,7 +49,7 @@ export default function Models({ onError, onChange }: { onError: (message: strin
           <tbody>
             {models.map((m) => (
               <tr key={m.tag} className={m.selected ? "current" : ""}>
-                <td><b>{m.name}</b><small>{LINE[m.tag]?.[0] ?? m.good_for} · {m.maker}</small></td>
+                <td><b>{m.name}</b><small>{LINE[m.tag]?.[0] ?? m.good_for}</small><em className="tag">{m.maker}</em></td>
                 <td><Mark yes /></td>
                 <td><Mark yes={m.reads_pictures} /></td>
                 <td><Speed level={LINE[m.tag]?.[1] ?? 2} /></td>

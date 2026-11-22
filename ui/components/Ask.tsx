@@ -7,6 +7,18 @@ const STATUS_TEXT = { done: "Done", open: "Still to do", changed: "Changed", sup
 const STEPS = ["Reading your folders", "Reading pictures", "Finding the right items", "Asking the AI on this Mac", "Checking the answer"];
 const STEP: Record<string, string> = { G1: "Allowed to read", G2: "Searched", G3: "AI used", G4: "Answer check", G6: "Record kept" };
 
+// The quotes of one finding, grouped by the note they come from, newest note first.
+function byNote(cites: Citation[]): { head: Citation; cites: Citation[] }[] {
+  const groups = new Map<string, { head: Citation; cites: Citation[] }>();
+  for (const cite of cites) {
+    const group = groups.get(cite.item_id);
+    if (group) group.cites.push(cite);
+    else groups.set(cite.item_id, { head: cite, cites: [cite] });
+  }
+  const time = (c: Citation) => (c.date ? new Date(c.date).getTime() : -Infinity);
+  return [...groups.values()].sort((x, y) => time(y.head) - time(x.head));
+}
+
 function when(meeting: Meeting, nowIso: string): string {
   const start = new Date(meeting.start);
   const now = new Date(nowIso);
@@ -24,8 +36,16 @@ function Found({ answer, onCite }: { answer: Answer; onCite: (cite: Citation) =>
       ) : (
         <>
           <p className="replyhead">Found in your notes</p>
-          <p className="summary">
-            {answer.points.length} {answer.points.length === 1 ? "thing" : "things"} · {answer.coverage.cited} {answer.coverage.cited === 1 ? "note" : "notes"} quoted, word for word
+          {answer.summary.length > 0 && (
+            <div className="summary">
+              <span className="eyebrow">Summary by the AI</span>
+              {answer.summary.map((text) => <p key={text}>{text}</p>)}
+            </div>
+          )}
+          <p className="bits tally">
+            <span><b>{answer.points.length}</b> {answer.points.length === 1 ? "thing found" : "things found"}</span>
+            <span><b>{answer.coverage.cited}</b> {answer.coverage.cited === 1 ? "note" : "notes"} quoted word for word</span>
+            <span>Newest note first</span>
           </p>
           {answer.points.map((point, index) => (
             <article key={index} className="finding">
@@ -33,27 +53,36 @@ function Found({ answer, onCite }: { answer: Answer; onCite: (cite: Citation) =>
                 <h3>{point.label}</h3>
                 {answer.show_status && <span className={`status ${point.status}`}>{STATUS_TEXT[point.status]}</span>}
               </header>
+              <p className="why">
+                {point.matched.length > 0 ? <>Shown because it mentions {point.matched.map((word) => <em key={word} className="tag">{word}</em>)}</> : "Shown because the AI judged it to be about your question"}
+              </p>
               {point.note && <p className="note">Written as a question or a maybe, not as a clear promise.</p>}
-              <ul>
-                {point.citations.map((cite) => (
-                  <li key={`${cite.item_id}-${cite.unit}`}>
-                    <button className="cite" onClick={() => onCite(cite)} title="Open the source">
-                      <span className="quote">“{cite.quote.replace(/^[-*•]\s*/, "")}”</span>
-                      <span className="from">
-                        {cite.source_label} · {cite.title} · <span className={cite.undated ? "undated" : ""}>{cite.undated ? "no date" : day(cite.date)}</span>
-                        {cite.read_by_model && " · read from the picture by the AI"}
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
+              {byNote(point.citations).map((group) => (
+                <div className="group" key={group.head.item_id}>
+                  <p className="grouphead">
+                    <em className="tag">{group.head.source_label}</em>
+                    <b>{group.head.title}</b>
+                    <span className="when">{group.head.undated ? "No date" : day(group.head.date)}</span>
+                    {group.head.read_by_model && <em className="tag">Read from the picture</em>}
+                  </p>
+                  <ul>
+                    {group.cites.map((cite) => (
+                      <li key={`${cite.item_id}-${cite.unit}`}>
+                        <button className="cite" onClick={() => onCite(cite)} title="Open the source">
+                          <span className="quote">“{cite.quote.replace(/^[-*•]\s*/, "")}”</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
             </article>
           ))}
         </>
       )}
-      <p className="looked">
-        Looked through {answer.coverage.searched} items{answer.kind === "brief" ? ` · quoted ${answer.coverage.cited}` : ""} ·{" "}
-        <button className="link" onClick={() => setDetails(!details)}>{details ? "Hide" : "How this was checked"}</button>
+      <p className="looked bits">
+        <span>Looked through <b>{answer.coverage.searched}</b> items</span>
+        <button className="link" onClick={() => setDetails(!details)}>{details ? "Hide the checks" : "How this was checked"}</button>
       </p>
       {details && (
         <table className="checks">
