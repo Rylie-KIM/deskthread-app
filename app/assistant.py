@@ -8,7 +8,7 @@ disk at any step.
 import time
 from datetime import datetime
 
-from app import config, coverage, prompts
+from app import config, coverage, meetings, prompts
 from app.broker import Broker
 from app.gate import Checked, Given, check, instruction_units, parse_points
 from app.images import ImageReader
@@ -16,7 +16,7 @@ from app.model import Model, complete_json
 from app.policy import AccessPolicy
 from app.search import Candidate, add_expansion, build_query, find
 from app.store import SessionStore
-from contracts.api import Answer, AnswerKind, BriefPoint, Citation, PointStatus
+from contracts.api import Answer, AnswerKind, BriefPoint, Citation, Meeting, PointStatus
 from contracts.broker import SourceStatus
 from contracts.errors import DeskThreadError
 from contracts.gates import Gate, GateResult, Outcome
@@ -43,6 +43,17 @@ class Assistant:
     @property
     def readings_held(self) -> int:
         return self._images.held
+
+    # ------------------------------------------------------------------ meetings (FT-34)
+    def meetings(self, days: int = 7) -> list[Meeting]:
+        self._store.refresh()
+        return meetings.upcoming(self._store.items(), days)
+
+    def prepare(self, meeting_id: str) -> Answer:
+        meeting = next((m for m in self.meetings(days=30) if m.meeting_id == meeting_id), None)
+        if meeting is None:
+            return self.ask("What did I promise?")
+        return self.ask(f"What did I promise {meeting.person}?", person=meeting.person)
 
     # ------------------------------------------------------------------ one question
     def ask(self, question: str, person: str | None = None) -> Answer:
