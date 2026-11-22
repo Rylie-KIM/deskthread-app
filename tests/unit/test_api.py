@@ -199,3 +199,41 @@ def test_inline_scripts_of_our_own_page_are_allowed_by_hash_and_nothing_else(
     assert f"script-src 'self' {hashes[0]};" in csp
     assert "'unsafe-inline'" not in csp.split("style-src")[0]  # never for scripts
     assert content_security_policy(None).count("sha256") == 0
+
+
+def test_the_model_list_shows_what_is_approved_installed_and_in_use(runtime: Runtime) -> None:
+    from app.model import ModelGateway
+
+    class Installed(ModelGateway):
+        def installed(self) -> dict[str, str]:
+            return {"gemma4:e4b": "d" * 64, "phi4-mini:latest": "e" * 64}
+
+        def unload(self) -> bool:
+            return True
+
+        def verify_pin(self) -> str:
+            return "ok"
+
+    runtime.gateway = Installed()
+    client = TestClient(create_app(runtime), base_url=BASE, headers={TOKEN_HEADER: runtime.token})
+    listed = {m["tag"]: m for m in client.get("/api/models").json()}
+    assert listed["gemma4:e4b"]["selected"] and listed["gemma4:e4b"]["tested"]
+    assert listed["gemma4:e2b"]["installed"] is False and listed["gemma4:e2b"]["tested"] is False
+    assert listed["phi4-mini:latest"]["reads_pictures"] is False
+
+    picked = client.post("/api/models/select", json={"tag": "phi4-mini:latest"}).json()
+    assert {m["tag"] for m in picked if m["selected"]} == {"phi4-mini:latest"}
+    assert client.get("/api/session").json()["model_tag"] == "phi4-mini:latest"
+    assert client.post("/api/models/select", json={"tag": "gemma4:e2b"}).status_code == 503
+    assert client.post("/api/models/download", json={"tag": "qwen3:8b"}).status_code == 400
+
+
+def test_a_model_that_cannot_read_pictures_leaves_them_unread(demo_laptop: Path) -> None:
+    model = FakeModel(lambda q: SAM_BRIEF)
+    model.reads_pictures = False  # type: ignore[attr-defined]
+    runtime = Runtime(model, PORT)
+    client = TestClient(create_app(runtime), base_url=BASE, headers={TOKEN_HEADER: runtime.token})
+    _work_profile(client, demo_laptop)
+    client.post("/api/ask", json={"question": "What did I promise Sam?"})
+    assert all("Transcribe" not in p for p in model.prompts)  # no picture was sent to the model
+    assert runtime.session.assistant.readings_held == 0

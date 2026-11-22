@@ -113,7 +113,7 @@ class Assistant:
             return self._answer(AnswerKind.NOT_FOUND, question, message, [], [], trace, started)
         calls = getattr(self._model, "calls", 0) - calls_before
         model_note = (
-            f"{config.MODEL_TAG} ({config.MODEL_DIGEST[:12]}), prompt {config.PROMPT_VERSION}, "
+            f"{getattr(self._model, 'tag', config.MODEL_TAG)}, prompt {config.PROMPT_VERSION}, "
             f"on this laptop only, {calls} calls, no tools"
         )
         trace.append(_gate(Gate.G3_MODEL, Outcome.PASS, model_note))

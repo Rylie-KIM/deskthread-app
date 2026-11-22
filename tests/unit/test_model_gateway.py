@@ -184,3 +184,30 @@ def test_a_server_left_over_on_our_port_is_adopted_and_stopped_at_the_end(
     assert [pid for pid, _ in killed] == [4242] and server.pid is None
     server.stop()
     assert len(killed) == 1  # stopping twice is harmless
+
+
+# ------------------------------------------------------------------ choosing a model (T-47)
+
+
+def test_only_approved_models_and_no_chinese_developed_one_is_offered() -> None:
+    makers = {m.maker for m in config.MODELS}
+    assert makers <= {"Google", "Microsoft", "IBM", "Meta", "Mistral AI"}
+    assert (
+        config.MODELS[0].tag == config.MODEL_TAG and config.MODELS[0].digest == config.MODEL_DIGEST
+    )
+    assert len({m.tag for m in config.MODELS}) == len(config.MODELS)
+    assert config.model_choice("qwen3:8b") is None and config.model_choice("deepseek-r1") is None
+
+
+def test_selecting_a_model_needs_it_approved_and_on_this_mac(fake: str) -> None:
+    gateway = ModelGateway(fake)
+    gateway.complete("hello")
+    assert gateway.tag == config.MODEL_TAG and gateway.reads_pictures is True
+    for tag, code in (
+        ("qwen3:8b", ErrorCode.BAD_REQUEST),
+        ("phi4-mini:latest", ErrorCode.MODEL_UNAVAILABLE),
+    ):
+        with pytest.raises(DeskThreadError) as err:
+            gateway.select(tag)
+        assert err.value.code is code
+    assert gateway.tag == config.MODEL_TAG  # a refused choice changes nothing

@@ -19,7 +19,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 import contracts
-from app import config
+from app import config, models
 from app.clock import now
 from app.proof import ending, evidence, memory
 from app.runtime import Runtime
@@ -127,8 +127,8 @@ def create_app(runtime: Runtime, ui_dir: Path | None = None) -> FastAPI:
     def session_info() -> SessionInfo:
         return SessionInfo(
             contract_version=contracts.CONTRACT_VERSION,
-            model_tag=config.MODEL_TAG,
-            model_digest=config.MODEL_DIGEST,
+            model_tag=runtime.gateway.tag if runtime.gateway else config.MODEL_TAG,
+            model_digest=(runtime.gateway.digest if runtime.gateway else "") or config.MODEL_DIGEST,
             prompt_version=config.PROMPT_VERSION,
             now=now(),
             demo_folder=str(runtime.demo_folder) if runtime.demo_folder else "",
@@ -208,6 +208,7 @@ def create_app(runtime: Runtime, ui_dir: Path | None = None) -> FastAPI:
         kind = mimetypes.guess_type(real.name)[0] or "application/octet-stream"
         return Response(content=data, media_type=kind)
 
+    models.register(app, runtime)
     memory.register(app, runtime)
     ending.register(app, runtime, evidence.register(app, runtime))
 

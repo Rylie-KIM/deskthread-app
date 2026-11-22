@@ -27,6 +27,9 @@ ROUTES: dict[str, str] = {
     "POST /api/ask": "Answer",  # body: AskBody
     "GET /api/items/{item_id}": "ItemView",
     "GET /api/items/{item_id}/image": "bytes",
+    "GET /api/models": "list[ModelInfo]",
+    "POST /api/models/select": "list[ModelInfo]",  # body: ModelPick
+    "POST /api/models/download": "list[ModelInfo]",  # body: ModelPick; runs in the background
     "GET /api/memory": "MemoryState",
     "POST /api/forget": "MemoryState",
     "GET /api/proof": "Proof",
@@ -48,6 +51,26 @@ class SessionInfo(_Frozen):
     # Path of the invented demo laptop when it has been built, so the first screen can offer
     # "try it with the demo". Empty when there is none. (contract 1.1)
     demo_folder: str = ""
+
+
+class ModelInfo(_Frozen):
+    """One model the user may choose (contract 1.3)."""
+
+    tag: str
+    name: str
+    maker: str
+    download_gb: float
+    reads_pictures: bool
+    good_for: str
+    installed: bool
+    selected: bool
+    tested: bool  # run through DeskThread's own tests and pinned to that exact version
+    downloading: int | None = None  # percent, while a download runs
+    failed: bool = False
+
+
+class ModelPick(_Frozen):
+    tag: str
 
 
 class FolderChoice(_Frozen):
@@ -223,6 +246,8 @@ __all__ = [
     "ItemView",
     "Meeting",
     "MemoryState",
+    "ModelInfo",
+    "ModelPick",
     "PermissionRequest",
     "PointStatus",
     "PrepareBody",

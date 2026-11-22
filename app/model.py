@@ -15,6 +15,7 @@ import subprocess
 import time
 import urllib.error
 import urllib.request
+from collections.abc import Callable
 from typing import Any, Protocol
 from urllib.parse import urlparse
 
@@ -60,6 +61,13 @@ class ModelGateway:
         self._base = base_url.rstrip("/")
         self._pinned = False
         self.calls = 0
+        self.tag = config.MODEL_TAG  # the model in use; the user may choose another
+        self.digest = ""  # the digest of the model in use, once checked
+
+    @property
+    def reads_pictures(self) -> bool:
+        choice = config.model_choice(self.tag)
+        return choice.reads_pictures if choice else False
 
     def _call(self, path: str, body: dict[str, Any] | None = None, timeout: float = 300) -> Any:
         data = json.dumps(body).encode() if body is not None else None
@@ -79,16 +87,52 @@ class ModelGateway:
             return False
         return True
 
-    def verify_pin(self) -> str:
-        """The digest of the installed model must equal the pinned one (FT-45)."""
+    def installed(self) -> dict[str, str]:
+        """Models on this Mac: tag -> digest."""
         models = self._call("/api/tags", timeout=10).get("models", [])
-        digest = next(
-            (m.get("digest", "") for m in models if m.get("name") == config.MODEL_TAG), ""
-        )
-        if digest != config.MODEL_DIGEST:
+        return {str(m.get("name", "")): str(m.get("digest", "")) for m in models}
+
+    def verify_pin(self) -> str:
+        """The model in use must be on the approved list, installed, and (where DeskThread
+        has tested it) have exactly the tested digest (FT-45)."""
+        choice = config.model_choice(self.tag)
+        digest = self.installed().get(self.tag, "")
+        if choice is None or not digest or (choice.digest and digest != choice.digest):
             raise DeskThreadError(ErrorCode.MODEL_NOT_PINNED)
-        self._pinned = True
+        self._pinned, self.digest = True, digest
         return digest
+
+    def select(self, tag: str) -> None:
+        """Use another approved model that is already on this Mac."""
+        if config.model_choice(tag) is None:
+            raise DeskThreadError(ErrorCode.BAD_REQUEST, "not an approved model")
+        if tag not in self.installed():
+            raise DeskThreadError(ErrorCode.MODEL_UNAVAILABLE, "download this model first")
+        if tag != self.tag:
+            self.unload()  # the old model, and the last prompt it held, leave memory
+        self.tag, self._pinned, self.digest = tag, False, ""
+        self.verify_pin()
+
+    def pull(self, tag: str, progress: Callable[[int], None]) -> None:
+        """Download an approved model. This is the model server using the internet, on the
+        user's click: the one moment anything of DeskThread reaches outside this Mac."""
+        if config.model_choice(tag) is None:
+            raise DeskThreadError(ErrorCode.BAD_REQUEST, "not an approved model")
+        body = json.dumps({"model": tag, "stream": True}).encode()
+        request = urllib.request.Request(self._base + "/api/pull", data=body)  # noqa: S310
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        try:
+            with opener.open(request, timeout=3600) as response:
+                for line in response:
+                    step = json.loads(line or b"{}")
+                    if step.get("error"):
+                        raise DeskThreadError(ErrorCode.MODEL_UNAVAILABLE, "the download failed")
+                    total, done = step.get("total"), step.get("completed")
+                    if total and done is not None:
+                        progress(min(99, int(100 * done / total)))
+        except (urllib.error.URLError, TimeoutError, ValueError, OSError) as exc:
+            raise DeskThreadError(ErrorCode.MODEL_UNAVAILABLE, "the download failed") from exc
+        progress(100)
 
     def complete(self, prompt: str, images: list[bytes] | None = None) -> str:
         if not self._pinned:
@@ -97,7 +141,7 @@ class ModelGateway:
         if images:
             message["images"] = [base64.b64encode(i).decode() for i in images]
         body = {
-            "model": config.MODEL_TAG,
+            "model": self.tag,
             "messages": [message],
             "stream": False,
             "think": False,
@@ -116,12 +160,12 @@ class ModelGateway:
             models = self._call("/api/ps", timeout=5).get("models", [])
         except DeskThreadError:
             return False
-        return any(m.get("name") == config.MODEL_TAG for m in models)
+        return any(m.get("name") == self.tag for m in models)
 
     def unload(self) -> bool:
         """Forget now: ask the runtime to drop the model, and with it the last prompt."""
         try:
-            self._call("/api/generate", {"model": config.MODEL_TAG, "keep_alive": 0}, timeout=30)
+            self._call("/api/generate", {"model": self.tag, "keep_alive": 0}, timeout=30)
         except DeskThreadError:
             return not self.loaded()
         for _ in range(20):

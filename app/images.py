@@ -32,6 +32,12 @@ class ImageReader:
     def read_pending(self) -> int:
         """Read allowed images that have no reading yet. Returns how many could not be read."""
         failed = 0
+        if not getattr(self._model, "reads_pictures", True):
+            return sum(  # the chosen model cannot read pictures: they stay unread, and counted
+                1
+                for item in self._store.items()
+                if item.kind is ItemKind.IMAGE and item.meta.get("reading") == "pending"
+            )
         for item in self._store.items():
             if item.kind is not ItemKind.IMAGE or item.meta.get("reading") != "pending":
                 continue
