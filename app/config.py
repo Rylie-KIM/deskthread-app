@@ -51,20 +51,8 @@ MODELS: tuple[ModelChoice, ...] = (
         "For quick look-ups on a Mac with little memory",
     ),
     ModelChoice(
-        "ministral-3:8b", "Ministral 3 8B", "Mistral AI", 6.0, False,
-        "For long notes when you want a European-made model",
-    ),
-    ModelChoice(
         "gpt-oss:20b", "gpt-oss 20B", "OpenAI", 13.8, False,
         "For hard questions when you can wait and have 24 GB or more",
-    ),
-    ModelChoice(
-        "granite4:tiny-h", "Granite 4 Tiny", "IBM", 4.2, False,
-        "For reports, policies and other business documents",
-    ),
-    ModelChoice(
-        "olmo-3:7b", "OLMo 3 7B", "Allen Institute for AI", 4.5, False,
-        "For when you want a model whose training is openly documented",
     ),
     ModelChoice(
         "nemotron-mini:4b", "Nemotron Mini", "NVIDIA", 2.7, False,
