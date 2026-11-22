@@ -7,202 +7,182 @@
 <meta name="description" content="A local-first assistant that finds what you wrote down, without your notes ever leaving your laptop.">
 <style>
   :root {
-    --royal: #0a12d6; --deep: #0407a4; --azure: #0a94ff; --sky: #d9ecff;
-    --ink: #0b1030; --muted: #525a78; --page: #eeeff3; --card: #ffffff; --line: #d8dbe6;
-    --on-blue: #ffffff; --on-blue-soft: #dfe5ff; --ok: #0b7a4b; --warn: #7a5200;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root { --royal: #8d9bff; --deep: #0407a4; --azure: #4fb2ff; --sky: #16244f;
-            --ink: #eef0fa; --muted: #a8b0cc; --page: #0a0d1f; --card: #121733; --line: #252c52;
-            --ok: #5ad6a0; --warn: #f1c46b; }
+    --bg0: #03065f; --bg1: #0a17c4; --bg2: #0d55ea; --glow: #45b6ff; --royal: #0a17c4;
+    --muted: rgba(255,255,255,.8); --faint: rgba(255,255,255,.62);
+    --glass: rgba(255,255,255,.11); --glass-2: rgba(255,255,255,.18);
+    --stroke: rgba(255,255,255,.26); --stroke-soft: rgba(255,255,255,.14);
+    --paper: rgba(255,255,255,.95); --ink: #0a0f33; --ink-muted: #515a7c; --line: #dde2f1;
   }
   * { box-sizing: border-box; }
-  html { scroll-behavior: smooth; }
-  body { margin: 0; overflow-x: hidden; background: var(--page); color: var(--ink);
+  html { scroll-behavior: smooth; background: var(--bg0); }
+  body { margin: 0; overflow-x: hidden; color: #fff; -webkit-font-smoothing: antialiased;
          font: 17px/1.6 "Helvetica Neue", -apple-system, "Segoe UI", system-ui, sans-serif;
-         -webkit-font-smoothing: antialiased; }
-  .wrap { max-width: 1120px; margin: 0 auto; padding: 0 28px; }
-  a { color: var(--royal); }
-  a:focus-visible { outline: 3px solid var(--azure); outline-offset: 3px; border-radius: 4px; }
+         background: linear-gradient(165deg, var(--bg0) 0%, var(--bg1) 44%, var(--bg2) 100%); }
+  a { color: inherit; }
+  a:focus-visible { outline: 3px solid #fff; outline-offset: 3px; border-radius: 8px; }
+  .wrap { position: relative; z-index: 1; max-width: 1120px; margin: 0 auto; padding: 0 28px; }
 
-  header.top { display: flex; justify-content: space-between; align-items: center; padding: 26px 0; }
-  .mark { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 1.12rem;
-           letter-spacing: -.01em; color: var(--royal); text-decoration: none; }
-  .mark svg { width: 30px; height: 22px; }
-  .top nav a { margin-left: 26px; text-decoration: none; color: var(--muted); font-size: .95rem; }
-  .top nav a:hover { color: var(--royal); }
+  /* the liquid scene: blobs, spheres and a ring, drawn in CSS */
+  .scene { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 0; }
+  .scene i { position: absolute; display: block; }
+  .blob { filter: blur(2px); border-radius: 46% 54% 58% 42% / 52% 44% 56% 48%;
+          background: radial-gradient(circle at 32% 28%, rgba(125,205,255,.95), rgba(40,120,255,.55) 42%, rgba(10,30,200,0) 72%); }
+  .blob.a { width: 760px; height: 720px; left: -220px; top: -260px; opacity: .55; }
+  .blob.b { width: 820px; height: 700px; right: -300px; top: 120px; opacity: .5; border-radius: 58% 42% 44% 56% / 46% 58% 42% 54%; }
+  .blob.c { width: 620px; height: 560px; left: 18%; top: 1180px; opacity: .34; }
+  .blob.d { width: 700px; height: 640px; right: -260px; top: 2100px; opacity: .4; }
+  .sphere { border-radius: 50%; background: radial-gradient(circle at 32% 28%, #d4edff 0%, #5cbbff 22%, #1450f0 58%, #0613a8 100%);
+            box-shadow: 0 34px 70px -22px rgba(2,5,80,.85), inset -16px -20px 38px rgba(4,8,120,.55); }
+  .sphere.one { width: 190px; height: 190px; right: 9%; top: 150px; }
+  .sphere.two { width: 64px; height: 64px; left: -18px; top: 700px; opacity: .85; }
+  .sphere.three { width: 110px; height: 110px; left: -40px; top: 1900px; opacity: .8; }
+  .ring { width: 300px; height: 300px; border-radius: 50%; right: 16%; top: 430px; transform: rotate(-24deg) scaleY(.6);
+          border: 62px solid #2b55ff; border-top-color: #74c8ff; border-left-color: #3f7bff; border-bottom-color: #0a1cc0;
+          box-shadow: 0 38px 56px -18px rgba(2,5,80,.8), inset 0 12px 24px rgba(3,6,110,.6); }
+  @media (prefers-reduced-motion: no-preference) {
+    .sphere.one { animation: bob 9s ease-in-out infinite alternate; }
+    .ring { animation: tilt 14s ease-in-out infinite alternate; }
+    .blob.a { animation: drift 28s ease-in-out infinite alternate; }
+    @keyframes bob { to { transform: translateY(-18px); } }
+    @keyframes tilt { to { transform: rotate(-14deg) scaleY(.66) translateY(-10px); } }
+    @keyframes drift { to { transform: translate(40px, 24px) rotate(8deg) scale(1.05); } }
+  }
 
-  .hero { display: grid; grid-template-columns: minmax(0, 1.02fr) minmax(0, 1fr); gap: 12px;
-           align-items: center; padding: 34px 0 20px; }
-  .eyebrow { font-size: .8rem; letter-spacing: .14em; text-transform: uppercase; color: var(--royal);
-              font-weight: 600; margin: 0 0 18px; }
-  h1 { font-weight: 300; font-size: clamp(2.5rem, 5.6vw, 4.4rem); line-height: 1.04;
-        letter-spacing: -.035em; margin: 0 0 22px; text-wrap: balance; }
-  h1 span { color: var(--royal); }
-  .lead { color: var(--muted); max-width: 46ch; margin: 0 0 30px; font-size: 1.08rem; }
-  .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 18px; }
-  .button { display: inline-flex; align-items: center; gap: 10px; padding: 15px 26px; border-radius: 999px;
-             font-weight: 600; text-decoration: none; background: var(--royal); color: var(--page);
-             transition: transform .15s ease, box-shadow .15s ease; box-shadow: 0 10px 24px -12px var(--royal); }
+  .glass { background: var(--glass); border: 1px solid var(--stroke);
+           -webkit-backdrop-filter: blur(22px) saturate(140%); backdrop-filter: blur(22px) saturate(140%);
+           box-shadow: 0 28px 70px -36px rgba(1,3,60,.95), inset 0 1px 0 rgba(255,255,255,.22); }
+
+  header.top { padding-top: 18px; position: sticky; top: 0; z-index: 5; }
+  header.top .bar { display: flex; justify-content: space-between; align-items: center; border-radius: 999px; padding: 12px 14px 12px 26px; }
+  .mark { font-weight: 700; font-size: 1.12rem; text-decoration: none; letter-spacing: -.01em; }
+  nav a { margin-left: 6px; padding: 8px 15px; border-radius: 999px; text-decoration: none; color: var(--muted); font-size: .95rem; }
+  nav a:hover { background: var(--stroke-soft); color: #fff; }
+  nav a.pill { background: #fff; color: var(--royal); font-weight: 650; }
+
+  .hero { padding: 96px 0 84px; max-width: 720px; }
+  .eyebrow { font-size: .78rem; letter-spacing: .18em; text-transform: uppercase; color: var(--glow); font-weight: 700; margin: 0 0 20px; }
+  h1 { font-weight: 700; font-size: clamp(2.7rem, 6.4vw, 5rem); line-height: 1; letter-spacing: -.045em; margin: 0 0 26px;
+       text-wrap: balance; text-shadow: 0 10px 40px rgba(2,5,90,.5); }
+  h1 span { background: linear-gradient(180deg, #ffffff, #8fd6ff); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .lead { color: var(--muted); max-width: 50ch; margin: 0 0 34px; font-size: 1.14rem; }
+  .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 22px; }
+  .button { display: inline-flex; align-items: center; gap: 10px; padding: 16px 28px; border-radius: 999px; font-weight: 650; text-decoration: none;
+            background: #fff; color: var(--royal); box-shadow: 0 16px 40px -14px rgba(130,205,255,.95); transition: transform .15s ease; }
   .button:hover { transform: translateY(-2px); }
-  .button.ghost { background: transparent; color: var(--royal); box-shadow: inset 0 0 0 1.5px var(--royal); }
-  .state { font-size: .88rem; color: var(--warn); max-width: 52ch; margin: 0; }
-  .ribbon { width: 118%; max-width: none; margin-right: -18%; display: block; }
+  .button.ghost { background: var(--glass-2); color: #fff; box-shadow: inset 0 0 0 1px var(--stroke); }
+  .state { font-size: .9rem; color: var(--faint); max-width: 54ch; margin: 0; }
 
-  .rule { background: var(--deep); color: var(--on-blue); margin-top: 46px; position: relative; overflow: hidden; }
-  .rule::after { content: ""; position: absolute; inset: 0 0 0 58%;
-                  background: linear-gradient(100deg, #1a29f2 0%, #1a29f2 78%, #0a94ff 78%);
-                  clip-path: polygon(34% 0, 100% 0, 100% 100%, 0 100%); }
-  .rule .wrap { position: relative; z-index: 1; padding-top: 68px; padding-bottom: 72px; }
-  .rule h2 { font-weight: 300; font-size: clamp(1.8rem, 3.6vw, 2.7rem); letter-spacing: -.03em;
-              line-height: 1.1; margin: 0 0 40px; max-width: 18ch; }
-  .four { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; }
-  .four div { padding: 4px 22px 4px 0; border-top: 1px solid rgba(255,255,255,.35); padding-top: 18px; }
-  .four h3 { font-size: 1.02rem; font-weight: 600; margin: 0 0 8px; }
-  .four p { margin: 0; font-size: .93rem; color: var(--on-blue-soft); }
-  .four code { color: var(--on-blue); }
+  .kicker { font-size: .78rem; letter-spacing: .18em; text-transform: uppercase; color: var(--glow); font-weight: 700; margin: 0 0 12px; }
+  h2 { font-weight: 700; font-size: clamp(1.9rem, 3.8vw, 2.9rem); letter-spacing: -.035em; line-height: 1.06; margin: 0 0 16px; text-wrap: balance; }
+  .sub { color: var(--muted); max-width: 58ch; margin: 0 0 36px; }
+  section.block { padding: 70px 0 0; }
 
-  section.block { padding: 84px 0 0; }
-  .kicker { font-size: .8rem; letter-spacing: .14em; text-transform: uppercase; color: var(--royal);
-             font-weight: 600; margin: 0 0 12px; }
-  h2.title { font-weight: 300; font-size: clamp(1.8rem, 3.4vw, 2.6rem); letter-spacing: -.03em;
-              line-height: 1.1; margin: 0 0 16px; text-wrap: balance; }
-  .sub { color: var(--muted); max-width: 58ch; margin: 0 0 34px; }
+  .tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+  .tile { border-radius: 36px; padding: 176px 24px 28px; position: relative; overflow: hidden; }
+  .tile::before { content: ""; position: absolute; width: 116px; height: 116px; left: 50%; top: 32px; transform: translateX(-50%); border-radius: 50%;
+                  background: radial-gradient(circle at 35% 30%, #e2f3ff, #63bcff 30%, #1450f0 72%); opacity: .9;
+                  box-shadow: 0 20px 44px -16px rgba(2,5,80,.9); }
+  .tile:nth-child(2)::before { border-radius: 38%; transform: translateX(-50%) rotate(14deg); background: linear-gradient(150deg, #f4fbff, #9fd8ff 40%, #2b6bff); }
+  .tile:nth-child(3)::before { width: 70px; height: 70px; top: 30px; border: 26px solid #6cc3ff; border-bottom-color: #1a46f0; border-left-color: #3f7bff; background: none; box-sizing: content-box; left: calc(50% - 61px); transform: rotate(-20deg) scaleY(.7); }
+  .tile:nth-child(4)::before { border-radius: 50% 50% 50% 8px; transform: translateX(-50%) rotate(-45deg) scale(.86); }
+  .tile h3 { position: relative; margin: 0 0 6px; font-size: 1.25rem; letter-spacing: -.01em; }
+  .tile p { position: relative; margin: 0; font-size: .93rem; color: var(--muted); }
+  code { font: .9em ui-monospace, "SF Mono", Menlo, monospace; overflow-wrap: anywhere; }
 
-  .stage { border-radius: 28px; padding: 44px; position: relative; overflow: hidden;
-            background: linear-gradient(120deg, #0407a4 0%, #0a12d6 42%, #0a94ff 100%); }
-  .stage::before { content: ""; position: absolute; right: -8%; top: -40%; width: 60%; height: 180%;
-                    background: rgba(255,255,255,.14); transform: rotate(18deg); border-radius: 40px; }
-  .glass { position: relative; max-width: 620px; border-radius: 20px; padding: 26px 28px;
-            background: rgba(255,255,255,.86); color: #0b1030;
-            -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
-            box-shadow: 0 30px 60px -30px rgba(2,4,80,.7), inset 0 0 0 1px rgba(255,255,255,.7); }
-  .glass .q { font-size: .86rem; color: #525a78; margin: 0 0 16px; }
-  .item { padding: 14px 0; border-top: 1px solid #dfe3f0; }
+  .stage { border-radius: 40px; padding: 44px; display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, .75fr); gap: 34px; align-items: center; }
+  .paper { background: var(--paper); color: var(--ink); border-radius: 28px; padding: 26px 28px; box-shadow: 0 40px 80px -34px rgba(1,3,60,.95), inset 0 1px 0 #fff; }
+  .paper .q { font-size: 1.15rem; font-weight: 650; letter-spacing: -.01em; margin: 0 0 16px; }
+  .item { padding: 14px 0; border-top: 1px solid var(--line); }
   .item:first-of-type { border-top: 0; padding-top: 0; }
   .row { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
-  .chip { font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
-           padding: 3px 10px; border-radius: 999px; }
-  .done { background: #dcf5e8; color: #0b6b42; } .open { background: #dfe6ff; color: #0a12d6; }
-  .gone { background: #ececf2; color: #5a5f78; }
-  .item b { font-weight: 600; }
-  .quote { margin: 6px 0 2px; font-size: .95rem; }
-  .from { margin: 0; font-size: .8rem; color: #6a7190; }
-  .cov { margin: 16px 0 0; font-size: .8rem; color: #525a78; border-top: 1px solid #dfe3f0; padding-top: 12px; }
-  .sample { position: relative; color: #dfe6ff; font-size: .82rem; margin: 18px 0 0; }
+  .chip { font-size: .7rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; padding: 3px 10px; border-radius: 999px; }
+  .done { background: #dcf5e8; color: #0b6b42; } .open { background: #dfe6ff; color: #0a17c4; } .gone { background: #ececf2; color: #5a5f78; }
+  .quote { margin: 6px 0 2px; font-size: .96rem; }
+  .from { margin: 0; font-size: .8rem; color: var(--ink-muted); }
+  .cov { margin: 16px 0 0; font-size: .8rem; color: var(--ink-muted); border-top: 1px solid var(--line); padding-top: 12px; }
+  .side p { color: var(--muted); margin: 0 0 14px; }
+  .side .num { font-size: 4.6rem; font-weight: 700; letter-spacing: -.04em; line-height: 1; margin: 0;
+               background: linear-gradient(180deg, #fff, #7fd0ff); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .sample { font-size: .82rem; color: var(--faint); }
 
-  .cols { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); gap: 28px; align-items: start; }
-  pre { margin: 0; background: #070a2e; color: #e6eaff; border-radius: 20px; padding: 24px 26px;
-         overflow-x: auto; font: 13.5px/1.75 ui-monospace, "SF Mono", Menlo, monospace; }
-  pre .c { color: #8f9bd6; }
-  code { font: .9em ui-monospace, "SF Mono", Menlo, monospace; overflow-wrap: anywhere; }
-  .steps { list-style: none; margin: 0; padding: 0; counter-reset: s; }
-  .steps li { counter-increment: s; position: relative; padding: 0 0 22px 52px; color: var(--muted); font-size: .96rem; }
-  .steps li::before { content: counter(s); position: absolute; left: 0; top: -2px; width: 34px; height: 34px;
-                       border-radius: 50%; background: var(--sky); color: var(--royal); font-weight: 700;
-                       display: grid; place-items: center; }
-  .steps b { color: var(--ink); font-weight: 600; display: block; }
+  .cols { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, .85fr); gap: 20px; align-items: stretch; }
+  pre { margin: 0; background: rgba(2,4,60,.62); border: 1px solid var(--stroke-soft); color: #e6eaff; border-radius: 32px; padding: 28px 30px;
+        overflow-x: auto; font: 13.5px/1.8 ui-monospace, "SF Mono", Menlo, monospace; }
+  pre .c { color: #8fd0ff; }
+  .steps { list-style: none; margin: 0; padding: 30px 28px; counter-reset: s; border-radius: 32px; }
+  .steps li { counter-increment: s; position: relative; padding: 0 0 22px 56px; color: var(--muted); font-size: .96rem; }
+  .steps li:last-child { padding-bottom: 0; }
+  .steps li::before { content: counter(s); position: absolute; left: 0; top: -3px; width: 38px; height: 38px; border-radius: 50%;
+                      background: #fff; color: var(--royal); font-weight: 700; display: grid; place-items: center; }
+  .steps b { color: #fff; display: block; }
 
   .cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
-  .card { background: var(--card); border-radius: 20px; padding: 26px; border: 1px solid var(--line); }
-  .card h3 { margin: 0 0 8px; font-size: 1.02rem; font-weight: 600; }
-  .card p { margin: 0; color: var(--muted); font-size: .93rem; }
-  .digest { display: block; margin-top: 10px; font-size: .78rem; color: var(--royal); }
+  .card { border-radius: 32px; padding: 28px; }
+  .card h3 { margin: 0 0 8px; font-size: 1.1rem; }
+  .card p { margin: 0; color: var(--muted); font-size: .94rem; }
+  .digest { display: block; margin-top: 12px; font-size: .76rem; color: #bfe4ff; }
 
-  footer { margin-top: 96px; border-top: 1px solid var(--line); padding: 26px 0 44px;
-            color: var(--muted); font-size: .88rem; display: flex; justify-content: space-between;
-            flex-wrap: wrap; gap: 10px; }
+  footer { margin-top: 90px; border-top: 1px solid var(--stroke-soft); padding: 26px 0 46px; color: var(--faint); font-size: .88rem;
+           display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
 
-  @media (max-width: 900px) {
-    .hero { grid-template-columns: 1fr; }
-    .ribbon { width: 112%; margin: 6px -6% 0; }
-    .four { grid-template-columns: 1fr 1fr; row-gap: 26px; }
-    .cols, .cards { grid-template-columns: 1fr; }
-    .rule::after { display: none; }
-    .stage { padding: 22px; border-radius: 22px; }
+  @media (max-width: 940px) {
+    .tiles { grid-template-columns: 1fr 1fr; } .stage, .cols, .cards { grid-template-columns: 1fr; }
+    .stage { padding: 22px; border-radius: 30px; } .ring { opacity: .45; right: -60px; } .sphere.one { width: 120px; height: 120px; right: 4%; top: 110px; }
+    .hero { padding: 64px 0 60px; }
   }
-  @media (max-width: 520px) {
-    .wrap { padding: 0 18px; }
-    .four { grid-template-columns: 1fr; }
-    .top nav a:not(:last-child) { display: none; }
+  @media (max-width: 560px) {
+    .wrap { padding: 0 18px; } .tiles { grid-template-columns: 1fr; } 
+    nav a:not(.pill) { display: none; } .ring { display: none; }
   }
   @media (prefers-reduced-motion: reduce) { .button { transition: none; } html { scroll-behavior: auto; } }
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header class="top">
-    <a class="mark" href="#top" aria-label="DeskThread">
-      <svg viewBox="0 0 60 44" aria-hidden="true"><path d="M4 30C10 10 34 2 56 8l-4 12C36 16 22 20 16 34z" fill="#0a12d6"/><path d="M8 38c14 6 34 2 46-12l-9-6C36 30 24 33 14 30z" fill="#0a94ff"/></svg>
-      DeskThread
-    </a>
-    <nav><a href="#how">How it works</a><a href="#install">Install</a><a href="https://github.com/Rylie-KIM/deskthread-app">GitHub</a></nav>
-  </header>
-
-  <main id="top" class="hero">
-    <div>
-      <p class="eyebrow">Local-first assistant for managers</p>
-      <h1>You already wrote it down. <span>It never leaves your laptop.</span></h1>
-      <p class="lead">DeskThread joins notes, mail, reminders and screenshots written weeks apart
-      in different words, quotes exactly where each point came from, and says "not found" when
-      the answer is not there.</p>
-      <div class="actions">
-        <a class="button" href="https://github.com/Rylie-KIM/deskthread-app/archive/refs/heads/main.zip">Download for Mac <span aria-hidden="true">&darr;</span></a>
-        <a class="button ghost" href="#install">How to install</a>
-      </div>
-      <p class="state">Prototype in progress. It runs in the terminal today; the browser interface
-      is not built yet. macOS on Apple silicon. Windows is not tested.</p>
-    </div>
-    <svg class="ribbon" viewBox="0 0 860 500" role="img" aria-label="A ribbon made of blue panels with one clear glass panel">
-      <defs>
-        <linearGradient id="deep" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#0508b8"/><stop offset="1" stop-color="#02046e"/></linearGradient>
-        <linearGradient id="royal" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1c2bff"/><stop offset="1" stop-color="#0509c4"/></linearGradient>
-        <linearGradient id="royal2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a3cff"/><stop offset="1" stop-color="#0a12d6"/></linearGradient>
-        <linearGradient id="azure" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#37b0ff"/><stop offset="1" stop-color="#0a7ff0"/></linearGradient>
-        <linearGradient id="azureLight" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7cccff"/><stop offset="1" stop-color="#1596ff"/></linearGradient>
-        <linearGradient id="glass" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#d5dcf2"/></linearGradient>
-        <filter id="soft" x="-20%" y="-20%" width="140%" height="160%"><feDropShadow dx="0" dy="14" stdDeviation="14" flood-color="#02046e" flood-opacity=".22"/></filter>
-        <filter id="lift" x="-20%" y="-20%" width="140%" height="170%"><feDropShadow dx="0" dy="26" stdDeviation="22" flood-color="#02046e" flood-opacity=".28"/></filter>
-      </defs>
-      <g transform="rotate(-16 430 250)">
-      <g opacity=".96">
-      <path d="M33.9 229.1 A400 150 0 0 1 132.7 149.6 L207.1 197.8 A300 96 0 0 0 132.9 248.6 Z" fill="url(#deep)"/>
-      <path d="M142.3 145.8 A400 150 0 0 1 374.3 101.5 L388.2 166.9 A300 96 0 0 0 214.2 195.3 Z" fill="url(#royal)"/>
-      <path d="M388.2 100.8 A400 150 0 0 1 630.0 120.1 L580.0 178.9 A300 96 0 0 0 398.6 166.5 Z" fill="url(#glass)" stroke="#ffffff" stroke-width="3" filter="url(#soft)"/>
-      <path d="M642.0 122.8 A400 150 0 0 1 826.1 229.1 L727.1 248.6 A300 96 0 0 0 589.0 180.6 Z" fill="url(#azure)"/>
-      </g>
-      <g filter="url(#lift)">
-      <path d="M827.8 234.3 A400 150 0 0 1 761.6 333.9 L678.7 315.7 A300 96 0 0 0 728.4 252.0 Z" fill="url(#royal)"/>
-      <path d="M753.6 338.2 A400 150 0 0 1 513.2 396.7 L492.4 355.9 A300 96 0 0 0 672.7 318.4 Z" fill="url(#azureLight)"/>
-      <path d="M499.5 397.7 A400 150 0 0 1 242.2 382.4 L289.2 346.8 A300 96 0 0 0 482.1 356.5 Z" fill="url(#royal2)"/>
-      <path d="M230.0 379.9 A400 150 0 0 1 83.6 325.0 L170.2 310.0 A300 96 0 0 0 280.0 345.1 Z" fill="url(#deep)"/>
-      <path d="M76.8 320.4 A400 150 0 0 1 32.2 234.3 L131.6 252.0 A300 96 0 0 0 165.1 307.1 Z" fill="url(#azure)"/>
-      </g>
-      </g>
-    </svg>
-  </main>
+<div class="scene" aria-hidden="true">
+  <i class="blob a"></i><i class="blob b"></i><i class="blob c"></i><i class="blob d"></i>
+  <i class="sphere one"></i><i class="sphere two"></i><i class="sphere three"></i><i class="ring"></i>
 </div>
 
-<section class="rule" aria-labelledby="rule">
-  <div class="wrap">
-    <h2 id="rule">One rule: your knowledge stays yours.</h2>
-    <div class="four">
-      <div><h3>Nothing leaves</h3><p>The only connection the app can open is to the model on <code>127.0.0.1</code>. A test fails if any other code tries.</p></div>
-      <div><h3>No copies</h3><p>No database, no index, no log file. The app writes nothing to disk.</p></div>
-      <div><h3>You choose</h3><p>Every source starts Off. One click grants, one click revokes, at once. Private apps stay locked.</p></div>
-      <div><h3>Honest answers</h3><p>The model points at a note and a line; code copies the quote. No support means "not found".</p></div>
-    </div>
-  </div>
-</section>
+<header class="top">
+  <div class="wrap"><div class="bar glass">
+    <a class="mark" href="#top">DeskThread</a>
+    <nav><a href="#how">How it works</a><a href="#install">Install</a><a href="https://github.com/Rylie-KIM/deskthread-app">GitHub</a><a class="pill" href="https://github.com/Rylie-KIM/deskthread-app/archive/refs/heads/main.zip">Download</a></nav>
+  </div></div>
+</header>
 
 <div class="wrap">
+  <main id="top" class="hero">
+    <p class="eyebrow">Local-first assistant for managers</p>
+    <h1>You already wrote it down. <span>It never leaves your laptop.</span></h1>
+    <p class="lead">DeskThread joins notes, mail, reminders and screenshots written weeks apart
+    in different words, quotes exactly where each point came from, and says "not found" when
+    the answer is not there.</p>
+    <div class="actions">
+      <a class="button" href="https://github.com/Rylie-KIM/deskthread-app/archive/refs/heads/main.zip">Download for Mac <span aria-hidden="true">&darr;</span></a>
+      <a class="button ghost" href="#install">How to install</a>
+    </div>
+    <p class="state">Prototype. Runs on macOS with Apple silicon, in your browser at a local address.
+    Windows is not tested. All sample data is invented.</p>
+  </main>
+
+  <section aria-labelledby="rule">
+    <p class="kicker">The one rule</p>
+    <h2 id="rule">Your knowledge stays yours.</h2>
+    <div class="tiles">
+      <div class="tile glass"><h3>Nothing leaves</h3><p>The app can only connect to the model on <code>127.0.0.1</code>. A test fails if any other code tries.</p></div>
+      <div class="tile glass"><h3>No copies</h3><p>No database, no index, no log file. The app writes nothing to disk.</p></div>
+      <div class="tile glass"><h3>You choose</h3><p>Every source starts Off. One click allows, one click stops, at once. Private apps stay locked.</p></div>
+      <div class="tile glass"><h3>Honest answers</h3><p>The model points at a note and a line; code copies the quote. No support means "not found".</p></div>
+    </div>
+  </section>
+
   <section class="block" id="how">
     <p class="kicker">The moment it is built for</p>
-    <h2 class="title">A one-to-one tomorrow. Six weeks of scattered notes.</h2>
+    <h2>A one-to-one tomorrow. Six weeks of scattered notes.</h2>
     <p class="sub">Searching "development goals" finds nothing, because the notes say course,
     conference, intro and ownership. DeskThread joins them and shows its sources.</p>
-    <div class="stage">
-      <div class="glass" aria-label="Example of a brief">
+    <div class="stage glass">
+      <div class="paper" aria-label="Example of a brief">
         <p class="q">What did I promise Sam?</p>
         <div class="item">
           <div class="row"><span class="chip done">Done</span><b>Online course</b></div>
@@ -221,44 +201,48 @@
         </div>
         <p class="cov">72 readable · 70 searched · 22 shown to the model · 9 cited · private apps locked</p>
       </div>
-      <p class="sample">Output of the terminal version on invented sample data, shortened.</p>
+      <div class="side">
+        <p class="num">0</p>
+        <p>files written by the app, and every connection on this Mac only. The Proof panel shows both, and End session gives you a receipt.</p>
+        <p class="sample">The brief is real output on invented sample data, shortened.</p>
+      </div>
     </div>
   </section>
 
   <section class="block" id="install">
     <p class="kicker">Install</p>
-    <h2 class="title">Three steps. After the model is downloaded, it works offline.</h2>
-    <p class="sub">Needs macOS on Apple silicon, Homebrew, and about 10 GB of free disk for the model.</p>
+    <h2>Three steps. Then it works offline.</h2>
+    <p class="sub">Needs macOS on Apple silicon, Homebrew, Node.js, and about 10 GB of free disk for the model.</p>
     <div class="cols">
       <pre><code><span class="c"># 1. get the code and the tools</span>
 git clone https://github.com/Rylie-KIM/deskthread-app.git
 cd deskthread-app
 brew install ollama uv
-make setup
+make setup ui
 
 <span class="c"># 2. download the model once (about 9 GB)</span>
 OLLAMA_HOST=127.0.0.1:11435 OLLAMA_NO_CLOUD=1 ollama serve &amp;
 OLLAMA_HOST=127.0.0.1:11435 ollama pull gemma4:e4b
 kill %1
 
-<span class="c"># 3. try it on the invented demo laptop</span>
-uv run python demo-data/make_demo_data.py
-uv run python -m scripts.ask</code></pre>
-      <ol class="steps">
-        <li><b>Get the code and the tools</b>The model server (not the desktop app) and a Python installer. Dependencies are pinned with hashes.</li>
+<span class="c"># 3. build the invented demo laptop and start</span>
+make demo-data
+make run</code></pre>
+      <ol class="steps glass">
+        <li><b>Get the code and the tools</b>The model server (not the desktop app), a Python installer, and the page. Dependencies are pinned with hashes; no install script runs.</li>
         <li><b>Download the model once</b>The only large download. After it, nothing needs the network.</li>
-        <li><b>Run it</b>It prepares tomorrow's one-to-one from sample notes, then takes your questions. An empty line ends the session and stops the model.</li>
+        <li><b>Start it</b>Your browser opens a local address. Choose the <code>demo-laptop</code> folder, press Work profile, then Prepare.</li>
       </ol>
     </div>
   </section>
 
   <section class="block">
     <p class="kicker">Check it yourself</p>
-    <h2 class="title">Do not take this page's word for it.</h2>
+    <h2>Do not take this page's word for it.</h2>
     <div class="cards">
-      <div class="card"><h3>Read the source</h3><p>Everything is public on GitHub. Run <code>make check</code>: lint, type check and 100 tests, no model needed.</p></div>
-      <div class="card"><h3>One pinned model</h3><p><code>gemma4:e4b</code>, Apache-2.0. A different digest is refused.</p><code class="digest">eb2177adf7646d15faead94fdad6d3e170dc8015653418a3b7d5d52a6380be5b</code></div>
-      <div class="card"><h3>This page is quiet too</h3><p>No analytics, no cookies, no fonts or scripts from other sites. The download is served by GitHub.</p></div>
+      <div class="card glass"><h3>Read the source</h3><p>Everything is public on GitHub. Run <code>make check</code>: lint, type checks and the tests, no model needed.</p></div>
+      <div class="card glass"><h3>One pinned model</h3><p><code>gemma4:e4b</code>, Apache-2.0. A different digest is refused.</p><code class="digest">eb2177adf7646d15faead94fdad6d3e170dc8015653418a3b7d5d52a6380be5b</code></div>
+      <div class="card glass"><h3>This page is quiet too</h3><p>No analytics, no cookies, no fonts or scripts from other sites. The download is served by GitHub.</p></div>
     </div>
   </section>
 
