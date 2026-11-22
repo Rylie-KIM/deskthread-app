@@ -54,6 +54,7 @@ export interface Answer {
   gate_trace: GateResult[];
   given_item_ids: string[];
   seconds: number;
+  show_status: boolean;
 }
 export interface Progress { step: string; number: number; of: number }
 export interface ItemView {

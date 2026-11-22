@@ -117,7 +117,7 @@ def test_calendar_only_the_ticked_calendar_and_a_one_to_one_names_its_person(
     events = store.items()
     assert [e.kind for e in events] == [ItemKind.EVENT] * 2
     meetings = upcoming(events)
-    assert [(m.title, m.person, m.start.hour) for m in meetings] == [("1:1 Sam", "Sam", 10)]
+    assert [(m.title, m.person) for m in meetings] == [("Team stand-up", ""), ("1:1 Sam", "Sam")]
 
 
 def test_notes_keep_the_writers_date_and_undated_stays_undated(apps: FakeApps) -> None:

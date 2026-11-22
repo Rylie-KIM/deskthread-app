@@ -1,107 +1,41 @@
 import { useEffect, useState } from "react";
 import { api, clock, day, plain, type Answer, type Citation, type Meeting, type Progress } from "../lib/api";
-import Models from "./Models";
 
+// Plain words for the status of something promised or to do.
+const STATUS_TEXT = { done: "Done", open: "Still to do", changed: "Changed", superseded: "No longer valid" } as const;
 const STEP: Record<string, string> = { G1: "Access rules", G2: "Reading", G3: "AI on this Mac", G4: "Answer check", G6: "Record" };
-const STATUS_TEXT = { done: "Done", open: "Open", changed: "Changed", superseded: "Superseded" } as const;
 
 function when(meeting: Meeting, nowIso: string): string {
   const start = new Date(meeting.start);
   const now = new Date(nowIso);
   const days = Math.round((new Date(start).setHours(0, 0, 0, 0) - new Date(now).setHours(0, 0, 0, 0)) / 86_400_000);
-  const label = days === 0 ? "Today" : days === 1 ? "Tomorrow" : start.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short" });
+  const label = days === 0 ? "Today" : days === 1 ? "Tomorrow" : start.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
   return `${label} ${clock(meeting.start)}`;
 }
 
-interface Props {
-  now: string;
-  anyOn: boolean;
-  answer: Answer | null;
-  onAnswer: (answer: Answer) => void;
-  onCite: (cite: Citation) => void;
-  onError: (message: string) => void;
-}
-
-export default function Ask({ now, anyOn, answer, onAnswer, onCite, onError }: Props) {
-  const [meetings, setMeetings] = useState<Meeting[]>([]);
-  const [question, setQuestion] = useState("");
-  const [busy, setBusy] = useState("");
+function Found({ answer, onCite }: { answer: Answer; onCite: (cite: Citation) => void }) {
   const [details, setDetails] = useState(false);
-  const [progress, setProgress] = useState<Progress | null>(null);
-
-  // While a question runs, ask the backend which step it is on.
-  useEffect(() => {
-    if (busy === "") return setProgress(null);
-    const timer = setInterval(() => api.progress().then(setProgress).catch(() => undefined), 500);
-    return () => clearInterval(timer);
-  }, [busy]);
-
-  useEffect(() => {
-    api.meetings().then(setMeetings).catch(() => setMeetings([]));
-  }, [anyOn]);
-
-  async function run(label: string, work: () => Promise<Answer>) {
-    setBusy(label);
-    try {
-      onAnswer(await work());
-    } catch (err) {
-      onError(plain(err));
-    } finally {
-      setBusy("");
-    }
-  }
-
   return (
-    <section>
-      <h1>Your next meetings.</h1>
-
-      {!anyOn && <p className="empty">Nothing is switched on yet. Go to Access first.</p>}
-
-      {meetings.length > 0 && (
-        <div className="meetings">
-          {meetings.slice(0, 3).map((meeting) => (
-            <article key={meeting.meeting_id} className="meeting">
-              <p className="time">{when(meeting, now)}</p>
-              <h3>{meeting.title}</h3>
-              <button className="primary" disabled={busy !== ""} onClick={() => run(meeting.meeting_id, () => api.prepare(meeting.meeting_id))}>
-                {busy === meeting.meeting_id ? "Reading your notes…" : "Prepare"}
-              </button>
-            </article>
-          ))}
-        </div>
-      )}
-      {anyOn && meetings.length === 0 && <p className="fine">No one-to-one in the next seven days in the calendars you switched on.</p>}
-      <h2 className="asktitle">Ask about your notes.</h2>
-
-      <form className="card row ask" onSubmit={(e) => { e.preventDefault(); if (question.trim()) void run("ask", () => api.ask(question.trim())); }}>
-        <input aria-label="Your question" placeholder="Ask about your own notes, e.g. What salary did I promise Sam?" value={question} maxLength={500} disabled={busy !== ""} onChange={(e) => setQuestion(e.target.value)} />
-        <button className="primary" disabled={busy !== "" || !question.trim() || !anyOn}>{busy === "ask" ? "Looking…" : "Ask"}</button>
-      </form>
-      {busy !== "" && (
-        <div className="progress" role="status">
-          <div className="track"><i style={{ width: `${progress && progress.of ? Math.round((100 * progress.number) / progress.of) : 6}%` }} /></div>
-          <p>{progress?.step || "Starting"}{progress && progress.of ? ` · step ${progress.number} of ${progress.of}` : ""}</p>
-        </div>
-      )}
-
-      {answer && (
-        <div className="answer" aria-live="polite">
-          <p className="asked">{answer.question}</p>
-          {answer.kind !== "brief" && <div className="notfound"><b>{answer.message}</b></div>}
+    <div className="reply">
+      {answer.kind !== "brief" ? (
+        <p className="nothing">{answer.kind === "no_sources" ? "Nothing is switched on yet, so there is nothing I can read." : "I could not find this in what you switched on."}</p>
+      ) : (
+        <>
+          <p className="replyhead">Found in your notes</p>
           {answer.points.map((point, index) => (
-            <article key={index} className="point">
+            <article key={index} className="finding">
               <header className="row wrap">
-                <span className={`status ${point.status}`}>{STATUS_TEXT[point.status]}</span>
                 <h3>{point.label}</h3>
+                {answer.show_status && <span className={`status ${point.status}`}>{STATUS_TEXT[point.status]}</span>}
               </header>
-              {point.note && <p className="note">{point.note}</p>}
+              {point.note && <p className="note">Written as a question or a maybe, not as a clear promise.</p>}
               <ul>
                 {point.citations.map((cite) => (
                   <li key={`${cite.item_id}-${cite.unit}`}>
-                    <button className="cite" onClick={() => onCite(cite)} title="Open the source, read-only">
-                      <span className="quote">“{cite.quote}”</span>
+                    <button className="cite" onClick={() => onCite(cite)} title="Open the source">
+                      <span className="quote">“{cite.quote.replace(/^[-*•]\s*/, "")}”</span>
                       <span className="from">
-                        {cite.source_label} · {cite.title} · <span className={cite.undated ? "undated" : ""}>{day(cite.date)}</span>
+                        {cite.source_label} · {cite.title} · <span className={cite.undated ? "undated" : ""}>{cite.undated ? "no date" : day(cite.date)}</span>
                         {cite.read_by_model && " · read from the picture by the AI"}
                       </span>
                     </button>
@@ -110,22 +44,116 @@ export default function Ask({ now, anyOn, answer, onAnswer, onCite, onError }: P
               </ul>
             </article>
           ))}
+        </>
+      )}
+      <p className="looked">
+        Looked through {answer.coverage.searched} items{answer.kind === "brief" ? ` · quoted ${answer.coverage.cited}` : ""} ·{" "}
+        <button className="link" onClick={() => setDetails(!details)}>{details ? "Hide" : "How this was checked"}</button>
+      </p>
+      {details && (
+        <ul className="trace">
+          {answer.gate_trace.map((gate) => <li key={gate.gate}><b>{STEP[gate.gate] ?? gate.gate}</b> {gate.detail}</li>)}
+        </ul>
+      )}
+    </div>
+  );
+}
 
-          <div className="coverage">
-            <p>Looked through <b>{answer.coverage.searched}</b> items · showed <b>{answer.coverage.given_to_model}</b> to the AI · quoted <b>{answer.coverage.cited}</b></p>
-            <button className="link" onClick={() => setDetails(!details)}>{details ? "Hide details" : "How this answer was checked"}</button>
-            {details && (
-              <ul className="trace">
-                {answer.gate_trace.map((gate) => (
-                  <li key={gate.gate}><b>{STEP[gate.gate] ?? gate.gate}</b> {gate.detail}</li>
-                ))}
-                <li><b>Not allowed</b> {Object.entries(answer.coverage.not_accessible).map(([name, count]) => `${name}${count === null ? "" : `: ${count}`}`).join(" · ") || "nothing"}</li>
-              </ul>
-            )}
-          </div>
+interface Props {
+  now: string;
+  anyOn: boolean;
+  thread: Answer[];
+  onAnswer: (answer: Answer) => void;
+  onCite: (cite: Citation) => void;
+  onError: (message: string) => void;
+  first?: string;
+}
+
+export default function Ask({ now, anyOn, thread, onAnswer, onCite, onError, first }: Props) {
+  const [meetings, setMeetings] = useState<Meeting[]>([]);
+  const [question, setQuestion] = useState("");
+  const [asking, setAsking] = useState("");
+  const [progress, setProgress] = useState<Progress | null>(null);
+
+  useEffect(() => {
+    api.meetings().then(setMeetings).catch(() => setMeetings([]));
+  }, [anyOn]);
+
+  // While a question runs, ask the backend which step it is on.
+  useEffect(() => {
+    if (asking === "") return setProgress(null);
+    const timer = setInterval(() => api.progress().then(setProgress).catch(() => undefined), 500);
+    return () => clearInterval(timer);
+  }, [asking]);
+
+  async function run(shown: string, work: () => Promise<Answer>) {
+    setAsking(shown);
+    try {
+      onAnswer(await work());
+      setQuestion("");
+    } catch (err) {
+      onError(plain(err));
+    } finally {
+      setAsking("");
+    }
+  }
+  const ask = (text: string) => run(text, () => api.ask(text));
+
+  // A question carried in the address ("&q=...") is asked once when the screen opens.
+  useEffect(() => {
+    if (first && anyOn && thread.length === 0) void ask(first);
+  }, [first, anyOn]);
+
+  const person = meetings.find((m) => m.person)?.person;
+  const examples = [person ? `What did I promise ${person}?` : "What did I promise the team?", "What is still to do this week?", "Where did I note the budget?"];
+
+  return (
+    <section>
+      <h1>Find anything you wrote down.</h1>
+      {!anyOn && <p className="empty">Nothing is switched on yet. Go to Access first.</p>}
+
+      <form className="card row ask" onSubmit={(e) => { e.preventDefault(); if (question.trim()) void ask(question.trim()); }}>
+        <input aria-label="Your question" placeholder="Ask in your own words" value={question} maxLength={500} disabled={asking !== ""} onChange={(e) => setQuestion(e.target.value)} />
+        <button className="primary" disabled={asking !== "" || !question.trim() || !anyOn}>{asking !== "" ? "Looking…" : "Ask"}</button>
+      </form>
+      {thread.length === 0 && asking === "" && anyOn && (
+        <div className="row wrap chips">
+          {examples.map((text) => <button key={text} className="chipbtn" onClick={() => ask(text)}>{text}</button>)}
         </div>
       )}
-      <Models onError={onError} />
+
+      <div className="thread" aria-live="polite">
+        {asking !== "" && (
+          <div className="turn">
+            <p className="mine">{asking}</p>
+            <div className="reply progress" role="status">
+              <div className="track"><i style={{ width: `${progress && progress.of ? Math.round((100 * progress.number) / progress.of) : 6}%` }} /></div>
+              <p>{progress?.step || "Starting"}{progress && progress.of ? ` · step ${progress.number} of ${progress.of}` : ""}</p>
+            </div>
+          </div>
+        )}
+        {[...thread].reverse().map((answer, index) => (
+          <div className="turn" key={thread.length - index}>
+            <p className="mine">{answer.question}</p>
+            <Found answer={answer} onCite={onCite} />
+          </div>
+        ))}
+      </div>
+
+      {meetings.length > 0 && (
+        <div className="coming">
+          <h2>Coming up</h2>
+          <ul>
+            {meetings.map((meeting) => (
+              <li key={meeting.meeting_id}>
+                <span className="time">{when(meeting, now)}</span>
+                <b>{meeting.title}</b>
+                <button className="ghost small" disabled={asking !== ""} onClick={() => run(`Prepare: ${meeting.title}`, () => api.prepare(meeting.meeting_id))}>Prepare</button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </section>
   );
 }

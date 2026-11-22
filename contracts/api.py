@@ -86,7 +86,7 @@ class Meeting(_Frozen):
     meeting_id: str
     title: str
     start: datetime
-    person: str  # the other attendee, used as a search word
+    person: str  # the one other attendee, used as a search word; empty for other entries
 
 
 class PrepareBody(_Frozen):
@@ -158,6 +158,9 @@ class Answer(_Frozen):
     gate_trace: tuple[GateResult, ...]
     given_item_ids: tuple[str, ...]
     seconds: float
+    # True when the question is about things promised or to do: only then does a status
+    # (done, still to do, ...) mean anything, and only then is it shown. (contract 1.5)
+    show_status: bool = False
 
 
 class UnitView(_Frozen):

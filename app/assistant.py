@@ -14,7 +14,7 @@ from app.gate import Checked, Given, check, instruction_units, parse_points
 from app.images import ImageReader
 from app.model import Model, complete_json
 from app.policy import AccessPolicy
-from app.search import Candidate, add_expansion, build_query, find
+from app.search import Candidate, add_expansion, build_query, find, stem, stems
 from app.store import SessionStore
 from contracts.api import (
     Answer,
@@ -31,6 +31,9 @@ from contracts.gates import Gate, GateResult, Outcome
 from contracts.items import Item, Unit
 
 NOT_FOUND = "I could not find this in the notes you shared."
+COMMITMENT_WORDS = frozenset(
+    stem(w) for w in ("promise", "promised", "owe", "agreed", "commit", "todo", "pending", "still")
+)
 NO_SOURCES = "No source is switched on, so there is nothing I am allowed to read."
 
 
@@ -61,8 +64,10 @@ class Assistant:
     def prepare(self, meeting_id: str) -> Answer:
         meeting = next((m for m in self.meetings(days=30) if m.meeting_id == meeting_id), None)
         if meeting is None:
-            return self.ask("What did I promise?")
-        return self.ask(f"What did I promise {meeting.person}?", person=meeting.person)
+            return self.ask("What is coming up?")
+        if meeting.person:
+            return self.ask(f"What did I promise {meeting.person}?", person=meeting.person)
+        return self.ask(f"What do I need to know for {meeting.title}?")
 
     # ------------------------------------------------------------------ one question
     STEPS = (
@@ -152,7 +157,10 @@ class Assistant:
         self.items_given += len(given)
         kind = AnswerKind.BRIEF if points else AnswerKind.NOT_FOUND
         message = "" if points else NOT_FOUND
-        return self._answer(kind, question, message, points, given, trace, started)
+        answer = self._answer(kind, question, message, points, given, trace, started)
+        # A status only means something for things promised or to do.
+        commitment = person is not None or bool(COMMITMENT_WORDS & set(stems(question)))
+        return answer.model_copy(update={"show_status": commitment})
 
     # ------------------------------------------------------------------ helpers
     def _give(self, candidates: list[Candidate]) -> list[Given]:

@@ -124,19 +124,10 @@ export default function Access({ sources, folder, demoFolder, onSources, onError
       <h1>Choose what DeskThread can read.</h1>
       <p className="sub">Everything is Off until you switch it on. Switching on gives read permission only.</p>
 
-      {files.length === 0 && (
-        <div className="start">
-          {demoFolder && (
-            <button className="startcard" disabled={busy !== ""} onClick={tryDemo}>
-              <b>{busy === "demo" ? "Setting up…" : "Try it with the demo laptop"}</b>
-              <span>Invented notes of a manager called Seoyeon. One click, then prepare tomorrow's meeting.</span>
-            </button>
-          )}
-          <button className="startcard plain" disabled={busy !== ""} onClick={() => choose("")}>
-            <b>{busy === "folder" ? "Waiting for your choice…" : "Choose my folder…"}</b>
-            <span>Pick a folder on this Mac.</span>
-          </button>
-        </div>
+      {files.length === 0 && demoFolder && (
+        <p className="demoline">
+          New here? <button className="link" disabled={busy !== ""} onClick={tryDemo}>{busy === "demo" ? "Setting up…" : "Try it with the demo laptop"}</button> (invented notes, one click).
+        </p>
       )}
 
       <div className="row between wrap bar">
@@ -155,12 +146,23 @@ export default function Access({ sources, folder, demoFolder, onSources, onError
       )}
 
       <div className="card list">
-        <h2>Folder{folder && files.length > 0 ? `: ${folder}` : ""}</h2>
-        <form className="row wrap pick" onSubmit={(e) => { e.preventDefault(); if (path.trim()) void choose(path.trim()); }}>
-          <button type="button" className="primary" disabled={busy !== ""} onClick={() => choose("")}>Choose folder…</button>
-          <input aria-label="Folder path" placeholder="or type a folder path" value={path} onChange={(e) => setPath(e.target.value)} />
-          <button className="ghost" disabled={busy !== "" || !path.trim()}>Use</button>
-        </form>
+        <h2>Folder</h2>
+        {files.length > 0 && (
+          <ul className="rows one">
+            <li className="rowitem">
+              <span className="tile" aria-hidden="true">▤</span>
+              <span className="who"><b>{folder || "Your folder"}</b><small>{files.length} kinds of files found</small></span>
+              <button className="ghost small" disabled={busy !== ""} onClick={() => choose("")}>Change</button>
+            </li>
+          </ul>
+        )}
+        {files.length === 0 && (
+          <form className="row wrap pick" onSubmit={(e) => { e.preventDefault(); if (path.trim()) void choose(path.trim()); }}>
+            <button type="button" className="primary" disabled={busy !== ""} onClick={() => choose("")}>{busy === "folder" ? "Waiting for your choice…" : "Choose folder…"}</button>
+            <input aria-label="Folder path" placeholder="or type a folder path" value={path} onChange={(e) => setPath(e.target.value)} />
+            <button className="ghost" disabled={busy !== "" || !path.trim()}>Use</button>
+          </form>
+        )}
         {files.length > 0 && <ul className="rows">{files.map(row)}</ul>}
       </div>
 

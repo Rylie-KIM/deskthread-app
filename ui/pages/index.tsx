@@ -2,19 +2,22 @@ import Head from "next/head";
 import { useCallback, useEffect, useState } from "react";
 import Ask from "../components/Ask";
 import Access from "../components/Access";
+import Models from "../components/Models";
 import { MyData, SessionEnded } from "../components/MyData";
 import Viewer from "../components/Viewer";
 import { api, readToken, type Answer, type Citation, type Receipt, type SessionInfo, type SourceState } from "../lib/api";
 
-type Tab = "access" | "ask" | "data";
-const TABS: [Tab, string][] = [["access", "Access"], ["ask", "Ask"], ["data", "My data"]];
+type Tab = "access" | "ask" | "data" | "model";
+const TABS: [Tab, string][] = [["access", "Access"], ["ask", "Ask"], ["data", "My data"], ["model", "AI model"]];
 
 export default function Home() {
   const [tab, setTab] = useState<Tab>("access");
   const [info, setInfo] = useState<SessionInfo | null>(null);
   const [sources, setSources] = useState<SourceState[]>([]);
   const [folder, setFolder] = useState("");
-  const [answer, setAnswer] = useState<Answer | null>(null);
+  const [thread, setThread] = useState<Answer[]>([]);  // this session's questions and answers
+  const [model, setModel] = useState("");
+  const [first, setFirst] = useState("");
   const [cite, setCite] = useState<Citation | null>(null);
   const [error, setError] = useState("");
   const [receipt, setReceipt] = useState<Receipt | null>(null);
@@ -23,6 +26,7 @@ export default function Home() {
   const [state, setState] = useState<"loading" | "ready" | "locked">("loading");
 
   const refresh = useCallback(async () => setSources(await api.sources()), []);
+  const loadModel = useCallback(() => { api.models().then((list) => setModel(list.find((m) => m.selected)?.name ?? "")).catch(() => undefined); }, []);
 
   // A message closes by itself after a while.
   useEffect(() => {
@@ -35,9 +39,10 @@ export default function Home() {
     if (!readToken()) return setState("locked");
     // The address may name the section to open, e.g. "...#t=<token>&tab=data".
     const wanted = new URLSearchParams(window.location.hash.slice(1)).get("tab");
-    if (wanted === "access" || wanted === "ask" || wanted === "data") setTab(wanted);
-    api.session().then((session) => { setInfo(session); setState("ready"); return refresh(); }).catch(() => setState("locked"));
-  }, [refresh]);
+    if (wanted === "access" || wanted === "ask" || wanted === "data" || wanted === "model") setTab(wanted);
+    setFirst(new URLSearchParams(window.location.hash.slice(1)).get("q") ?? "");
+    api.session().then((session) => { setInfo(session); setState("ready"); loadModel(); return refresh(); }).catch(() => setState("locked"));
+  }, [refresh, loadModel]);
 
   // After End session: keep asking until the address stops answering, then say so.
   useEffect(() => {
@@ -48,7 +53,7 @@ export default function Home() {
 
   async function end() {
     setConfirm(false);
-    try { setReceipt(await api.endSession()); setAnswer(null); setCite(null); } catch { setError("End session failed."); }
+    try { setReceipt(await api.endSession()); setThread([]); setCite(null); } catch { setError("End session failed."); }
   }
 
   const anyOn = sources.some((s) => s.status === "on");
@@ -109,6 +114,9 @@ export default function Home() {
           <div className="row">
             <span className="mark">DeskThread</span>
             <span className="private">Private: runs only on this Mac</span>
+            {model && state === "ready" && !receipt && (
+              <button className="modelpill" onClick={() => setTab("model")} title="Choose the AI model">{model} <span>Learn more</span></button>
+            )}
           </div>
           {state === "ready" && !receipt && (
             <nav className="row" aria-label="Sections">
@@ -135,10 +143,11 @@ export default function Home() {
             {tab === "access" && (
               <Access sources={sources} folder={folder} refresh={refresh} onError={setError}
                 demoFolder={info?.demo_folder ?? ""} onReady={() => setTab("ask")}
-                onSources={(next, chosen) => { setSources(next); if (chosen !== undefined) { setFolder(chosen); setAnswer(null); } }} />
+                onSources={(next, chosen) => { setSources(next); if (chosen !== undefined) setFolder(chosen); }} />
             )}
-            {tab === "ask" && info && <Ask now={info.now} anyOn={anyOn} answer={answer} onAnswer={(a) => { setAnswer(a); void refresh(); }} onCite={setCite} onError={setError} />}
-            {tab === "data" && <MyData onError={setError} onForgot={() => { setAnswer(null); void refresh(); }} />}
+            {tab === "ask" && info && <Ask now={info.now} anyOn={anyOn} thread={thread} onAnswer={(a) => { setThread((t) => [...t, a]); void refresh(); }} onCite={setCite} onError={setError} first={first} />}
+            {tab === "data" && <MyData onError={setError} onForgot={() => void refresh()} />}
+            {tab === "model" && <Models onError={setError} onChange={loadModel} />}
           </>
         )}
       </main>

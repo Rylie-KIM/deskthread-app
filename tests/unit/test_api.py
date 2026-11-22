@@ -121,7 +121,7 @@ def test_choose_folder_work_profile_prepare_and_revoke(
     assert {s["status"] for s in states} == {"off"}  # everything starts Off, chat apps too
 
     _work_profile(client, demo_laptop)
-    meeting = client.get("/api/meetings").json()[0]
+    meeting = client.get("/api/meetings").json()[1]
     assert (meeting["title"], meeting["person"]) == ("1:1 Sam", "Sam")
     answer = client.post("/api/prepare", json={"meeting_id": meeting["meeting_id"]}).json()
     assert answer["kind"] == "brief" and len(answer["points"]) == 4
