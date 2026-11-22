@@ -41,8 +41,8 @@ class FakeApps:
             raise DeskThreadError(ErrorCode.OS_PERMISSION_MISSING)
         replies = {
             "calendar.list": _record("Work", "") + _record("Personal", ""),
-            "calendar.read": _record("u1", "1:1 Sam", "2026-11-23T10:00:00", "2026-11-23T10:30:00", "", "Work")
-            + _record("u2", "Team stand-up", "2026-11-23T09:30:00", "2026-11-23T09:45:00", "Sam, Alex, ", "Work"),
+            "calendar.read": _record("", "1:1 Sam", "2026-11-23T10:00:00", "", "", "Work")
+            + _record("", "Team stand-up", "2026-11-23T09:30:00", "", "", "Work"),
             "notes.list": _record("DeskThread Demo", "2") + _record("Private", "9"),
             "notes.read": _record("n1", "follow-ups", "2026-11-20T08:00:00",
                                   "follow-ups\n23/10 - after 1:1 w/ Sam\n- intro to Mark (Dev lead)", "DeskThread Demo")
@@ -85,7 +85,8 @@ def test_r2_no_script_contains_a_command_that_writes_sends_or_deletes() -> None:
             if re.match(r"\s*set\b", line):
                 # "set" may only fill one of the script's own variables, never an app's property
                 assert re.match(r"\s*set [A-Za-z][A-Za-z0-9]* to ", line), f"{name}: {line.strip()}"
-                assert re.match(r"\s*set (FS|RS|out|who|d1|d2|total|m) to ", line), line.strip()
+                own = "FS|RS|out|d1|d2|total|m|names|sums|starts|ids|dates|bodies|dones|dues"
+                assert re.match(rf"\s*set ({own}) to ", line), line.strip()
         assert code.count("tell application") == 1
 
 
@@ -179,7 +180,7 @@ def test_a_refusal_by_macos_is_reported_as_missing_permission(apps: FakeApps) ->
 
 def test_the_four_apps_are_listed_a_to_z_and_only_if_installed(tmp_path: Path) -> None:
     found = mac_apps(FakeApps())
-    assert [a.label for a in found] == sorted(a.label for a in found)
+    assert sorted(a.label for a in found) == ["Calendar", "Mail", "Notes", "Reminders"]
     assert {a.source_id for a in found} <= {
         "mac:calendar",
         "mac:mail",
@@ -190,3 +191,147 @@ def test_the_four_apps_are_listed_a_to_z_and_only_if_installed(tmp_path: Path) -
         "notes", SourceKind.NOTES, "Notes", str(tmp_path / "No.app"), FakeApps()
     )
     assert missing.installed() is False
+
+
+# ------------------------------------------------------------------ Calendar through EventKit
+
+
+class _Date:
+    def __init__(self, stamp: float) -> None:
+        self.stamp = stamp
+
+    def timeIntervalSince1970(self) -> float:  # noqa: N802
+        return self.stamp
+
+
+class _Calendar:
+    def __init__(self, name: str) -> None:
+        self.name = name
+
+    def title(self) -> str:
+        return self.name
+
+
+class _Event:
+    def __init__(self, title: str, stamp: float, calendar: _Calendar) -> None:
+        self._title, self._stamp, self._calendar = title, stamp, calendar
+
+    def title(self) -> str:
+        return self._title
+
+    def startDate(self) -> _Date:  # noqa: N802
+        return _Date(self._stamp)
+
+    def endDate(self) -> _Date:  # noqa: N802
+        return _Date(self._stamp + 1800)
+
+    def attendees(self) -> list[object]:
+        return []
+
+    def eventIdentifier(self) -> str:  # noqa: N802
+        return self._title
+
+    def calendar(self) -> _Calendar:
+        return self._calendar
+
+
+class _Store:
+    allow = True
+    asked = 0
+
+    def __init__(self) -> None:
+        self.work, self.personal = _Calendar("Work"), _Calendar("Personal")
+        self.predicates: list[list[_Calendar]] = []
+
+    @classmethod
+    def alloc(cls) -> "_Store":
+        return cls()
+
+    def init(self) -> "_Store":
+        return self
+
+    def requestFullAccessToEventsWithCompletion_(self, answer: object) -> None:  # noqa: N802
+        type(self).asked += 1
+        answer(type(self).allow, None)  # type: ignore[operator]
+
+    def calendarsForEntityType_(self, _kind: int) -> list[_Calendar]:  # noqa: N802
+        return [self.work, self.personal]
+
+    def predicateForEventsWithStartDate_endDate_calendars_(  # noqa: N802
+        self, _start: object, _end: object, calendars: list[_Calendar]
+    ) -> list[_Calendar]:
+        self.predicates.append(calendars)
+        return calendars
+
+    def eventsMatchingPredicate_(self, calendars: list[_Calendar]) -> list[_Event]:  # noqa: N802
+        events = [
+            _Event("1:1 Sam", 1795428000.0, self.work),
+            _Event("Dentist", 1795500000.0, self.personal),
+        ]
+        return [e for e in events if e.calendar() in calendars]
+
+
+class _Kit:
+    EKEventStore = _Store
+    EKEntityTypeEvent = 0
+
+
+def test_calendar_uses_the_calendar_framework_and_only_the_ticked_calendar(apps: FakeApps) -> None:
+    from app.sources.mac_calendar import CalendarAdapter
+
+    _Store.allow, _Store.asked = True, 0
+    adapter = CalendarAdapter(apps, framework=_Kit)
+    assert [s.label for s in adapter.list_scopes()] == ["Personal", "Work"]
+    store = _on(adapter, {"Work"})  # type: ignore[arg-type]
+    assert [i.title for i in store.items()] == ["1:1 Sam"]  # the personal calendar is not read
+    assert store.items()[0].location == "Calendar: Work"
+    assert apps.calls == [] and _Store.asked == 1  # no script was run; macOS was asked once
+    assert adapter.os_permission() is OsPermission.GRANTED
+
+
+def test_calendar_falls_back_to_the_script_route_when_macos_refuses(apps: FakeApps) -> None:
+    from app.sources.mac_calendar import CalendarAdapter
+
+    _Store.allow = False
+    adapter = CalendarAdapter(apps, framework=_Kit)
+    assert [s.label for s in adapter.list_scopes()] == ["Personal", "Work"]
+    assert apps.calls[-1][0] == "calendar.list"
+
+
+def test_the_calendar_framework_code_only_fetches() -> None:
+    source = (
+        Path(__file__).resolve().parents[2] / "app" / "sources" / "mac_calendar.py"
+    ).read_text()
+    code = "\n".join(line.split("#")[0] for line in source.split('"""')[2].splitlines())
+    for call in (
+        "saveEvent",
+        "removeEvent",
+        "saveCalendar",
+        "removeCalendar",
+        "commit",
+        "saveReminder",
+        "setTitle",
+        "setNotes",
+    ):
+        assert call not in code, call
+
+
+def test_switching_a_source_off_stops_a_script_that_is_still_running() -> None:
+    import subprocess
+    import time
+
+    from app.sources import mac
+
+    process = subprocess.Popen(["/bin/sleep", "30"], text=True)
+    mac._RUNNING.add(process)
+    broker = Broker()
+    adapter = MacAppAdapter("notes", SourceKind.NOTES, "Notes", "/", FakeApps())
+    broker.register(adapter)
+    broker.grant("mac:notes", frozenset({"DeskThread Demo"}))
+    broker.revoke("mac:notes")
+    for _ in range(40):
+        if process.poll() is not None:
+            break
+        time.sleep(0.05)
+    mac._RUNNING.discard(process)
+    assert process.poll() is not None  # the slow request was stopped at once

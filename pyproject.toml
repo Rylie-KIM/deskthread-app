@@ -7,6 +7,7 @@ requires-python = ">=3.13,<3.14"
 dependencies = [
     "fastapi>=0.115",
     "pydantic>=2.9",
+    "pyobjc-framework-eventkit>=10",
     "pyobjc-framework-webkit>=10",
     "pypdf>=5",
     "uvicorn>=0.32",
@@ -55,6 +56,7 @@ ignore = [
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S105", "S106", "S108"]
 "tests/unit/test_mac_apps.py" = ["S105", "S106", "S108", "E501"]  # canned app replies, kept on one line each
+"app/sources/mac.py" = ["E501"]  # AppleScript text is kept one statement per line
 "app/window.py" = ["N802"]  # method names are dictated by Apple's frameworks
 "demo-data/content.py" = ["E501"]  # invented note text is kept as written
 
@@ -67,7 +69,7 @@ cache_dir = "/dev/null"
 
 # Apple's frameworks through pyobjc have no type stubs; the window module subclasses NSObject.
 [[tool.mypy.overrides]]
-module = ["AppKit", "Foundation", "WebKit", "objc", "PyObjCTools"]
+module = ["AppKit", "Foundation", "WebKit", "objc", "PyObjCTools", "EventKit"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]

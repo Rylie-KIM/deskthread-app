@@ -11,14 +11,17 @@ ever sent. Names chosen by the user (a calendar, a folder, a list, a mailbox) ar
 arguments, never pasted into a script.
 """
 
+import atexit
 import subprocess
+import threading
 from collections.abc import Callable, Iterator
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 from app.clock import now
 from app.readers.common import find_date, item_id, to_units
-from contracts.adapters import OsPermission, ReadGrant, Scope
+from contracts.adapters import OsPermission, ReadGrant, Scope, SourceAdapter
 from contracts.errors import DeskThreadError, ErrorCode
 from contracts.items import Item, ItemKind, SourceKind, Uncounted
 
@@ -49,12 +52,15 @@ SCRIPTS: dict[str, str] = {
     "calendar.list": _HEAD
     + """
     tell application "Calendar"
-        repeat with c in calendars
-            set out to out & my txt(name of c) & FS & "" & RS
-        end repeat
+        set names to name of calendars
     end tell
+    repeat with n in names
+        set out to out & (n as text) & FS & "" & RS
+    end repeat
 """
     + _TAIL,
+    # The slow route (used only when the calendar framework is refused): one request for all
+    # titles and one for all start times of a calendar, never one request per event.
     "calendar.read": _HEAD
     + """
     set d1 to (current date) - 45 * days
@@ -62,16 +68,11 @@ SCRIPTS: dict[str, str] = {
     tell application "Calendar"
         repeat with wanted in argv
             repeat with c in (calendars whose name is (wanted as text))
-                repeat with e in (every event of c whose start date ≥ d1 and start date ≤ d2)
-                    set who to ""
-                    try
-                        repeat with a in attendees of e
-                            set who to who & my txt(display name of a) & ", "
-                        end repeat
-                    end try
-                    set out to out & my txt(uid of e) & FS & my txt(summary of e) & FS ¬
-                        & my stamp(start date of e) & FS & my stamp(end date of e) & FS ¬
-                        & who & FS & (wanted as text) & RS
+                set sums to summary of (every event of c whose start date ≥ d1 and start date ≤ d2)
+                set starts to start date of (every event of c whose start date ≥ d1 and start date ≤ d2)
+                repeat with i from 1 to (count of sums)
+                    set out to out & "" & FS & my txt(item i of sums) & FS ¬
+                        & my stamp(item i of starts) & FS & "" & FS & "" & FS & (wanted as text) & RS
                 end repeat
             end repeat
         end repeat
@@ -82,8 +83,9 @@ SCRIPTS: dict[str, str] = {
     "notes.list": _HEAD
     + """
     tell application "Notes"
-        repeat with f in folders
-            set out to out & my txt(name of f) & FS & ((count of notes of f) as text) & RS
+        set names to name of folders
+        repeat with i from 1 to (count of names)
+            set out to out & (item i of names as text) & FS & ((count of notes of folder i) as text) & RS
         end repeat
     end tell
 """
@@ -93,9 +95,13 @@ SCRIPTS: dict[str, str] = {
     tell application "Notes"
         repeat with wanted in argv
             repeat with f in (folders whose name is (wanted as text))
-                repeat with n in (notes of f whose password protected is false)
-                    set out to out & my txt(id of n) & FS & my txt(name of n) & FS ¬
-                        & my stamp(modification date of n) & FS & my txt(plaintext of n) & FS ¬
+                set ids to id of (notes of f whose password protected is false)
+                set names to name of (notes of f whose password protected is false)
+                set dates to modification date of (notes of f whose password protected is false)
+                set bodies to plaintext of (notes of f whose password protected is false)
+                repeat with i from 1 to (count of ids)
+                    set out to out & my txt(item i of ids) & FS & my txt(item i of names) & FS ¬
+                        & my stamp(item i of dates) & FS & my txt(item i of bodies) & FS ¬
                         & (wanted as text) & RS
                 end repeat
             end repeat
@@ -107,8 +113,9 @@ SCRIPTS: dict[str, str] = {
     "reminders.list": _HEAD
     + """
     tell application "Reminders"
-        repeat with l in lists
-            set out to out & my txt(name of l) & FS & ((count of reminders of l) as text) & RS
+        set names to name of lists
+        repeat with i from 1 to (count of names)
+            set out to out & (item i of names as text) & FS & ((count of reminders of list i) as text) & RS
         end repeat
     end tell
 """
@@ -118,10 +125,15 @@ SCRIPTS: dict[str, str] = {
     tell application "Reminders"
         repeat with wanted in argv
             repeat with l in (lists whose name is (wanted as text))
-                repeat with r in reminders of l
-                    set out to out & my txt(id of r) & FS & my txt(name of r) & FS ¬
-                        & ((completed of r) as text) & FS & my stamp(due date of r) & FS ¬
-                        & my txt(body of r) & FS & (wanted as text) & RS
+                set ids to id of reminders of l
+                set names to name of reminders of l
+                set dones to completed of reminders of l
+                set dues to due date of reminders of l
+                set bodies to body of reminders of l
+                repeat with i from 1 to (count of ids)
+                    set out to out & my txt(item i of ids) & FS & my txt(item i of names) & FS ¬
+                        & ((item i of dones) as text) & FS & my stamp(item i of dues) & FS ¬
+                        & my txt(item i of bodies) & FS & (wanted as text) & RS
                 end repeat
             end repeat
         end repeat
@@ -167,23 +179,48 @@ SCRIPTS: dict[str, str] = {
 }
 
 
+_RUNNING: set[subprocess.Popen[str]] = set()
+_LOCK = threading.Lock()
+
+
+def stop_running() -> None:
+    """Stop every script that is still running (on revoke, on end of session, on exit)."""
+    with _LOCK:
+        running = list(_RUNNING)
+    for process in running:
+        process.kill()
+
+
+atexit.register(stop_running)
+
+
 def osascript(script: str, args: list[str], timeout: float) -> str:
     """Run one of the read-only scripts above. Errors come back as codes, never as text
-    from the app (an error message can contain content)."""
+    from the app (an error message can contain content). A script that runs out of time is
+    stopped, so it cannot keep the app busy behind our back."""
+    process = subprocess.Popen(
+        ["/usr/bin/osascript", "-e", script, *args],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+    )
+    with _LOCK:
+        _RUNNING.add(process)
     try:
-        done = subprocess.run(
-            ["/usr/bin/osascript", "-e", script, *args],
-            capture_output=True,
-            text=True,
-            timeout=timeout,
-            check=False,
-        )
+        out, err = process.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:
+        process.kill()
+        process.communicate()
         raise DeskThreadError(ErrorCode.READ_FAILED, "the app did not answer in time") from None
-    if done.returncode != 0:
-        refused = any(code in done.stderr for code in ("-1743", "-1744", "-10004"))
+    finally:
+        with _LOCK:
+            _RUNNING.discard(process)
+    if process.returncode != 0:
+        if process.returncode < 0:  # stopped by us: the source was switched off
+            raise DeskThreadError(ErrorCode.READ_CANCELLED)
+        refused = any(code in err for code in ("-1743", "-1744", "-10004"))
         raise DeskThreadError(ErrorCode.OS_PERMISSION_MISSING if refused else ErrorCode.READ_FAILED)
-    return done.stdout
+    return out
 
 
 def _records(raw: str) -> list[list[str]]:
@@ -224,6 +261,10 @@ class MacAppAdapter:
 
     def os_permission(self) -> OsPermission:
         return self._permission
+
+    def cancel(self) -> None:
+        """The source was switched off: stop a read that is still running."""
+        stop_running()
 
     def _call(self, script: str, args: list[str], timeout: float) -> list[list[str]]:
         try:
@@ -340,15 +381,17 @@ PARSERS: dict[str, Callable[[str, list[str]], Item | None]] = {
 }
 
 
-def mac_apps(runner: Runner = osascript) -> list[MacAppAdapter]:
+def mac_apps(runner: Runner = osascript) -> list[SourceAdapter]:
     """The Mac apps DeskThread can read, if they are on this Mac. Nothing is read here."""
+    from app.sources.mac_calendar import CalendarAdapter
+
     known = (
-        ("calendar", SourceKind.CALENDAR, "Calendar"),
         ("mail", SourceKind.MAIL, "Mail"),
         ("notes", SourceKind.NOTES, "Notes"),
         ("reminders", SourceKind.REMINDERS, "Reminders"),
     )
-    apps = [
+    apps: list[Any] = [CalendarAdapter(runner)]
+    apps += [
         MacAppAdapter(name, kind, label, f"/System/Applications/{label}.app", runner)
         for name, kind, label in known
     ]

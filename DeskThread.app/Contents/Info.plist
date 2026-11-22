@@ -13,6 +13,8 @@
   <key>LSMinimumSystemVersion</key><string>13.0</string>
   <key>LSUIElement</key><true/>
   <key>NSHighResolutionCapable</key><true/>
+  <key>NSCalendarsFullAccessUsageDescription</key><string>DeskThread reads the calendars you switch on, to find your next meetings. It only reads. It never changes or deletes an event.</string>
+  <key>NSCalendarsUsageDescription</key><string>DeskThread reads the calendars you switch on. It only reads.</string>
   <key>NSAppleEventsUsageDescription</key><string>DeskThread reads the calendars, notes, reminders and mail you switch on. It only reads. It never changes, sends or deletes anything.</string>
 </dict>
 </plist>

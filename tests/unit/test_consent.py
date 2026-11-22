@@ -154,6 +154,6 @@ def test_only_the_session_store_calls_read_on_an_adapter() -> None:
     callers = {
         p.name
         for p in app.rglob("*.py")
-        if ".read(grant)" in p.read_text() and p.name != "folder.py"
+        if ".read(grant)" in p.read_text() and p.parent.name != "sources"  # adapters themselves
     }
     assert callers == {"store.py"}

@@ -158,6 +158,9 @@ class Broker:
             grant = self._grants.pop(source_id, None)
             if grant:
                 grant.cancel()  # stops a read in progress at its next step
+                stop = getattr(self._adapters.get(source_id), "cancel", None)
+                if callable(stop):
+                    stop()  # and a slow request to a Mac app is stopped at once
         dropped = self._count(source_id) if grant else 0
         if grant:
             for callback in self._on_revoke:
