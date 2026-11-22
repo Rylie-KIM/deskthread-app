@@ -26,6 +26,7 @@ package runs a build or install script on the machine.
 | pytest | 9.2.0 | MIT | pytest-dev (open source) | Test runner |
 | Ruff | 0.17.6 | MIT | Astral (US) | Lint and format |
 | Pillow | 13.0.0 | MIT-CMU (HPND) | Jeffrey A. Clark and contributors (open source) | Draws the invented demo screenshots and test images from typed text. Not used by the app at run time |
+| httpx | 0.28.1 | BSD-3-Clause | Encode and contributors | Tests only: lets the test client call the local API in-process. The app itself never imports it |
 | mypy | 2.4.1 | MIT | mypy contributors / Python community | Static type check |
 
 Transitive packages (for example `anyio`, `h11`, `click`, `typing-extensions`) are pinned in

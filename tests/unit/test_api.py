@@ -1,0 +1,166 @@
+"""U5 and the API click path (FT-23, FT-42, FT-14, FT-33) with a scripted fake model."""
+
+from pathlib import Path
+
+import pytest
+from fastapi.routing import APIRoute
+from fastapi.testclient import TestClient
+
+from app.api import create_app
+from app.runtime import Runtime
+from contracts.api import ROUTES, TOKEN_HEADER
+from tests.fakes import SAM_BRIEF, STORY_NOW, FakeModel
+
+PORT = 8765
+BASE = f"http://127.0.0.1:{PORT}"
+
+
+@pytest.fixture(autouse=True)
+def clock(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("DESKTHREAD_NOW", STORY_NOW)
+
+
+@pytest.fixture
+def runtime() -> Runtime:
+    return Runtime(FakeModel(lambda q: SAM_BRIEF), PORT)
+
+
+@pytest.fixture
+def client(runtime: Runtime) -> TestClient:
+    return TestClient(create_app(runtime), base_url=BASE, headers={TOKEN_HEADER: runtime.token})
+
+
+def _work_profile(client: TestClient, demo_laptop: Path) -> None:
+    for source in client.post("/api/folder", json={"path": str(demo_laptop)}).json():
+        if source["status"] == "locked":
+            continue
+        request = client.get(f"/api/sources/{source['source_id']}/request").json()
+        scopes = [s["scope_id"] for s in request["scopes"] if "personal" not in s["scope_id"]]
+        assert client.post(
+            f"/api/sources/{source['source_id']}/grant", json={"scope_ids": scopes}
+        ).is_success
+
+
+# ------------------------------------------------------------------ U5: local API protection
+
+
+def test_u5_a_request_without_the_token_is_rejected(runtime: Runtime) -> None:
+    bare = TestClient(create_app(runtime), base_url=BASE)
+    assert bare.get("/api/session").status_code == 401
+    assert bare.get("/api/session").json()["code"] == "E-501"
+    wrong = bare.get("/api/session", headers={TOKEN_HEADER: "x" * 43})
+    assert wrong.status_code == 401
+    assert bare.get("/api/session", headers={TOKEN_HEADER: runtime.token}).status_code == 200
+
+
+def test_u5_a_wrong_origin_or_host_is_rejected(client: TestClient, runtime: Runtime) -> None:
+    other_site = client.get("/api/session", headers={"Origin": "https://evil.example"})
+    assert (other_site.status_code, other_site.json()["code"]) == (403, "E-502")
+    for host in ("localhost:8765", "127.0.0.1:9999", "evil.example", "192.168.0.5:8765"):
+        rebound = client.get("/api/session", headers={"Host": host})
+        assert (rebound.status_code, rebound.json()["code"]) == (400, "E-503"), host
+    assert client.get("/api/session", headers={"Origin": BASE}).status_code == 200
+
+
+def test_a_new_launch_gets_a_new_token() -> None:
+    first, second = Runtime(FakeModel(lambda q: []), PORT), Runtime(FakeModel(lambda q: []), PORT)
+    assert first.token != second.token and len(first.token) >= 40
+
+
+def test_every_reply_says_do_not_store_and_allows_no_outside_resource(
+    client: TestClient,
+) -> None:
+    for response in (client.get("/api/session"), client.get("/api/nothing-here")):
+        assert response.headers["cache-control"] == "no-store"
+        csp = response.headers["content-security-policy"]
+        assert "default-src 'none'" in csp and "connect-src 'self'" in csp
+        assert "http:" not in csp and "https:" not in csp and "*" not in csp
+        assert response.headers["x-content-type-options"] == "nosniff"
+
+
+def test_the_api_serves_exactly_the_routes_of_the_contract_so_far(runtime: Runtime) -> None:
+    served = {
+        f"{method} {route.path}"
+        for route in create_app(runtime).routes
+        if isinstance(route, APIRoute)
+        for method in (route.methods or set()) - {"HEAD", "OPTIONS"}
+    }
+    assert served <= set(ROUTES)
+    assert {"POST /api/ask", "POST /api/sources/{source_id}/revoke"} <= served
+
+
+# ------------------------------------------------------------------ the click path
+
+
+def test_before_a_folder_is_chosen_there_is_nothing(client: TestClient) -> None:
+    assert client.get("/api/sources").json() == []
+    assert client.get("/api/meetings").json() == []
+    assert client.post("/api/ask", json={"question": "anything"}).status_code == 409
+
+
+def test_choose_folder_work_profile_prepare_and_revoke(
+    client: TestClient, demo_laptop: Path
+) -> None:
+    states = client.post("/api/folder", json={"path": str(demo_laptop)}).json()
+    assert {s["status"] for s in states} == {"off", "locked"}  # everything starts Off
+    locked = client.post("/api/sources/private:whatsapp/grant", json={})
+    assert (locked.status_code, locked.json()["code"]) == (403, "E-102")
+
+    _work_profile(client, demo_laptop)
+    meeting = client.get("/api/meetings").json()[0]
+    assert (meeting["title"], meeting["person"]) == ("1:1 Sam", "Sam")
+    answer = client.post("/api/prepare", json={"meeting_id": meeting["meeting_id"]}).json()
+    assert answer["kind"] == "brief" and len(answer["points"]) == 4
+    assert answer["coverage"]["cited"] == 4
+
+    state = client.post("/api/sources/folder:notes/revoke").json()
+    assert (state["status"], state["items_in_memory"]) == ("off", 0)
+    after = client.post("/api/ask", json={"question": "What did I promise Sam?"}).json()
+    assert all(c["source_id"] != "folder:notes" for p in after["points"] for c in p["citations"])
+    stopped = client.post("/api/sources/revoke-all").json()
+    assert all(s["status"] != "on" for s in stopped)
+    assert client.post("/api/ask", json={"question": "x"}).json()["kind"] == "no_sources"
+
+
+def test_the_viewer_shows_a_cited_note_as_text_and_only_while_its_source_is_on(
+    client: TestClient, demo_laptop: Path
+) -> None:
+    _work_profile(client, demo_laptop)
+    answer = client.post("/api/ask", json={"question": "What did I promise Sam?"}).json()
+    cite = answer["points"][1]["citations"][0]
+    view = client.get(f"/api/items/{cite['item_id']}").json()
+    assert view["title"] == "follow-ups" and view["source_label"] == "Notes"
+    assert view["units"][cite["unit"] - 1]["text"] == cite["quote"]
+    client.post("/api/sources/folder:notes/revoke")
+    gone = client.get(f"/api/items/{cite['item_id']}")
+    assert (gone.status_code, gone.json()["message"]) == (409, "not visible")
+
+
+def test_an_image_is_served_to_the_page_only_with_the_token(
+    client: TestClient, runtime: Runtime, demo_laptop: Path
+) -> None:
+    _work_profile(client, demo_laptop)
+    client.post("/api/ask", json={"question": "What did I promise Sam?"})
+    assert runtime.session is not None
+    image = next(
+        i for i in runtime.session.store.items() if i.location.endswith("office-plant.png")
+    )
+    ok = client.get(f"/api/items/{image.item_id}/image")
+    assert ok.status_code == 200 and ok.headers["content-type"] == "image/png"
+    bare = TestClient(create_app(runtime), base_url=BASE)
+    assert bare.get(f"/api/items/{image.item_id}/image").status_code == 401
+    assert bare.get(f"/api/items/{image.item_id}/image?t={runtime.token}").status_code == 200
+    note = next(i for i in runtime.session.store.items() if i.location.endswith("follow-ups.md"))
+    assert client.get(f"/api/items/{note.item_id}/image").status_code == 409
+
+
+def test_choosing_a_new_folder_drops_the_old_one_from_memory(
+    client: TestClient, runtime: Runtime, demo_laptop: Path, tmp_path: Path
+) -> None:
+    _work_profile(client, demo_laptop)
+    assert runtime.session is not None
+    old = runtime.session
+    (tmp_path / "Work").mkdir()
+    assert client.post("/api/folder", json={"path": str(tmp_path)}).is_success
+    assert old.store.items() == [] and all(s.status.value != "on" for s in old.broker.states())
+    assert client.post("/api/folder", json={"path": str(tmp_path / "missing")}).status_code == 400
