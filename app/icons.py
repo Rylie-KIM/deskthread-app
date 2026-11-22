@@ -6,7 +6,10 @@ disk and no file of the app is read by us.
 
 import subprocess
 import threading
+from datetime import datetime
 from pathlib import Path
+
+from app.sources.mac_show import show_in_app
 
 APPS = {
     "mac:calendar": "/System/Applications/Calendar.app",
@@ -18,12 +21,21 @@ _CACHE: dict[str, bytes] = {}
 _LOCK = threading.Lock()
 
 
-def show_original(source_id: str, path: Path | None) -> bool:
-    """Take the user to the original: select the file in Finder, or bring up the Mac app the
-    item came from. The Mac's own `open` does it; DeskThread does not open the file."""
+def show_original(
+    source_id: str,
+    path: Path | None,
+    meta: dict[str, str] | None = None,
+    date: datetime | None = None,
+) -> bool:
+    """Take the user to the original: select the file in Finder, or show the item in the Mac
+    app it came from (the note itself, the reminder itself, the day of a calendar entry).
+    If the app cannot be pointed at the item, it is just opened. DeskThread does not open
+    or change the original."""
     if path is not None:
         command = ["/usr/bin/open", "-R", str(path)]
     elif source_id in APPS:
+        if show_in_app(source_id, meta or {}, date):
+            return True
         command = ["/usr/bin/open", APPS[source_id]]
     else:
         return False

@@ -251,7 +251,7 @@ def create_app(runtime: Runtime, ui_dir: Path | None = None) -> FastAPI:
         found = _visible(item_id)
         path = found.meta.get("path")
         real = runtime.require().policy.check_read(Path(path)) if path else None
-        if not show_original(found.source_id, real):
+        if not show_original(found.source_id, real, found.meta, found.date):
             raise DeskThreadError(ErrorCode.BAD_REQUEST)
         return _view(found)
 

@@ -17,8 +17,7 @@ export default function Viewer({ cite, onClose }: { cite: Citation; onClose: () 
   return (
     <div className="scrim" role="dialog" aria-modal="true" aria-label="Source" onClick={onClose}>
       <div className="dialog wide" onClick={(e) => e.stopPropagation()}>
-        <div className="row between">
-          <p className="fine">Read only</p>
+        <div className="row end">
           <button className="iconbtn" aria-label="Close" onClick={onClose}>×</button>
         </div>
         {gone && <p className="empty">Not visible. Its source is Off now, or the file is gone.</p>}
@@ -29,7 +28,7 @@ export default function Viewer({ cite, onClose }: { cite: Citation; onClose: () 
             {item.origin !== "" && (
               <div className="original">
                 <button className="ghost small" onClick={() => { api.reveal(item.item_id).catch(() => setFailed(true)); }}>
-                  {item.origin === "file" ? "Show the original in Finder" : `Open ${item.source_label}`}
+                  {item.origin === "file" ? "Show in Finder" : `Show in ${item.source_label}`}
                 </button>
                 {failed && <span className="fine">It could not be shown.</span>}
               </div>

@@ -341,3 +341,19 @@ def test_switching_a_source_off_stops_a_script_that_is_still_running() -> None:
         time.sleep(0.05)
     mac._RUNNING.discard(process)
     assert process.poll() is not None  # the slow request was stopped at once
+
+
+def test_the_show_scripts_only_bring_an_app_forward_and_display_one_thing() -> None:
+    from app.sources.mac_show import SHOW
+
+    assert set(SHOW) == {"mac:notes", "mac:reminders", "mac:calendar"}
+    allowed = {"show", "activate"}  # display only; every other write verb stays forbidden
+    for name, script in SHOW.items():
+        code = re.sub(r'"[^"\n]*"', '""', script)
+        for verb in set(WRITE_VERBS) - allowed:
+            assert not re.search(rf"\b{verb}\b", code), f"{name} contains '{verb}'"
+        inside = code.split("tell application", 1)[1]
+        assert not re.search(r"^\s*set\b", inside, re.M), f"{name} sets something in the app"
+    for script in SCRIPTS.values():  # and the read scripts still contain neither
+        code = re.sub(r'"[^"\n]*"', '""', script)
+        assert not re.search(r"\b(show|activate)\b", code)

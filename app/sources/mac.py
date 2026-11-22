@@ -355,7 +355,11 @@ def _note(source_id: str, r: list[str]) -> Item | None:
         units=units,
         date=_when(modified) or written,
         location=f"Notes: {folder}",
-        meta={"modified": modified, **({"written": written.date().isoformat()} if written else {})},
+        meta={
+            "modified": modified,
+            "uid": uid,  # the app's own id of the note, to show exactly this note on request
+            **({"written": written.date().isoformat()} if written else {}),
+        },
     )
 
 
@@ -373,7 +377,7 @@ def _reminder(source_id: str, r: list[str]) -> Item | None:
         units=to_units(lines),
         date=_when(due) or find_date(title, now().year),
         location=f"Reminders: {name}",
-        meta={"status": "done" if done else "open", "list": name},
+        meta={"status": "done" if done else "open", "list": name, "uid": uid},
     )
 
 
