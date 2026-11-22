@@ -159,12 +159,12 @@ def ribbon(centre: list[Point], half_widths: list[float]) -> Image.Image:
                 quad.append(((x + nx * w * side) * K, (y + ny * w * side) * K))
             draw.polygon(quad, fill=(*colour, max(40, min(255, alpha))))
 
-    for side, colour in ((-1.0, (255, 255, 255, 250)), (1.0, (214, 238, 255, 205))):
+    for side, edge_colour in ((-1.0, (255, 255, 255, 250)), (1.0, (214, 238, 255, 205))):
         edge = [
             ((x + nx * w * side) * K, (y + ny * w * side) * K)
             for (x, y), (nx, ny), w in zip(centre, normals, half_widths, strict=True)
         ]
-        draw.line(edge, fill=colour, width=round(3.2 * K), joint="curve")
+        draw.line(edge, fill=edge_colour, width=round(3.2 * K), joint="curve")
     return out
 
 
