@@ -1,0 +1,54 @@
+#!/bin/zsh
+# DeskThread.app: double-click to start. This small script is the whole app bundle.
+# It lives inside the project folder and starts the project next to it. On the first start
+# it prepares what is missing (the only steps that use the network), asking before the one
+# large download. After that, everything runs on this Mac only.
+
+REPO="${0:A:h:h:h:h}"            # .../DeskThread.app/Contents/MacOS/DeskThread -> project folder
+cd "$REPO" || exit 1
+export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+export PYTHONDONTWRITEBYTECODE=1 DO_NOT_TRACK=1 NEXT_TELEMETRY_DISABLED=1 OLLAMA_NO_CLOUD=1 UV_PYTHON_DOWNLOADS=never
+MODEL="gemma4:e4b"
+MODEL_HOST="127.0.0.1:11435"
+
+say_box() { /usr/bin/osascript -e "display dialog \"$1\" with title \"DeskThread\" buttons {\"OK\"} default button 1 with icon ${2:-note}" >/dev/null 2>&1; }
+notify()  { /usr/bin/osascript -e "display notification \"$1\" with title \"DeskThread\"" >/dev/null 2>&1; }
+fail()    { say_box "$1" stop; exit 1; }
+
+command -v uv >/dev/null     || fail "DeskThread needs two tools first. Open Terminal and run:\n\nbrew install ollama uv"
+command -v ollama >/dev/null || fail "DeskThread needs the model server first. Open Terminal and run:\n\nbrew install ollama"
+
+# --- first start: prepare what is missing ---------------------------------------------
+if [[ ! -d .venv ]]; then
+  notify "First start: installing the Python parts…"
+  uv sync --frozen --no-dev >/dev/null 2>&1 || fail "Installing the Python parts failed. In Terminal, run: make setup"
+fi
+if [[ ! -f ui/out/index.html ]]; then
+  command -v npm >/dev/null || fail "The page is not built yet and Node.js is missing. Install Node.js, then run in Terminal: make ui"
+  notify "First start: building the page…"
+  (cd ui && npm ci --ignore-scripts >/dev/null 2>&1 && npm run build >/dev/null 2>&1) || fail "Building the page failed. In Terminal, run: make ui"
+fi
+if [[ ! -f demo-laptop/.deskthread-demo ]]; then
+  uv sync --frozen >/dev/null 2>&1    # the demo generator draws its screenshots with a dev package
+  uv run --frozen python -B demo-data/make_demo_data.py >/dev/null 2>&1
+fi
+
+# --- the model: one large download, only with your OK ----------------------------------
+if [[ ! -d "$HOME/.ollama/models/manifests/registry.ollama.ai/library/gemma4" ]]; then
+  answer=$(/usr/bin/osascript -e 'button returned of (display dialog "DeskThread needs its model on this Mac. This is a one-time download of about 9 GB. After it, DeskThread works without the internet.\n\nDownload it now?" with title "DeskThread" buttons {"Not now", "Download"} default button 2)' 2>/dev/null)
+  [[ "$answer" == "Download" ]] || exit 0
+  notify "Downloading the model. This can take a while…"
+  OLLAMA_HOST=$MODEL_HOST ollama serve >/dev/null 2>&1 &
+  SERVER=$!
+  for i in {1..40}; do curl -s -m 1 "http://$MODEL_HOST/api/version" >/dev/null && break; sleep 0.5; done
+  OLLAMA_HOST=$MODEL_HOST ollama pull "$MODEL" >/dev/null 2>&1; PULLED=$?
+  kill $SERVER 2>/dev/null; wait $SERVER 2>/dev/null
+  (( PULLED == 0 )) || fail "The model download did not finish. Start DeskThread again to retry."
+fi
+
+# --- start: the model server, the backend and the page, all on 127.0.0.1 ----------------
+notify "Starting on this Mac only…"
+uv run --frozen --no-dev python -B -m app --window >/dev/null 2>&1
+code=$?
+(( code == 0 )) || say_box "DeskThread stopped unexpectedly (code $code). To see why, run in Terminal:\n\ncd '$REPO' && make run" caution
+exit $code

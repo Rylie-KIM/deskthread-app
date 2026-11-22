@@ -28,7 +28,8 @@ This is a work in progress. The table says plainly what exists.
 | Local model gateway, search with no stored index, answer check, coverage, "prepare my next meeting" | **Built and tested**; runs in the terminal (`scripts/ask.py`) |
 | Local API with a per-launch token, Origin and Host checks, strict content-security-policy | **Built and tested** |
 | Browser interface: sources and permission request, Prepare, ask, brief, source viewer, Proof, Memory, End session with a receipt | **Built**; the main click path was checked by hand in the browser (see Tests) |
-| One-click launcher (`DeskThread.command`) with a clean stop | **Built and tested** on the real process |
+| Launcher with a clean stop (`make run`, `DeskThread.command`) | **Built and tested** on the real process |
+| `DeskThread.app`: double-click start with first-start setup | **Built**; opened once on the development Mac (backend and model server came up on `127.0.0.1`); the first-start setup branches were not exercised |
 | `verify` script (an independent check after quitting), canary leak tests, Wi-Fi-off run | **Not built or not run yet** |
 | Connectors to the Mac's own Notes, Calendar, Reminders and Mail apps | **Not built yet** (a read-only Calendar test worked; see Limitations) |
 | Windows | **Not tested** |
@@ -72,29 +73,20 @@ kill %1
 
 ## How to run
 
-Do the [Installation](#installation) steps once, then:
+**Double-click `DeskThread.app`** in the project folder (you can drag it to the Dock). That is all.
 
-**1. Build the invented demo laptop** (65 made-up files in `./demo-laptop`; safe to delete and rebuild):
+- On the first start it prepares what is missing by itself: the Python parts, the page, the invented demo laptop. If the model is not on the Mac yet, it asks before the one large download (about 9 GB). These are the only steps that use the network; `brew install ollama uv` and Node.js must already be there.
+- Then it starts its own model server and the backend on `127.0.0.1` and opens DeskThread in its own window (in Chrome if installed, otherwise in your default browser). The address carries a secret token for this launch; nothing answers without it.
+- macOS may ask once whether to open an app from an unidentified developer: the app is a small unsigned script. Right-click it and choose Open.
 
-```bash
-make demo-data
-```
+**In the window:**
 
-**2. Start DeskThread:** double-click `DeskThread.command` in Finder, or run:
+1. Click **Try it with the demo laptop**. One click chooses the invented folder, switches on the work sources and shows tomorrow's one-to-one. (Or click **Choose my folder…** for your own files: everything in it starts Off and you allow each source yourself.)
+2. Click **Prepare**. The first answer takes about 30 seconds (the model loads and reads the images). Click any quote to open its source, read-only. Ask your own questions in the box.
+3. **Proof** and **Memory** show what it connected to, what it holds and what it wrote. **Stop access** or **Stop all** takes effect at once.
+4. **End session** gives you a receipt and stops both programs. Closing the window alone does not stop them.
 
-```bash
-make run
-```
-
-It starts its own model server and the backend on `127.0.0.1` (a random free port) and opens the page in your browser. The address carries a secret token for this launch; nothing answers without it.
-
-**3. In the page:**
-
-1. **Sources**: press **Choose folder…** and pick `demo-laptop` (or type its path). Everything is Off. Press **Work profile**, or turn sources on one by one: each asks first and shows what will be read. WhatsApp and KakaoTalk show as "detected, locked off".
-2. **Prepare**: tomorrow's one-to-one is shown as a card. Press **Prepare**. The first answer takes about 30 seconds (the model loads and reads the images). Click any quote to open its source, read-only.
-3. Ask your own question, for example `What salary did I promise Sam?` (the honest answer is "not found").
-4. **Proof** and **Memory**: see [How a user can tell](#how-a-user-can-tell). **Stop access** on any source, or **Stop all**, takes effect at once.
-5. **End session**: you get a receipt, and both programs stop.
+Without the app bundle, `make run` (or `DeskThread.command`) does the same from a terminal, after `make setup ui demo-data`.
 
 To use the demo's story clock (the evening of Sun 22 Nov 2026, the day before the meeting) start it as `DESKTHREAD_NOW=2026-11-22T19:00:00+00:00 make run`. It is a test and demo setting only; without it the real time is used and "tomorrow's one-to-one" will not be found in the demo calendar.
 
@@ -175,7 +167,8 @@ deskthread-app/
 ├── docs/         dependency register
 ├── site/         static download page (no external resources, no analytics)
 ├── ui/           browser interface (Next.js static export)
-└── DeskThread.command   double-click launcher
+├── DeskThread.app       double-click to start (a small script bundle; prepares the first start)
+└── DeskThread.command   the same from a terminal window
 ```
 
 ## Tests
