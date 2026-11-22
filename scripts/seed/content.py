@@ -290,3 +290,207 @@ SCREENSHOTS: list[tuple[Moment, str, str, list[str]]] = [
         ],
     ),
 ]
+
+
+# More of the same calendar, so a question about a week has a full week to look at. The
+# daily standups fill the days the first list left out; the rest follows the story: the
+# team's one-to-ones, hiring, the offsite, the vendor, the roadmap draft.
+_STANDUP_DAYS = (9, 10, 12, 13, 16, 17, 19, 20, 23, 24, 26, 27)
+EVENTS_MORE: list[tuple[str, Moment, int, str, str]] = [
+    *[
+        ("Team standup", (2026, 11, d, 9, 30), 15, "Team area", "Daily standup.")
+        for d in _STANDUP_DAYS
+    ],
+    ("Weekly team meeting", (2026, 11, 9, 14, 0), 60, "Room 5", "Sam, Alex, Jo and Lee."),
+    ("1:1 Jo", (2026, 11, 10, 11, 0), 45, "Room 3", "One-to-one with Jo."),
+    ("1:1 Lee", (2026, 11, 11, 15, 0), 45, "Room 3", "One-to-one with Lee."),
+    (
+        "Recruiting sync",
+        (2026, 11, 12, 16, 0),
+        30,
+        "Video call",
+        "Analyst and data engineer roles.",
+    ),
+    ("Focus time: roadmap draft", (2026, 11, 13, 13, 0), 120, "Home", "Q1 roadmap draft for Alex."),
+    ("Weekly team meeting", (2026, 11, 16, 14, 0), 60, "Room 5", "Sam, Alex, Jo and Lee."),
+    (
+        "Vendor demo: lab dashboard",
+        (2026, 11, 18, 14, 0),
+        60,
+        "Video call",
+        "Demo from the vendor.",
+    ),
+    (
+        "Finance check-in: offsite budget",
+        (2026, 11, 19, 11, 0),
+        30,
+        "Video call",
+        "Budget per head.",
+    ),
+    ("Roadmap draft due: send to Alex", (2026, 11, 20, 17, 0), 30, "Home", "Promised by Friday."),
+    ("Team lunch", (2026, 11, 20, 12, 30), 60, "Cafe", "Whole team."),
+    ("Weekly team meeting", (2026, 11, 23, 11, 30), 45, "Room 5", "Sam, Alex, Jo and Lee."),
+    ("1:1 Jo", (2026, 11, 24, 14, 0), 45, "Room 3", "One-to-one with Jo."),
+    ("Book the offsite venue", (2026, 11, 24, 16, 0), 30, "Home", "Decide between the three."),
+    ("1:1 Lee", (2026, 11, 25, 11, 0), 45, "Room 3", "One-to-one with Lee."),
+    ("Phone screen: analyst candidate", (2026, 11, 26, 10, 0), 30, "Video call", "First screen."),
+    (
+        "Phone screen: data engineer candidate",
+        (2026, 11, 26, 15, 30),
+        30,
+        "Video call",
+        "First screen.",
+    ),
+    ("Team lunch", (2026, 11, 27, 12, 30), 60, "Cafe", "Whole team."),
+    ("Weekly review", (2026, 11, 27, 16, 0), 30, "Home", "What got done, what moves."),
+    (
+        "Interviews: analyst and data engineer",
+        (2026, 11, 30, 9, 30),
+        240,
+        "Room 5",
+        "Interviews start.",
+    ),
+    ("Monthly career chat: Sam", (2026, 12, 1, 10, 0), 30, "Room 3", "First Tuesday of the month."),
+]
+
+
+# More notes, deliberately abstract: initials instead of names, shorthand, loose thoughts and
+# open questions. Each still has a meaning that a calendar entry or another note explains, so
+# a good answer has to connect them. S is Sam, J is Jo, L is Lee, A is Alex.
+NOTES_MORE: list[tuple[Moment, str, list[str]]] = [
+    (
+        (2026, 11, 9, 11, 50),
+        "Thoughts after 1:1",
+        [
+            "S still hungry for scope. Needs a visible win before Q1.",
+            "Pay for the course: yes. Cheap compared to losing S.",
+            "Do not promise the conference. Say it early, say it kindly.",
+        ],
+    ),
+    (
+        (2026, 11, 10, 12, 0),
+        "After the call with J",
+        [
+            "J wants a stage: a data quality talk? Could be the lunch-and-learn.",
+            "Conference in March: not now. Revisit in January.",
+            "Give feedback on the QBR deck before Friday.",
+        ],
+    ),
+    (
+        (2026, 11, 11, 16, 15),
+        "L check-in",
+        [
+            "Settling in. Pairing helps. Do not overload.",
+            "Checklist work is good exposure.",
+            "Review round: collect examples, not impressions.",
+        ],
+    ),
+    (
+        (2026, 11, 12, 17, 0),
+        "Hiring: what we need",
+        [
+            "One analyst who likes messy data. One engineer who likes docs.",
+            "Salary band first. Everything else after.",
+            "Panel: me, the platform lead, one peer.",
+        ],
+    ),
+    (
+        (2026, 11, 13, 14, 45),
+        "Roadmap draft thinking",
+        [
+            "Three themes only. More than three means no focus.",
+            "Dashboards first, then the vendor decision, then training.",
+            "A wants the vendor evaluation. Good fit, needs a deadline.",
+        ],
+    ),
+    (
+        (2026, 11, 14, 10, 20),
+        "Weekend thoughts",
+        [
+            "Too many things start with 'I'll set it up'.",
+            "Write the promise down the same day.",
+            "Friday is for follow-ups, not new work.",
+        ],
+    ),
+    (
+        (2026, 11, 16, 15, 5),
+        "Weekly meeting: what I said",
+        [
+            "Offsite is a dinner plus a half-day workshop.",
+            "Vendor demo on Wednesday, everyone invited.",
+            "Launch checklist: two owners for now, decide in Q1.",
+        ],
+    ),
+    (
+        (2026, 11, 17, 16, 40),
+        "Questions I keep asking",
+        [
+            "Who owns the checklist?",
+            "Is the vendor support promise written anywhere?",
+            "What does the learning budget really allow?",
+        ],
+    ),
+    (
+        (2026, 11, 18, 15, 30),
+        "Vendor demo notes",
+        [
+            "Nice charts, vague about support.",
+            "Price is fine if the response time is written in.",
+            "Ask for two reference customers.",
+        ],
+    ),
+    (
+        (2026, 11, 19, 12, 10),
+        "Money things",
+        [
+            "Offsite: per head number from finance still missing.",
+            "Course: 800, approved, book before the year ends.",
+            "Conference in spring: no budget this half.",
+        ],
+    ),
+    (
+        (2026, 11, 20, 18, 20),
+        "End of week",
+        [
+            "Sign-off done.",
+            "Roadmap draft went out late. Say sorry to A.",
+            "Next week: intro to the platform lead, HR review, interview prep.",
+        ],
+    ),
+    (
+        (2026, 11, 21, 11, 45),
+        "Delegation",
+        [
+            "Give the outcome, not the steps.",
+            "Check in at the halfway point, not every day.",
+            "Praise in public, adjust in private.",
+        ],
+    ),
+    (
+        (2026, 11, 21, 15, 10),
+        "Interview prep",
+        [
+            "Ask about a time the data was wrong and what they did.",
+            "Look for curiosity before tools.",
+            "Same questions for everyone.",
+        ],
+    ),
+    (
+        (2026, 11, 22, 10, 40),
+        "Sunday review",
+        [
+            "Open loops: course link, intro date, roadmap follow-up, offsite venue.",
+            "Monday starts with the one-to-one: bring the link and the intro date.",
+            "Keep the career chat on the calendar, first Tuesday of the month.",
+        ],
+    ),
+    (
+        (2026, 11, 22, 14, 0),
+        "Unsorted",
+        [
+            "dashboards -> ask the platform lead about a shared template",
+            "H.R. reply still pending",
+            "birthday card for the team",
+        ],
+    ),
+]

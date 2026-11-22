@@ -1,6 +1,8 @@
 """Put the English demo story into the user's own apps, and take it out again.
 
     uv run python -B -m scripts.seed.seed_demo seed      # write
+    uv run python -B -m scripts.seed.seed_demo more      # add the second list of events
+    uv run python -B -m scripts.seed.seed_demo notes-more # add the second, more abstract notes
     uv run python -B -m scripts.seed.seed_demo unseed    # remove exactly what seed wrote
     uv run python -B -m scripts.seed.seed_demo status    # counts only
 
@@ -189,6 +191,27 @@ def seed() -> None:
     print(f"  {len(manifest['files'])} pictures written")
 
 
+def more() -> None:
+    """Add the second list of events to what `seed` already wrote."""
+    manifest = load()
+    for title, when, minutes, place, about in content.EVENTS_MORE:
+        manifest["events"].append(
+            osa(NEW_EVENT, title, *map(str, when), str(minutes), place, about)
+        )
+        save(manifest)
+    print(f"  {len(content.EVENTS_MORE)} more events written; {len(manifest['events'])} in all")
+
+
+def more_notes() -> None:
+    """Add the second, more abstract list of notes."""
+    manifest = load()
+    for when, title, lines in content.NOTES_MORE:
+        made = osa(NEW_NOTE, body_of(title, lines), *map(str, when))
+        manifest["notes"].append(made.split("|")[0])
+        save(manifest)
+    print(f"  {len(content.NOTES_MORE)} more notes written; {len(manifest['notes'])} in all")
+
+
 def unseed() -> None:
     manifest = load()
     for note_id in manifest["notes"]:
@@ -208,6 +231,6 @@ def status() -> None:
 
 
 if __name__ == "__main__":
-    {"seed": seed, "unseed": unseed, "status": status}.get(
+    {"seed": seed, "more": more, "notes-more": more_notes, "unseed": unseed, "status": status}.get(
         sys.argv[1] if len(sys.argv) > 1 else "", status
     )()
