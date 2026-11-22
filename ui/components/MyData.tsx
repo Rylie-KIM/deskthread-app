@@ -242,9 +242,8 @@ export function MyData({ onError, onClear, onEnd }: { onError: (message: string)
             <pre className="printout">{check.output || "(nothing)"}</pre>
             <h3>Check it without DeskThread</h3>
             <ol className="read">
-              <li>Press Copy, then Open Terminal (or press Command and Space, type Terminal, press Return).</li>
-              <li>Paste the line into Terminal with Command and V, and press Return. DeskThread types nothing there.</li>
-              <li>Look at the last word of each line: it must contain 127.0.0.1.</li>
+              <li>Copy the line below and open Terminal.</li>
+              <li>Paste the line into Terminal and run it. DeskThread types nothing there.</li>
             </ol>
             <div className="copyline">
               <code className="cmd">{check.command}</code>
