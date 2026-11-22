@@ -494,3 +494,333 @@ NOTES_MORE: list[tuple[Moment, str, list[str]]] = [
         ],
     ),
 ]
+
+
+# A third layer (asked for by the user): more notes in the first week and around the Fridays,
+# calls with HR and Finance, candidate impressions, lists of what is owed; more calendar
+# entries before 9 Nov and after 27 Nov. Same story, same cast, English only.
+NOTES_THIRD: list[tuple[Moment, str, list[str]]] = [
+    (
+        (2026, 10, 26, 17, 30),
+        "Lee's first day",
+        [
+            "Laptop and access sorted by lunch. Welcome lunch with the team.",
+            "Walked Lee through the launch checklist. Pairing with S from tomorrow.",
+            "Do not overload week one.",
+        ],
+    ),
+    (
+        (2026, 10, 27, 12, 20),
+        "J check-in",
+        [
+            "J wants to present on data quality at a team lunch.",
+            "Needs help with the QBR deck story: one message per slide.",
+            "Promised J feedback on the first draft.",
+        ],
+    ),
+    (
+        (2026, 10, 28, 16, 45),
+        "Lee: end of week one",
+        [
+            "Asked good questions. Wants to own a checklist section.",
+            "Needs a second pair of eyes on the runbook.",
+        ],
+    ),
+    (
+        (2026, 10, 29, 18, 10),
+        "October release: what went wrong",
+        [
+            "Release slipped two hours: freeze overlapped with the all-hands.",
+            "No owner named for the rollback plan.",
+            "Next release: name an owner for every step.",
+        ],
+    ),
+    (
+        (2026, 10, 30, 16, 40),
+        "Retro actions",
+        [
+            "Write a decision log. Owner: me.",
+            "Friday demo stays. Owner: Jo.",
+            "Queue for requests, urgent ones through me.",
+        ],
+    ),
+    (
+        (2026, 11, 2, 9, 5),
+        "Week plan",
+        [
+            "Monday: stand-up, analyst role plan, on-call rota.",
+            "Wednesday: Lee check-in. Thursday: finance call.",
+            "Friday: panel prep, review of the week.",
+        ],
+    ),
+    (
+        (2026, 11, 3, 15, 15),
+        "HR call: learning budget",
+        [
+            "HR says courses up to 800 can be approved by me with an HR reference.",
+            "Book through the portal by 18 December or the budget goes back to the pool.",
+            "Ask for the approval in writing.",
+        ],
+    ),
+    (
+        (2026, 11, 4, 17, 20),
+        "Analyst candidates: first impressions",
+        [
+            "A: strong SQL, short on explaining.",
+            "B: explains well, SQL is fine.",
+            "C: quiet but careful, asks about the data first.",
+            "Decision meeting Friday 13 Nov.",
+        ],
+    ),
+    (
+        (2026, 11, 5, 12, 0),
+        "Finance call: offsite budget",
+        [
+            "85 per head, up to 18 people.",
+            "Travel is claimed in expenses, not in the offsite budget.",
+            "Send the final headcount by 20 Nov.",
+        ],
+    ),
+    (
+        (2026, 11, 6, 17, 30),
+        "Friday review",
+        [
+            "Done: roadmap outline, vendor quote requested, checklist v1.",
+            "Open: support terms, interview plan, offsite venue.",
+            "Next week: course approval follow-up, analyst panel.",
+        ],
+    ),
+    (
+        (2026, 11, 7, 11, 0),
+        "Reading notes: feedback",
+        [
+            "Feedback should be specific and soon after the event.",
+            "Say what you saw, what it caused, what you would like instead.",
+        ],
+    ),
+    (
+        (2026, 11, 8, 19, 30),
+        "Plan for the week",
+        [
+            "Mon: team meeting, then reply to Jo about the QBR deck.",
+            "Tue: one-to-one with Jo. Wed: one-to-one with Lee.",
+            "Thu: recruiting sync. Fri: roadmap draft time.",
+        ],
+    ),
+    (
+        (2026, 11, 9, 15, 40),
+        "Weekly team meeting: notes",
+        [
+            "Launch checklist v2 by Wednesday.",
+            "Vendor demo next week, everyone invited.",
+            "Offsite venue shortlist is down to two.",
+        ],
+    ),
+    (
+        (2026, 11, 10, 17, 5),
+        "Jo: QBR deck v1 thoughts",
+        [
+            "Good story, too many words on slide six.",
+            "Add the data quality numbers. Keep the chart on slide four.",
+        ],
+    ),
+    (
+        (2026, 11, 11, 16, 50),
+        "Lee: section four",
+        [
+            "Lee would like to own section four of the checklist.",
+            "Fine, as long as someone reviews it. Ask S to review.",
+        ],
+    ),
+    (
+        (2026, 11, 12, 15, 25),
+        "Venue brochure notes",
+        [
+            "Main room seats 40, projector included.",
+            "Kitchen available. Evening hire until 22:00.",
+            "Hold for 14 January needs a decision by 27 Nov.",
+        ],
+    ),
+    (
+        (2026, 11, 13, 14, 10),
+        "Analyst decision",
+        [
+            "Panel agreed on B. Offer in progress through recruiting.",
+            "Feedback to the other two candidates by Monday.",
+        ],
+    ),
+    (
+        (2026, 11, 13, 17, 45),
+        "Friday review",
+        [
+            "Done: panel decision, QBR deck v1 received, vendor terms asked again.",
+            "Open: roadmap draft, offsite headcount, checklist section four.",
+        ],
+    ),
+    (
+        (2026, 11, 15, 18, 30),
+        "Sunday plan",
+        [
+            "Roadmap draft for A by Friday. Block Friday afternoon.",
+            "Vendor demo Wednesday: prepare three questions about support.",
+            "Remember to thank Lee for taking section four.",
+        ],
+    ),
+    (
+        (2026, 11, 17, 9, 30),
+        "Alex: roadmap draft feedback",
+        [
+            "Keep the draft to three themes.",
+            "Alex wants the vendor evaluation: give a deadline of 4 December.",
+        ],
+    ),
+    (
+        (2026, 11, 17, 18, 0),
+        "Risks to flag upwards",
+        [
+            "Vendor support terms not agreed before the launch.",
+            "Two owners for the checklist.",
+            "Field training deck depends on one person.",
+        ],
+    ),
+    (
+        (2026, 11, 18, 9, 0),
+        "Sign-off prep list",
+        [
+            "Checklist frozen? Rollback plan reviewed? Field training date?",
+            "Ask the vendor again about the 24 hour response.",
+        ],
+    ),
+    (
+        (2026, 11, 18, 16, 50),
+        "After sign-off: thank-you list",
+        [
+            "Thank Jo for the training deck, Lee for the runbook, S for the checklist work.",
+            "Tell the whole team at the next meeting.",
+        ],
+    ),
+    (
+        (2026, 11, 19, 10, 40),
+        "Mark: shared template",
+        [
+            "Mark offered a walkthrough of the platform team's dashboard template on Wednesday.",
+            "Invite S and A. Ask whether the lab filters are included.",
+        ],
+    ),
+    (
+        (2026, 11, 19, 15, 30),
+        "HR year-end dates",
+        [
+            "Review window opens 7 December. Guidance for managers is in the HR portal.",
+            "Start collecting examples now, not impressions.",
+        ],
+    ),
+    (
+        (2026, 11, 20, 14, 30),
+        "Roadmap draft: what I changed",
+        [
+            "Cut a fourth theme. Moved training to the end.",
+            "Draft goes to A tonight, late. Say sorry.",
+        ],
+    ),
+    (
+        (2026, 11, 20, 18, 45),
+        "Friday review",
+        [
+            "Done: sign-off, training deck, roadmap draft (late).",
+            "Open: headcount to Finance, venue hold, vendor references.",
+            "Next week: planning workshop, interviews prep, one-to-ones.",
+        ],
+    ),
+    (
+        (2026, 11, 21, 13, 30),
+        "Offsite dinner ideas",
+        [
+            "Long table, one place for the whole team.",
+            "Ask about vegan and gluten free options early.",
+        ],
+    ),
+    (
+        (2026, 11, 21, 17, 15),
+        "Saturday errands",
+        [
+            "post office, pharmacy, library books back",
+            "birthday present for the team lead dinner",
+        ],
+    ),
+    (
+        (2026, 11, 22, 12, 30),
+        "Next week: top three",
+        [
+            "1. Monday one-to-one: bring the link and the intro date.",
+            "2. Q1 planning workshop on Monday afternoon.",
+            "3. Confirm the venue hold before Friday.",
+        ],
+    ),
+    (
+        (2026, 11, 22, 15, 20),
+        "Things I owe people",
+        [
+            "Jo: QBR feedback by Tuesday.",
+            "A: a deadline for the vendor evaluation.",
+            "S: the intro date with Mark.",
+            "Lee: a thank you.",
+        ],
+    ),
+]
+
+EVENTS_THIRD: list[tuple[str, Moment, int, str, str]] = [
+    *[
+        ("Team standup", (2026, 10, d, 9, 30), 15, "Team area", "Daily standup.")
+        for d in (26, 27, 28, 29, 30)
+    ],
+    *[
+        ("Team standup", (2026, 11, d, 9, 30), 15, "Team area", "Daily standup.")
+        for d in (2, 3, 4, 5, 6)
+    ],
+    *[
+        ("Team standup", (2026, d[0], d[1], 9, 30), 15, "Team area", "Daily standup.")
+        for d in ((11, 30), (12, 1), (12, 2), (12, 3), (12, 4))
+    ],
+    ("Lee welcome lunch", (2026, 10, 26, 12, 30), 60, "Cafe", "Welcome lunch with the team."),
+    ("1:1 Jo", (2026, 10, 27, 11, 0), 45, "Room 3", "One-to-one with Jo."),
+    ("1:1 Lee", (2026, 10, 28, 11, 0), 30, "Room 3", "First check-in with Lee."),
+    ("October release", (2026, 10, 29, 10, 0), 120, "Room 5", "Release window."),
+    ("Retro", (2026, 10, 30, 15, 0), 60, "Room 5", "Keep, stop, start."),
+    ("Expenses deadline", (2026, 10, 30, 17, 0), 15, "Home", "October expenses."),
+    ("1:1 Alex", (2026, 11, 2, 11, 0), 45, "Room 3", "One-to-one with Alex."),
+    ("Analyst panel prep", (2026, 11, 3, 16, 0), 30, "Room 3", "Questions for the panel."),
+    ("HR call: learning budget", (2026, 11, 3, 14, 30), 30, "Video call", "Course approval."),
+    ("Analyst candidate debrief", (2026, 11, 4, 17, 0), 30, "Room 3", "First impressions."),
+    ("Weekly review", (2026, 11, 6, 16, 30), 30, "Home", "What got done, what moves."),
+    ("Weekly review", (2026, 11, 13, 16, 30), 30, "Home", "What got done, what moves."),
+    ("Analyst decision meeting", (2026, 11, 13, 11, 0), 60, "Room 3", "Panel decision."),
+    ("Weekly review", (2026, 11, 20, 16, 30), 30, "Home", "What got done, what moves."),
+    ("Release freeze", (2026, 11, 16, 9, 0), 480, "Online", "Freeze before sign-off."),
+    (
+        "Dashboard walkthrough with Mark",
+        (2026, 11, 25, 14, 0),
+        45,
+        "Video call",
+        "Platform team template.",
+    ),
+    ("QBR slides due", (2026, 11, 30, 9, 0), 30, "Home", "Deck goes out."),
+    (
+        "Offsite catering call",
+        (2026, 12, 1, 14, 0),
+        30,
+        "Video call",
+        "Vegan and gluten free options.",
+    ),
+    ("QBR rehearsal", (2026, 12, 2, 15, 0), 60, "Room 5", "Run through with Jo."),
+    ("Interviews day two", (2026, 12, 2, 10, 0), 240, "Room 5", "Data engineer interviews."),
+    ("Interviews day three", (2026, 12, 3, 10, 0), 240, "Room 5", "Data engineer interviews."),
+    ("Venue site visit", (2026, 12, 4, 15, 0), 60, "Engine Shed", "Look at the main room."),
+    (
+        "HR review guidance session",
+        (2026, 12, 4, 11, 0),
+        60,
+        "Video call",
+        "Year-end review for managers.",
+    ),
+]

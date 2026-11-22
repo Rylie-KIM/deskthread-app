@@ -3,6 +3,7 @@
     uv run python -B -m scripts.seed.seed_demo seed      # write
     uv run python -B -m scripts.seed.seed_demo more      # add the second list of events
     uv run python -B -m scripts.seed.seed_demo notes-more # add the second, more abstract notes
+    uv run python -B -m scripts.seed.seed_demo more2     # the third layer: more notes and events
     uv run python -B -m scripts.seed.seed_demo unseed    # remove exactly what seed wrote
     uv run python -B -m scripts.seed.seed_demo status    # counts only
 
@@ -212,6 +213,22 @@ def more_notes() -> None:
     print(f"  {len(content.NOTES_MORE)} more notes written; {len(manifest['notes'])} in all")
 
 
+def more2() -> None:
+    """Add the third layer: more notes and more calendar entries."""
+    manifest = load()
+    for when, title, lines in content.NOTES_THIRD:
+        made = osa(NEW_NOTE, body_of(title, lines), *map(str, when))
+        manifest["notes"].append(made.split("|")[0])
+        save(manifest)
+    for title, when, minutes, place, about in content.EVENTS_THIRD:
+        manifest["events"].append(
+            osa(NEW_EVENT, title, *map(str, when), str(minutes), place, about)
+        )
+        save(manifest)
+    print(f"  {len(content.NOTES_THIRD)} notes and {len(content.EVENTS_THIRD)} events written;"
+          f" {len(manifest['notes'])} notes and {len(manifest['events'])} events in all")  # fmt: skip
+
+
 def unseed() -> None:
     manifest = load()
     for note_id in manifest["notes"]:
@@ -231,6 +248,11 @@ def status() -> None:
 
 
 if __name__ == "__main__":
-    {"seed": seed, "more": more, "notes-more": more_notes, "unseed": unseed, "status": status}.get(
-        sys.argv[1] if len(sys.argv) > 1 else "", status
-    )()
+    {
+        "seed": seed,
+        "more": more,
+        "notes-more": more_notes,
+        "more2": more2,
+        "unseed": unseed,
+        "status": status,
+    }.get(sys.argv[1] if len(sys.argv) > 1 else "", status)()
