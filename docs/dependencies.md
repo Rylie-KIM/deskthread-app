@@ -14,6 +14,7 @@ package runs a build or install script on the machine.
 | Starlette | 1.10.0 | BSD-3-Clause | Encode / Kim Christie and contributors | Comes with FastAPI: request handling |
 | Pydantic | 2.14.4 | MIT | Pydantic Services Inc. and contributors | Typed data shapes for items, the API and the model's structured output |
 | Uvicorn | 0.54.0 | BSD-3-Clause | Encode and contributors | The local web server process that runs FastAPI |
+| pypdf | 7.1.1 | BSD-3-Clause | pypdf contributors (open source, pure Python) | Reads the text of PDF documents the user allows. Word files and CSV are read with Python's standard library |
 | Ollama (server, Homebrew formula) | 0.40.9 | MIT | Ollama Inc. (US) | Runs the model on the laptop; started by the launcher on 127.0.0.1 with cloud features off (`OLLAMA_NO_CLOUD=1`). The desktop app is not used |
 | Gemma 4 E4B (`gemma4:e4b`) | digest `eb2177adf764…` (full value in the README) | Apache-2.0 (licence text shipped with the model: `ollama show gemma4:e4b --license`) | Google (US) | The one local model: answers and image reading. Downloaded once at setup |
 
