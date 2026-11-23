@@ -18,6 +18,7 @@ This is a work in progress. The table says plainly what exists.
 | Local API with a per-launch token, Origin and Host checks, strict content-security-policy | **Built and tested** |
 | The tuning evaluation on the invented data | **5 of 8** (65-file demo laptop) and **4 of 8** (143 files) on 23 Nov 2026; lower than the earlier 6 to 7 of 8. See the [test report](test-report.md) |
 | Wi-Fi-off run | **Done by hand** while the demo video was recorded (see the video); no automated test |
+| Model comparison and baseline | **Run** for the three installed models and a no-model baseline ([report](model-comparison.md)); the five other models were **not run** (they need a download) |
 | `verify` script (an independent check after quitting), canary leak test on the whole flow | **Not built or not run yet** |
 | `make check`: lint, type checks, 180 tests | **Pass** on 23 Nov 2026 ([test report](test-report.md)) |
 | Windows | **Not tested** |

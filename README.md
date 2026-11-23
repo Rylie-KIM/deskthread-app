@@ -60,6 +60,7 @@ Then click **Try the demo** and **Prepare**. Full steps: [Install and run](docs/
 | [How it works](docs/how-it-works.md) | Parts, gates, project structure |
 | [Tests](docs/tests.md) | What the tests prove |
 | [Test report](docs/test-report.md) | The run of 23 Nov 2026, with results |
+| [Model comparison](docs/model-comparison.md) | Three models and a no-model baseline, measured |
 | [Traceability](docs/traceability.md) | User need → feature → test |
 | [Demo data and limits](docs/data-and-limits.md) | The invented data, known limits |
 | [Dependencies](docs/dependencies.md) | Every dependency and its licence |
