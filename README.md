@@ -7,6 +7,7 @@ Demo video (link coming)
 </p>
 
 <p align="center"><img src="docs/images/access.png" alt="DeskThread: choose what it can read" width="760"></p>
+<p align="center"><img src="docs/images/ask.png" alt="DeskThread: an answer with its sources" width="760"></p>
 
 ## What it is
 
