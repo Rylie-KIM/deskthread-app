@@ -172,7 +172,7 @@
 <header class="top">
   <div class="wrap"><div class="bar glass">
     <a class="mark" href="#top">DeskThread</a>
-    <nav><a href="#rule">The rule</a><a href="#app">The app</a><a href="#install">Install</a><a href="https://github.com/Rylie-KIM/deskthread-app">GitHub</a><a class="pill" href="https://github.com/Rylie-KIM/deskthread-app/archive/refs/heads/main.zip">Download</a></nav>
+    <nav><a href="#rule">Why</a><a href="#install">Install</a><a href="https://github.com/Rylie-KIM/deskthread-app">GitHub</a><a class="pill" href="https://github.com/Rylie-KIM/deskthread-app/archive/refs/heads/main.zip">Download</a></nav>
   </div></div>
 </header>
 
@@ -180,45 +180,28 @@
   <main id="top" class="hero">
     <p class="eyebrow">A native Mac app for the notes you already have</p>
     <h1>You already wrote it down. <span>It never leaves your laptop.</span></h1>
-    <p class="lead">DeskThread finds what you wrote down in Notes, Calendar, Mail, Reminders and your
-    folders, quotes exactly where each point came from, and says "not found" when the answer is not
-    there. It runs entirely on your Mac.</p>
+    <p class="lead">DeskThread finds what you wrote down in Notes, Calendar, Mail, Reminders and your folders, and shows the exact quote and source. Not there? It says so.</p>
     <div class="actions">
       <a class="button" href="https://github.com/Rylie-KIM/deskthread-app/archive/refs/heads/main.zip">Download for Mac <span aria-hidden="true">&darr;</span></a>
       <a class="button ghost" href="#install">How to install</a>
     </div>
-    <p class="state">Prototype. A native Mac app for Apple silicon, in its own window: not a website, no browser, no history kept. Windows is not tested. All sample data is invented.</p>
+    <p class="state">Prototype for Mac (Apple silicon). Sample data is invented.</p>
   </main>
 
   <section aria-labelledby="rule">
     <p class="kicker">The one rule</p>
     <h2 id="rule">Your knowledge stays yours.</h2>
     <div class="tiles">
-      <div class="tile glass"><h3>Nothing leaves</h3><p>The AI runs on this Mac. The app can only connect to <code>127.0.0.1</code>, and a test fails the build if any other code may open a connection. Turn Wi-Fi off: it still answers.</p></div>
-      <div class="tile glass"><h3>No copies</h3><p>No database, index or cache. The app writes nothing to disk, counts every write (zero), and keeps what it reads in memory until you clear it.</p></div>
-      <div class="tile glass"><h3>You choose</h3><p>Everything starts Off and nothing is ticked for you. A switch allows reading, the same switch stops it. Read is the only permission that exists.</p></div>
-      <div class="tile glass"><h3>Honest answers</h3><p>The AI names a note and a line; code copies the quote. A real quote about something else is dropped, notes that give orders are ignored, and no support means "not found".</p></div>
-    </div>
-  </section>
-
-  <section class="block" id="app">
-    <p class="kicker">The app</p>
-    <h2>Every part shows what it is doing.</h2>
-    <div class="cards">
-      <div class="card glass"><h3>Access</h3><p>Choose what it may read: Calendar, Mail, Notes, Reminders and folders. Everything starts Off. A period for Calendar and Mail. File types it cannot read are listed as not supported, not skipped silently.</p></div>
-      <div class="card glass"><h3>Ask</h3><p>Ask in your own words, or press Prepare on the next meeting. Every point has its exact quote, date and source, and one click opens the original. Possibly related notes are kept apart. Stop ends a question at once.</p></div>
-      <div class="card glass"><h3>My data</h3><p>Check it now lists the app's own connections as macOS prints them, with the command to run yourself. Folders are compared with how they were when chosen. A log keeps what was allowed and read.</p></div>
-      <div class="card glass"><h3>AI model</h3><p>Eight models, all run on this Mac, with parameters and download size. Gemma 4 is the default and is pinned. A small search helper finds notes by meaning; it is not a chat AI.</p></div>
-      <div class="card glass"><h3>Pictures</h3><p>The text in screenshots is read by macOS's own text recognition, in memory, when you switch Pictures on. The AI only looks at pictures that hold no text.</p></div>
-      <div class="card glass"><h3>End session</h3><p>Removes what was read and your settings, stops every program, and gives a receipt that says how each number is counted and how you can check it without the app.</p></div>
+      <div class="tile glass"><h3>Nothing leaves</h3><p>The AI runs on your Mac. Turn Wi-Fi off: it still answers.</p></div>
+      <div class="tile glass"><h3>No copies</h3><p>The app writes nothing to disk.</p></div>
+      <div class="tile glass"><h3>You choose</h3><p>Everything starts Off. Read is the only permission.</p></div>
+      <div class="tile glass"><h3>Honest</h3><p>Every answer has a real quote. No support means "not found".</p></div>
     </div>
   </section>
 
   <section class="block" id="how">
-    <p class="kicker">The moment it is built for</p>
-    <h2>A one-to-one tomorrow. Six weeks of scattered notes.</h2>
-    <p class="sub">A plain search for the words you would use finds nothing, because the notes say
-    course, conference, intro and ownership. DeskThread joins them and shows its sources.</p>
+    <p class="kicker">Example</p>
+    <h2>A one-to-one tomorrow. Six weeks of notes.</h2>
     <div class="stage glass">
       <div class="paper" aria-label="Example of an answer">
         <p class="q">What did I promise Sam?</p>
@@ -247,7 +230,7 @@
       </div>
       <div class="side">
         <p class="num">0</p>
-        <p>files written by the app, and every connection on this Mac only. My data shows both, and End session gives you a receipt.</p>
+        <p>files written by the app.</p>
         <p class="sample">An example on invented sample data, shortened.</p>
       </div>
     </div>
@@ -255,8 +238,8 @@
 
   <section class="block" id="install">
     <p class="kicker">Install</p>
-    <h2>Three steps. Then it works offline.</h2>
-    <p class="sub">Needs macOS on Apple silicon, Homebrew, Node.js, and about 10 GB of free disk for the model. It is a Mac app, not a website: it runs entirely on your Mac.</p>
+    <h2>Three steps.</h2>
+    <p class="sub">Needs macOS on Apple silicon, Homebrew and about 10 GB of disk.</p>
     <div class="cols">
       <pre><code><span class="c"># 1. get the code and the tools</span>
 git clone https://github.com/Rylie-KIM/deskthread-app.git
@@ -273,28 +256,14 @@ kill %1
 make demo-data
 make run</code></pre>
       <ol class="steps glass">
-        <li><b>Get the code and the tools</b>The model server (not the desktop app), a Python installer, and the page. Dependencies are pinned with hashes; no install script runs.</li>
-        <li><b>Download the model once</b>The only large download. After it, nothing needs the network.</li>
-        <li><b>Start it</b>DeskThread opens in its own Mac window. Click "Try it with the demo laptop", then Prepare. Optional: in the AI model tab, download the search helper (0.6 GB).</li>
+        <li><b>Get it</b>Code and tools.</li>
+        <li><b>Download the model</b>Once. Then it works offline.</li>
+        <li><b>Start</b>Click "Try the demo", then Prepare.</li>
       </ol>
     </div>
   </section>
 
-  <section class="block">
-    <p class="kicker">Check it yourself</p>
-    <h2>Do not take this page's word for it.</h2>
-    <div class="cards">
-      <div class="card glass"><h3>Check it now</h3><p>In the app, My data, Check it now runs macOS's own connection listing for the app's programs and shows the command to run in Terminal yourself. Every line should say <code>127.0.0.1</code>.</p></div>
-      <div class="card glass"><h3>Turn Wi-Fi off</h3><p>It still answers. The only time anything uses the internet is a model download that you start yourself.</p></div>
-      <div class="card glass"><h3>A receipt</h3><p>End session ends with a receipt: items read per source, files saved by the app (zero), whether anything went outside, and which of your folders changed.</p></div>
-      <div class="card glass"><h3>Read the source</h3><p>Everything is public on GitHub. Run <code>make check</code>: lint, type checks and the tests, no model needed.</p></div>
-      <div class="card glass"><h3>One pinned model</h3><p>The default is <code>gemma4:e4b</code>, Apache-2.0; a different digest is refused. Seven more can be chosen; only the first three were run with DeskThread.</p><code class="digest">eb2177adf7646d15faead94fdad6d3e170dc8015653418a3b7d5d52a6380be5b</code></div>
-      <div class="card glass"><h3>This page is quiet too</h3><p>No analytics, no cookies, no fonts or scripts from other sites. The download is served by GitHub.</p></div>
-    </div>
-    <p class="state" style="margin-top:22px">What it does not promise: that memory is physically erased (that belongs to the operating system), that the connection list catches a very short connection, or anything about other apps on your Mac, such as Calendar syncing with iCloud. Mac only; Windows is not tested.</p>
-  </section>
-
-  <footer><span>DeskThread prototype, November 2026</span><span>All sample data is invented</span><span>No licence chosen yet</span></footer>
+  <footer><span>DeskThread prototype, November 2026</span><span>All sample data is invented</span><span><a href="https://github.com/Rylie-KIM/deskthread-app#readme">README</a></span></footer>
 </div>
 </body>
 </html>
