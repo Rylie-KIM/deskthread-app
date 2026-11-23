@@ -69,14 +69,11 @@
   section.block { padding: 70px 0 0; }
 
   .tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
-  .tile { border-radius: 36px; padding: 176px 24px 28px; position: relative; overflow: hidden; }
-  .tile::before { content: ""; position: absolute; width: 116px; height: 116px; left: 50%; top: 32px; transform: translateX(-50%); border-radius: 50%;
-                  background: radial-gradient(circle at 34% 28%, #fff 0%, rgba(190,226,255,.9) 26%, rgba(70,150,255,.65) 64%, rgba(10,23,196,.6) 100%);
-                  box-shadow: 0 20px 36px -16px rgba(40,70,160,.6), inset 0 0 0 1.5px rgba(255,255,255,.9); }
-  .tile:nth-child(2)::before { border-radius: 30%; transform: translateX(-50%) rotate(12deg);
-                  background: linear-gradient(150deg, rgba(255,255,255,.95), rgba(190,226,255,.75) 45%, rgba(47,155,255,.55)); }
-  .tile:nth-child(3)::before { border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%; transform: translateX(-50%) scaleX(.82); }
-  .tile:nth-child(4)::before { border-radius: 50% 50% 50% 10px; transform: translateX(-50%) rotate(-45deg) scale(.86); }
+  .tile { border-radius: 32px; padding: 28px 24px; }
+  .ico { width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; margin-bottom: 18px; color: var(--royal);
+         background: radial-gradient(circle at 34% 28%, #fff 0%, rgba(205,232,255,.9) 60%, rgba(150,200,255,.7) 100%);
+         box-shadow: 0 12px 22px -12px rgba(40,70,160,.6), inset 0 0 0 1.5px rgba(255,255,255,.95); }
+  .ico svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
   .tile h3 { margin: 0 0 6px; font-size: 1.25rem; letter-spacing: -.01em; }
   .tile p { margin: 0; font-size: .93rem; color: var(--muted); }
   code { font: inherit; overflow-wrap: anywhere; }
@@ -192,10 +189,10 @@
     <p class="kicker">The one rule</p>
     <h2 id="rule">Your knowledge stays yours.</h2>
     <div class="tiles">
-      <div class="tile glass"><h3>Nothing leaves</h3><p>The AI runs on your Mac. Turn Wi-Fi off: it still answers.</p></div>
-      <div class="tile glass"><h3>No copies</h3><p>The app writes nothing to disk.</p></div>
-      <div class="tile glass"><h3>You choose</h3><p>Everything starts Off. Read is the only permission.</p></div>
-      <div class="tile glass"><h3>Honest</h3><p>Every answer has a real quote. No support means "not found".</p></div>
+      <div class="tile glass"><span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M2 9a15 15 0 0 1 20 0M5 13a10 10 0 0 1 14 0M8.5 16.5a5 5 0 0 1 7 0"/><circle cx="12" cy="20" r=".6"/><path d="M3 3l18 18"/></svg></span><h3>Nothing leaves</h3><p>The AI runs on your Mac. Turn Wi-Fi off: it still answers.</p></div>
+      <div class="tile glass"><span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6z"/><path d="M14 3v4h4M9 13h6M9 17h4"/><path d="M3 3l18 18"/></svg></span><h3>No copies</h3><p>The app writes nothing to disk.</p></div>
+      <div class="tile glass"><span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="2" y="7" width="20" height="10" rx="5"/><circle cx="8" cy="12" r="2.4"/></svg></span><h3>You choose</h3><p>Everything starts Off. Read is the only permission.</p></div>
+      <div class="tile glass"><span class="ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg></span><h3>Honest</h3><p>Every answer has a real quote. No support means "not found".</p></div>
     </div>
   </section>
 
