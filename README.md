@@ -2,8 +2,7 @@
 <p align="center"><b>Find what you wrote down. Your notes never leave your laptop.</b></p>
 
 <p align="center">
-<a href="https://github.com/Rylie-KIM/deskthread-app/archive/refs/heads/main.zip"><b>Download for Mac</b></a> ·
-<a href="https://deskthread.vercel.app">Website</a> ·
+<a href="https://deskthread.vercel.app"><b>Download for Mac</b></a> ·
 Demo video (link coming)
 </p>
 
