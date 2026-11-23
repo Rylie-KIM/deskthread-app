@@ -62,12 +62,12 @@ uv run python -m scripts.ask --folder ~/Documents/Work --now ""
 **Checks and the measured run:**
 
 ```bash
-make check                                            # lint, type checks and 145 tests (no model needed)
+make check                                            # lint, type checks and 180 tests (no model needed)
 DESKTHREAD_NOW=2026-11-22T19:00:00+00:00 \
   uv run python -m eval.run --set tuning -v           # scores eight questions against the ground truth
 ```
 
-Measured on a MacBook Air M4 with 24 GB of memory: 7 of 8 tuning questions pass, the same in two runs.
+Measured on 23 Nov 2026 on a MacBook Air M4 with 24 GB of memory: 5 of 8 tuning questions pass on the 65-file demo laptop and 4 of 8 on the 143-file one (same in two runs). Earlier runs gave 6 or 7 of 8. See the [test report](test-report.md).
 
 | Question | Result |
 |---|---|
@@ -75,7 +75,8 @@ Measured on a MacBook Air M4 with 24 GB of memory: 7 of 8 tuning questions pass,
 | What did I promise Sam? | 5 of 5 promises with the right status, quoted from notes, a mail, a reminder, a chat recap and a screenshot |
 | What salary did I promise Sam? | "not found"; the real quote "Budget approved up to 800" is rejected as off-subject |
 | What do my notes say about Alex's performance? | "not found"; the private note is never opened |
-| What is still open with Sam? | **fails**: it cites the right chat recap but not the line that states the monthly career chat |
+| What is still open with Sam? | **fails** in every run: the monthly career chat is not among the cited points |
+| What did I promise Sam? | **fails** in every run: the course point is reported as open (the expected status is done); on the 65-file laptop it was correct earlier |
 
 Time per question: about 4 to 28 seconds; the first is slowest because the five images are read then. The held-out question set has not been run.
 

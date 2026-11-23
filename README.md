@@ -8,7 +8,6 @@
 </p>
 
 <p align="center"><img src="docs/images/access.png" alt="DeskThread: choose what it can read" width="760"></p>
-<p align="center"><img src="docs/images/ask.png" alt="DeskThread: an answer with its sources" width="760"></p>
 
 ## What it is
 
@@ -20,6 +19,25 @@ Every answer shows the exact quote, the date and where it came from. If the answ
 - **No copies:** the app writes nothing to disk.
 
 Prototype for macOS on Apple silicon. All sample data is invented. Windows is not tested.
+
+## How it is built
+
+```
+Mac window (WebKit)  ->  Page (React, static)  ->  Backend (Python, 127.0.0.1)  ->  Model server (Ollama, 127.0.0.1)
+                                                        |
+                                    Gates: G1 what may be read -> G2 read -> G3 model -> G4 answer check
+                                                        |
+                                  Your files and Mac apps (read only, held in memory)
+```
+
+| Part | What it does |
+|---|---|
+| **Window** | A native Mac window. No browser, nothing kept on disk |
+| **Page** | The screens: Access, Ask, My data, AI model |
+| **Backend** | Reads what you allowed, finds notes, checks every answer. Connects to `127.0.0.1` only |
+| **Model** | `gemma4:e4b`, run locally. It names a note and a line; code copies the quote |
+
+More in [How it works](docs/how-it-works.md).
 
 ## Try it
 
@@ -41,6 +59,8 @@ Then click **Try the demo** and **Prepare**. Full steps: [Install and run](docs/
 | [Install and run](docs/install-and-run.md) | Requirements, steps, terminal use |
 | [How it works](docs/how-it-works.md) | Parts, gates, project structure |
 | [Tests](docs/tests.md) | What the tests prove |
+| [Test report](docs/test-report.md) | The run of 23 Nov 2026, with results |
+| [Traceability](docs/traceability.md) | User need → feature → test |
 | [Demo data and limits](docs/data-and-limits.md) | The invented data, known limits |
 | [Dependencies](docs/dependencies.md) | Every dependency and its licence |
 

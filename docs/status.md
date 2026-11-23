@@ -16,7 +16,9 @@ This is a work in progress. The table says plainly what exists.
 | Pictures: the text is read by macOS's own text recognition when switched on, the AI only for pictures without text | **Built and tested** on typed pictures; handwriting not tested |
 | AI model page: eight models with parameters and download size, a search helper | **Built**; only three models were run with DeskThread; downloads of the other five were not run |
 | Local API with a per-launch token, Origin and Host checks, strict content-security-policy | **Built and tested** |
-| The tuning evaluation on the invented data | **6 of 8** at the last full run; not re-run after the later changes |
-| `verify` script (an independent check after quitting), canary leak test on the whole flow, Wi-Fi-off run | **Not built or not run yet** |
+| The tuning evaluation on the invented data | **5 of 8** (65-file demo laptop) and **4 of 8** (143 files) on 23 Nov 2026; lower than the earlier 6 to 7 of 8. See the [test report](test-report.md) |
+| Wi-Fi-off run | **Done by hand** while the demo video was recorded (see the video); no automated test |
+| `verify` script (an independent check after quitting), canary leak test on the whole flow | **Not built or not run yet** |
+| `make check`: lint, type checks, 180 tests | **Pass** on 23 Nov 2026 ([test report](test-report.md)) |
 | Windows | **Not tested** |
 
