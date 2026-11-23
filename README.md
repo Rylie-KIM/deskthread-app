@@ -1,9 +1,10 @@
+<p align="center"><img src="docs/images/icon.png" alt="DeskThread app icon" width="112"></p>
 <h1 align="center">DeskThread</h1>
 <p align="center"><b>Find what you wrote down. Your notes never leave your laptop.</b></p>
 
 <p align="center">
 <a href="https://deskthread.vercel.app"><b>Download for Mac</b></a> ·
-Demo video (link coming)
+<a href="https://youtu.be/0CBEZsb4PlA">Demo video</a>
 </p>
 
 <p align="center"><img src="docs/images/access.png" alt="DeskThread: choose what it can read" width="760"></p>
