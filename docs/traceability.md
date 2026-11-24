@@ -103,7 +103,7 @@ A feature with "none" has no automated test of its own; it is checked by hand or
 | **FT-56** Search by meaning (a small local search model, in memory only) and by time, a second wider search when the first finds nothing, and the "Possibly related" group | UN-25, UN-02, UN-03 | [`unit/test_answer_pipeline.py`](../tests/unit/test_answer_pipeline.py), [`unit/test_search.py`](../tests/unit/test_search.py) |
 | **FT-57** Period for Calendar and Mail ("Most recent" 2 weeks to 1 year, or exact dates) | UN-26, UN-08 | none |
 | **FT-58** Stop: cuts the running question, including the request that is with the AI | UN-27 | [`unit/test_api.py`](../tests/unit/test_api.py) |
-| **FT-59** Pictures read in the background in two stages, each with its own bar and its own line in the log: step 1 macOS text recognition, step 2 the AI looking at pictures without text (skipped, and said so, for a model that cannot read pictures); a finished card with what was read, by whom, and "See the text", until OK | UN-27, UN-11 | [`unit/test_images.py`](../tests/unit/test_images.py), [`unit/test_ocr.py`](../tests/unit/test_ocr.py) |
+| **FT-59** Pictures read in the background in two stages, each with its own bar and its own line in the log: step 1 "Text extracted from the pictures" (macOS text recognition), step 2 "Second look by the AI where no text was found" (skipped, and said so, for a model that cannot read pictures); a finished card with what was read, by whom, and "See the text", until OK | UN-27, UN-11 | [`unit/test_images.py`](../tests/unit/test_images.py), [`unit/test_ocr.py`](../tests/unit/test_ocr.py) |
 | **FT-60** AI model page: eight approved models with parameters, download size and when each fits, plus the search helper card | UN-28, UN-13 | [`unit/test_api.py`](../tests/unit/test_api.py), [`unit/test_model_gateway.py`](../tests/unit/test_model_gateway.py) |
 | **FT-61** "Generating demo data" window: a small window opened by the launcher on the first start shows the real count of files written by the generator, then closes; DeskThread itself writes nothing | UN-29, UN-13 | [`data/test_demo_data.py`](../tests/data/test_demo_data.py) (the progress report; the window itself is checked by hand) |
 
@@ -136,7 +136,7 @@ These features were planned (`plan/plan.md`, section 19) and are **not in the ap
 | [`unit/test_coverage.py`](../tests/unit/test_coverage.py) | 2 | FT-36 |
 | [`unit/test_ending.py`](../tests/unit/test_ending.py) | 4 | FT-16, FT-40 |
 | [`unit/test_folder_access.py`](../tests/unit/test_folder_access.py) | 12 | FT-01, FT-03, FT-43 |
-| [`unit/test_images.py`](../tests/unit/test_images.py) | 6 | FT-39, FT-59 |
+| [`unit/test_images.py`](../tests/unit/test_images.py) | 7 | FT-39, FT-59 |
 | [`unit/test_mac_apps.py`](../tests/unit/test_mac_apps.py) | 14 | FT-48, FT-49, FT-50, FT-52 |
 | [`unit/test_memory.py`](../tests/unit/test_memory.py) | 4 | FT-35, FT-37 |
 | [`unit/test_model_gateway.py`](../tests/unit/test_model_gateway.py) | 12 | FT-09, FT-45, FT-60 |

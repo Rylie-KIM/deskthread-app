@@ -118,7 +118,7 @@ Then click **Try the demo** and **Prepare**.
 
 ## Tests
 
-`make check` runs lint, strict type checks and **183 automated tests** in about 13 seconds, without the model. All pass (24 Nov 2026; the [test report](docs/test-report.md) of 23 Nov lists 180).
+`make check` runs lint, strict type checks and **184 automated tests** in about 13 seconds, without the model. All pass (24 Nov 2026; the [test report](docs/test-report.md) of 23 Nov lists 180).
 
 | What is checked | Result |
 |---|---|

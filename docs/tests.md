@@ -4,7 +4,7 @@
 
 ## Tests
 
-`make check` runs lint, strict type checks (Python and TypeScript) and 183 tests in about 13 seconds, without the model.
+`make check` runs lint, strict type checks (Python and TypeScript) and 184 tests in about 13 seconds, without the model.
 
 | Group | What it proves | Result |
 |---|---|---|

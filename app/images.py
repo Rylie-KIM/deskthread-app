@@ -97,28 +97,39 @@ class ImageReader:
                 continue
             found.append((item, hashlib.sha256(data).hexdigest(), data))
         unique = {key: data for _, key, data in found}
+        # Two files with the same bytes are read once but count as two pictures, so that the
+        # numbers on the screen are the pictures the user has.
+        weight: dict[str, int] = {}
+        for _, key, _ in found:
+            weight[key] = weight.get(key, 0) + 1
         todo = [k for k in unique if k not in self._readings and k not in self._empty]
-        total = len(todo)
+        total = sum(weight[k] for k in todo)
         text_found = 0
-        for done, key in enumerate(todo, 1):  # the first look: macOS text recognition
+        passed = 0
+        for key in todo:  # the first look: macOS text recognition
+            passed += weight[key]
             if progress:
-                progress(done, total, "text")
+                progress(passed, total, "text")
             lines = self._recognise(unique[key])
             if lines:
                 self._readings[key], self._by[key] = tuple(lines), OCR_NAME
-                text_found += 1
+                text_found += weight[key]
             elif lines is not None:
                 self._empty.add(key)
         look_state, look_tried, look_found = "waiting", 0, 0
         if not self._can_use_model():
             left = [k for k in unique if k in self._empty]  # nothing else will look at these
-            look_state, look_tried = ("skipped" if left else "not_needed"), len(left)
+            look_state = "skipped" if left else "not_needed"
+            look_tried = sum(weight[k] for k in left)
         if use_model and self._can_use_model():
             second = [k for k in unique if k not in self._readings]
-            look_state, look_tried = ("done" if second else "not_needed"), len(second)
-            for number, key in enumerate(second, 1):  # the second look: the answering AI
+            look_state = "done" if second else "not_needed"
+            look_tried = sum(weight[k] for k in second)
+            looked = 0
+            for key in second:  # the second look: the answering AI
+                looked += weight[key]
                 if progress:
-                    progress(number, len(second), "look")
+                    progress(looked, look_tried, "look")
                 try:
                     text = self._model.complete(prompts.READ_IMAGE, images=[unique[key]]).strip()
                 except DeskThreadError:
@@ -129,7 +140,7 @@ class ImageReader:
                     lines2 = [] if text.upper().strip(". ") == "NONE" else text.splitlines()
                     self._readings[key] = tuple(x.strip() for x in lines2 if x.strip())
                     self._by[key] = AI_NAME
-                    look_found += 1 if self._readings[key] else 0
+                    look_found += weight[key] if self._readings[key] else 0
         self.last = LastRead(total, text_found, look_state, look_tried, look_found)
         final = use_model or not self._can_use_model()
         for item, key, _data in found:

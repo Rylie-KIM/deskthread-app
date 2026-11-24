@@ -352,7 +352,7 @@ class Assistant:
             else:
                 text = PictureStage(state="done", done=text_total, total=text_total)
                 look = PictureStage(state="running", done=done, total=total)
-                what = "Looking at pictures without text"
+                what = "Second look at pictures where no text was found"
             self.preparing = Preparing(
                 active=True, done=done, total=total, what=what, text=text, look=look, job=self._job
             )
@@ -391,11 +391,18 @@ class Assistant:
         labels = {s.source_id: s.label for s in self._broker.states()}
         images = [i for i in self._store.items() if i.kind is ItemKind.IMAGE]
         read = [i for i in images if i.meta.get("reading") == "done"]
-        text = PictureStage(state="done", done=last.text_tried, total=last.text_tried)
+        by_macos = sum(1 for i in read if i.meta.get("read_with") == OCR_NAME)
+        by_ai = sum(1 for i in read if i.meta.get("read_with") == AI_NAME)
+        no_text = sum(1 for i in images if i.meta.get("reading") == "no text found")
+        # Every picture went through step 1; step 2 is for those macOS found no text in.
+        text = PictureStage(
+            state="done", done=by_macos + by_ai + no_text, total=by_macos + by_ai + no_text
+        )
+        without = by_ai + no_text if last.look_state in ("done", "skipped") else 0
         look = PictureStage(
             state=last.look_state,
-            done=last.look_tried if last.look_state == "done" else 0,
-            total=last.look_tried,
+            done=without if last.look_state == "done" else 0,
+            total=without,
         )
         return Preparing(
             active=False,
@@ -405,9 +412,9 @@ class Assistant:
             text=text,
             look=look,
             job=self._job,
-            by_macos=sum(1 for i in read if i.meta.get("read_with") == OCR_NAME),
-            by_ai=sum(1 for i in read if i.meta.get("read_with") == AI_NAME),
-            no_text=sum(1 for i in images if i.meta.get("reading") == "no text found"),
+            by_macos=by_macos,
+            by_ai=by_ai,
+            no_text=no_text,
             pictures=tuple(
                 PictureRead(
                     item_id=i.item_id,

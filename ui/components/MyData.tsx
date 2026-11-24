@@ -6,9 +6,9 @@ const WORDS: Record<string, string> = { grant: "You allowed reading", revoke: "Y
 
 // The two stages of reading pictures are logged as whole sentences, counts only.
 function pictureLine(line: AuditLine): string | null {
-  if (line.action === "pictures_text") return `Step 1 of 2: macOS read the text of ${line.count} of ${line.of} pictures`;
-  if (line.action === "pictures_look") return line.count === 0 ? "Step 2 of 2: not needed, macOS found text in every picture" : `Step 2 of 2: the AI looked at ${line.count} ${line.count === 1 ? "picture" : "pictures"} without text`;
-  if (line.action === "pictures_skipped") return `Step 2 of 2: skipped, this AI model does not read pictures (${line.count} left without text)`;
+  if (line.action === "pictures_text") return `Text extracted from ${line.count} of ${line.of} pictures`;
+  if (line.action === "pictures_look") return line.count === 0 ? "Second look by the AI: not needed, text was found in every picture" : `Second look by the AI at ${line.count} ${line.count === 1 ? "picture" : "pictures"} where no text was found`;
+  if (line.action === "pictures_skipped") return `Second look by the AI skipped: this AI model does not read pictures (${line.count} left without text)`;
   return null;
 }
 

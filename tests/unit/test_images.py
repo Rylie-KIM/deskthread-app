@@ -1,5 +1,6 @@
 """Image reading (FT-39): read by the model in memory, citable, cached, forgotten on request."""
 
+import shutil
 from pathlib import Path
 
 import pytest
@@ -139,3 +140,36 @@ def test_a_model_that_cannot_read_pictures_skips_stage_two_and_the_log_says_so(
         if line.action.value.startswith("pictures_")
     ]
     assert lines == [("pictures_text", 3), ("pictures_skipped", 2)]
+
+
+def test_two_files_with_the_same_bytes_count_as_two_pictures(
+    demo_laptop: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    pytest.importorskip("Vision")
+    monkeypatch.delenv("DESKTHREAD_OCR", raising=False)
+    copy = tmp_path / "demo-laptop"
+    shutil.copytree(demo_laptop, copy)
+    key = copy / KEY_IMAGE
+    (key.parent / "Copy of the screenshot.png").write_bytes(key.read_bytes())
+    session, assistant = open_work(copy, _model(copy))
+    shown: list[str] = []
+    original = assistant._images.read_pending
+
+    def watching(progress=None, check=None, use_model=True):  # type: ignore[no-untyped-def]
+        def note(done: int, total: int, phase: str) -> None:
+            shown.append(f"{phase} {done} of {total}")
+            progress(done, total, phase)
+
+        return original(note, check, use_model)
+
+    assistant._images.read_pending = watching  # type: ignore[method-assign]
+    session.store.refresh()
+    assistant.begin_preparing()
+    assistant.read_pictures_now()
+    assert shown[-3] == "text 6 of 6" and shown[-1] == "look 2 of 2"  # pictures, not contents
+    done = assistant.preparing_now()
+    assert (done.text.done, done.text.total) == (6, 6)
+    assert (done.by_macos, done.by_ai, done.no_text) == (4, 0, 2)
+    assert done.look.total == 2 and len(done.pictures) == 4
+    last = assistant._images.last
+    assert (last.text_found, last.text_tried) == (4, 6)
