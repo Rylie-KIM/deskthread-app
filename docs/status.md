@@ -20,6 +20,6 @@ This is a work in progress. The table says plainly what exists.
 | Wi-Fi-off run | **Done by hand** while the demo video was recorded (see the video); no automated test |
 | Model comparison and baseline | **Run** for the three installed models and a no-model baseline ([report](model-comparison.md)); the five other models were **not run** (they need a download) |
 | `verify` script (an independent check after quitting), canary leak test on the whole flow | **Not built or not run yet** |
-| `make check`: lint, type checks, 180 tests | **Pass** on 23 Nov 2026 ([test report](test-report.md)) |
+| `make check`: lint, type checks, 181 tests | **Pass** on 24 Nov 2026 (the [test report](test-report.md) of 23 Nov lists 180; the new one checks the demo generator's progress report) |
 | Windows | **Not tested** |
 

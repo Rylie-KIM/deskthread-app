@@ -16,6 +16,7 @@ import re
 import shutil
 import sys
 import zipfile
+from collections.abc import Callable
 from datetime import UTC, datetime
 from email.message import EmailMessage
 from pathlib import Path
@@ -258,8 +259,15 @@ def _stamp(rel: str, path: Path) -> float:
     return _written(path) or EXPORT_TIME
 
 
-def build(root: Path, canary: str | None = None, rich: bool = False) -> dict[str, str]:
-    """Write the folder (replacing an earlier build) and return path -> sha256."""
+def build(
+    root: Path,
+    canary: str | None = None,
+    rich: bool = False,
+    progress: Callable[[int, int], None] | None = None,
+) -> dict[str, str]:
+    """Write the folder (replacing an earlier build) and return path -> sha256.
+
+    `progress(done, total)` is called after every file, for the window that shows it."""
     if root.exists():
         marker = root / ".deskthread-demo"
         if not marker.exists():
@@ -270,13 +278,16 @@ def build(root: Path, canary: str | None = None, rich: bool = False) -> dict[str
     root.mkdir(parents=True)
     (root / ".deskthread-demo").write_text("Invented demo data. Safe to delete.\n")
     hashes: dict[str, str] = {}
-    for rel, data in files(canary, rich).items():
+    built = files(canary, rich)
+    for done, (rel, data) in enumerate(built.items(), start=1):
         path = root / rel
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
         stamp = _stamp(rel, path)
         os.utime(path, (stamp, stamp))
         hashes[rel] = hashlib.sha256(data).hexdigest()
+        if progress is not None:
+            progress(done, len(built))
     return hashes
 
 
@@ -285,8 +296,17 @@ def main() -> int:
     parser.add_argument("--out", type=Path, default=Path("demo-laptop"))
     parser.add_argument("--canary", default=None)
     parser.add_argument("--core", action="store_true", help="only the first layer (65 files)")
+    parser.add_argument(
+        "--progress", action="store_true", help="print 'PROGRESS done total' after each file"
+    )
     args = parser.parse_args()
-    hashes = build(args.out, args.canary, rich=not args.core)
+
+    def report(done: int, total: int) -> None:
+        print(f"PROGRESS {done} {total}", flush=True)
+
+    hashes = build(
+        args.out, args.canary, rich=not args.core, progress=report if args.progress else None
+    )
     combined = hashlib.sha256("".join(f"{p}:{h}\n" for p, h in hashes.items()).encode()).hexdigest()
     print(f"built {len(hashes)} files in {args.out}  sha256 {combined[:16]}")
     return 0

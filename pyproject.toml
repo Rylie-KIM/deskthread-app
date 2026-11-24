@@ -74,10 +74,10 @@ cache_dir = "/dev/null"
 
 # Apple's frameworks through pyobjc have no type stubs; the window module subclasses NSObject.
 [[tool.mypy.overrides]]
-module = ["AppKit", "Foundation", "WebKit", "objc", "PyObjCTools", "EventKit", "Vision"]
+module = ["AppKit", "Foundation", "WebKit", "objc", "PyObjCTools", "EventKit", "Vision", "Quartz"]
 ignore_missing_imports = true
 
 [[tool.mypy.overrides]]
-module = ["app.window", "app.icons"]
+module = ["app.window", "app.icons", "scripts.demo_progress"]
 disallow_subclassing_any = false
 disallow_untyped_calls = false

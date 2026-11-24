@@ -39,6 +39,7 @@ A feature with "none" has no automated test of its own; it is checked by hand or
 | **UN-26** I need to choose how far back Calendar and Mail are read | FT-57 | none |
 | **UN-27** I need to stop a long question and see how far it has got | FT-58, FT-59 | [`unit/test_api.py`](../tests/unit/test_api.py), [`unit/test_images.py`](../tests/unit/test_images.py) |
 | **UN-28** I need to choose which AI model answers, and see its size and what it fits | FT-60 | [`unit/test_api.py`](../tests/unit/test_api.py), [`unit/test_model_gateway.py`](../tests/unit/test_model_gateway.py) |
+| **UN-29** I need to try it without my own data, and see that the sample data is being made | FT-61 | [`data/test_demo_data.py`](../tests/data/test_demo_data.py) |
 
 ## F → U, T
 
@@ -104,6 +105,7 @@ A feature with "none" has no automated test of its own; it is checked by hand or
 | **FT-58** Stop: cuts the running question, including the request that is with the AI | UN-27 | [`unit/test_api.py`](../tests/unit/test_api.py) |
 | **FT-59** Pictures read in the background with macOS text recognition, with "picture n of m" progress; the AI only for pictures without text | UN-27, UN-11 | [`unit/test_images.py`](../tests/unit/test_images.py), [`unit/test_ocr.py`](../tests/unit/test_ocr.py) |
 | **FT-60** AI model page: eight approved models with parameters, download size and when each fits, plus the search helper card | UN-28, UN-13 | [`unit/test_api.py`](../tests/unit/test_api.py), [`unit/test_model_gateway.py`](../tests/unit/test_model_gateway.py) |
+| **FT-61** "Generating demo data" window: a small window opened by the launcher on the first start shows the real count of files written by the generator, then closes; DeskThread itself writes nothing | UN-29, UN-13 | [`data/test_demo_data.py`](../tests/data/test_demo_data.py) (the progress report; the window itself is checked by hand) |
 
 ## Planned, not built
 
@@ -124,7 +126,7 @@ These features were planned (`plan/plan.md`, section 19) and are **not in the ap
 |---|---|---|
 | [`contract/test_contracts.py`](../tests/contract/test_contracts.py) | 9 | (shared checks) |
 | [`contract/test_redact.py`](../tests/contract/test_redact.py) | 5 | (shared checks) |
-| [`data/test_demo_data.py`](../tests/data/test_demo_data.py) | 9 | (shared checks) |
+| [`data/test_demo_data.py`](../tests/data/test_demo_data.py) | 10 | FT-61 |
 | [`live/test_mac_apps_live.py`](../tests/live/test_mac_apps_live.py) | 1 | (shared checks) |
 | [`network/test_launch.py`](../tests/network/test_launch.py) | 1 | FT-16, FT-24 |
 | [`test_scaffold.py`](../tests/test_scaffold.py) | 2 | (shared checks) |

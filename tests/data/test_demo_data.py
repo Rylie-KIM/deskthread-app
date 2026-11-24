@@ -123,3 +123,15 @@ def test_d7_the_rich_layer_follows_the_same_rules_and_leaves_the_first_layer_alo
     for promise in TRUTH["promises"]:
         for source in promise["sources"]:
             assert (root / source["path"]).is_file(), source["path"]
+
+
+def test_the_generator_reports_every_file_for_the_progress_window(
+    generator: ModuleType, tmp_path: Path
+) -> None:
+    seen: list[tuple[int, int]] = []
+    hashes = generator.build(tmp_path / "demo-laptop", progress=lambda d, t: seen.append((d, t)))
+    assert len(seen) == len(hashes)
+    assert [done for done, _ in seen] == list(range(1, len(hashes) + 1))
+    assert {total for _, total in seen} == {len(hashes)}
+    # Reporting progress changes nothing in the files.
+    assert hashes == generator.build(tmp_path / "again" / "demo-laptop")

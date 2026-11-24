@@ -38,7 +38,7 @@ Prototype for macOS on Apple silicon. All sample data is invented. Windows is no
 | Use it like any app, stop a long question, choose the AI | One-click launcher, native Mac window, "Choose folder..." button, Stop, AI model page with eight models |
 | Choose how far back Calendar and Mail are read | Period: most recent weeks to a year, or exact dates |
 
-Every need, feature and test (28 needs) is linked in [Traceability: user need → feature → test](docs/traceability.md). It also lists what was planned and is **not built yet**: confirming each item by hand, an independent `verify` script and an operating-system sandbox.
+Every need, feature and test (29 needs) is linked in [Traceability: user need → feature → test](docs/traceability.md). It also lists what was planned and is **not built yet**: confirming each item by hand, an independent `verify` script and an operating-system sandbox.
 
 ## Structure of the app
 
@@ -118,7 +118,7 @@ Then click **Try the demo** and **Prepare**.
 
 ## Tests
 
-`make check` runs lint, strict type checks and **180 automated tests** in about 13 seconds, without the model. All pass (run of 23 Nov 2026).
+`make check` runs lint, strict type checks and **181 automated tests** in about 13 seconds, without the model. All pass (24 Nov 2026; the [test report](docs/test-report.md) of 23 Nov lists 180).
 
 | What is checked | Result |
 |---|---|
