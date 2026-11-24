@@ -162,7 +162,7 @@ export default function Access({ sources, folder, demoFolder, onSources, onError
             <b>New here? Try it with the demo laptop</b>
             <small>Invented notes of a manager. One click, nothing of yours is read.</small>
           </span>
-          <button className="primary" disabled={busy !== ""} onClick={tryDemo}>{busy === "demo" ? "Setting up…" : "Try the demo"}</button>
+          <button className={busy === "" ? "primary invite" : "primary"} disabled={busy !== ""} onClick={tryDemo}>{busy === "demo" ? "Setting up…" : "Try the demo"}</button>
         </div>
       )}
 
