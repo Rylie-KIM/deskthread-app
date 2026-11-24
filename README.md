@@ -38,24 +38,13 @@ Every need, feature and test is linked in [Traceability: user need → feature �
 
 ## Structure of the app
 
-```
-Mac window (WebKit)  ->  Page (React, static)  ->  Backend (Python, 127.0.0.1)  ->  Model server (Ollama, 127.0.0.1)
-                                                        |
-                                    Gates: G1 what may be read -> G2 read -> G3 model -> G4 answer check
-                                                        |
-                                  Your files and Mac apps (read only, held in memory)
-```
+<p align="center"><img src="docs/images/structure.png" alt="Structure of DeskThread: Mac window, page, backend and model server, with four gates between your files and every answer" width="900"></p>
 
-| Part | What it does |
+| | |
 |---|---|
-| **Window** | A native Mac window. No browser, nothing kept on disk |
-| **Page** | The screens: Access, Ask, My data, AI model |
-| **Backend** | Reads what you allowed, finds notes, checks every answer. Connects to `127.0.0.1` only |
-| **Model** | `gemma4:e4b`, run locally. It names a note and a line; code copies the quote |
+| [How it works](docs/how-it-works.md) | Parts, gates, project structure. The model (`gemma4:e4b`, run locally) only names a note and a line; plain code copies the quote |
 
-More in [How it works](docs/how-it-works.md).
-
-## Try it
+## How to install the application
 
 ```bash
 git clone https://github.com/Rylie-KIM/deskthread-app.git && cd deskthread-app
@@ -64,17 +53,50 @@ make setup ui demo-data
 make run
 ```
 
-Then click **Try the demo** and **Prepare**. Full steps: [Install and run](docs/install-and-run.md).
-
-## More
+Then click **Try the demo** and **Prepare**.
 
 | | |
 |---|---|
+| [Install and run](docs/install-and-run.md) | Requirements, steps, terminal use |
+
+## Tests
+
+`make check` runs lint, strict type checks and **180 automated tests** in about 13 seconds, without the model. All pass (run of 23 Nov 2026).
+
+| What is checked | Result |
+|---|---|
+| Access and consent: sources start Off, off-limits files are never opened, access can be taken back at once | pass |
+| Privacy: the app connects to `127.0.0.1` only, writes nothing to disk, keeps nothing after End session | pass |
+| Answers: invented citations are dropped, instructions hidden in a note are ignored, "not found" when nothing fits | pass, with a scripted fake model |
+| Evaluation with the real model on the invented laptop | **5 of 8** (65 files) and **4 of 8** (143 files) |
+| Model comparison: three installed models and a no-model baseline | best model about 5 of 8, plain search 2 of 8 |
+
+The answer quality is still being worked on. Not yet done: a canary leak test on the whole flow, and the Ask and My data screens have not been re-checked by hand since the redesign.
+
+| | |
+|---|---|
+| [Tests](docs/tests.md) | What the tests prove, group by group |
+| [Test report](docs/test-report.md) | The run of 23 Nov 2026, with results |
+| [Model comparison](docs/model-comparison.md) | Three models and a no-model baseline, measured |
+
+## Demo
+
+Watch the [demo video](https://youtu.be/0CBEZsb4PlA), or click **Try the demo** in the app. It opens an invented laptop: a fictional company, a manager and a team of four. No real notes are used, and the expected answers are kept outside the folder the app can read.
+
+| | |
+|---|---|
+| [Demo data and limits](docs/data-and-limits.md) | The invented data, known limits |
+
+## Documented files
+
+| Document | What it covers |
+|---|---|
 | [Status](docs/status.md) | What is built and what is not |
 | [Privacy and how to check it](docs/privacy-checks.md) | The promises, and how you can verify each one |
-| [Install and run](docs/install-and-run.md) | Requirements, steps, terminal use |
+| [Traceability](docs/traceability.md) | User need → feature → test |
 | [How it works](docs/how-it-works.md) | Parts, gates, project structure |
-| [Tests](docs/tests.md) | What the tests prove |
+| [Install and run](docs/install-and-run.md) | Requirements, steps, terminal use |
+| [Tests](docs/tests.md) | What the tests prove, group by group |
 | [Test report](docs/test-report.md) | The run of 23 Nov 2026, with results |
 | [Model comparison](docs/model-comparison.md) | Three models and a no-model baseline, measured |
 | [Demo data and limits](docs/data-and-limits.md) | The invented data, known limits |
