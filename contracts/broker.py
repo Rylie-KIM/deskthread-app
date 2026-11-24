@@ -56,6 +56,12 @@ class AuditAction(StrEnum):
     READ = "read"
     FOLDER_ADDED = "folder_added"  # the user chose a folder (contract 1.16)
     FOLDER_REMOVED = "folder_removed"
+    # The two stages of picture reading, one line each, counts only (contract 1.21):
+    # macOS text recognition (count read of `of` tried), and the AI looking at pictures
+    # without text (count looked at; 0 means it was not needed).
+    PICTURES_TEXT = "pictures_text"
+    PICTURES_LOOK = "pictures_look"
+    PICTURES_SKIPPED = "pictures_skipped"  # the AI model cannot read pictures; count = left out
 
 
 class AuditLine(BaseModel):
@@ -67,6 +73,7 @@ class AuditLine(BaseModel):
     action: AuditAction
     source_id: str
     count: int = 0
+    of: int = 0  # the total, for lines that say "n of m" (contract 1.21)
 
 
 @runtime_checkable

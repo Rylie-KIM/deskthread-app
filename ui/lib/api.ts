@@ -72,7 +72,13 @@ export interface Answer {
   off_limits_names: string[];
   instruction_notes: ItemRef[];
 }
-export interface Preparing { active: boolean; done: number; total: number; what: string }
+export interface PictureStage { state: string; done: number; total: number }
+export interface PictureRead { item_id: string; title: string; source_label: string; date: string | null; read_with: string }
+export interface Preparing {
+  active: boolean; done: number; total: number; what: string;
+  text: PictureStage; look: PictureStage; job: number;
+  by_macos: number; by_ai: number; no_text: number; pictures: PictureRead[];
+}
 export interface Progress { step: string; number: number; of: number; detail: string }
 export interface ItemView {
   item_id: string;
@@ -100,7 +106,7 @@ export interface Connection { process: string; pid: number; remote: string; loca
 export interface ConnectionCheck { command: string; output: string; connections: Connection[]; all_local: boolean; ran_at: string }
 export interface FileChange { name: string; what: "added" | "changed" | "removed"; when: string | null; owner: string }
 export interface FolderHash { label: string; files: number; before: string; now: string; unchanged: boolean; changes: FileChange[]; changes_total: number }
-export interface AuditLine { at: string; action: string; source_id: string; count: number }
+export interface AuditLine { at: string; action: string; source_id: string; count: number; of: number }
 export interface Proof {
   sampled_at: string;
   connections: Connection[];

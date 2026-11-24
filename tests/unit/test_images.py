@@ -91,3 +91,51 @@ def test_pictures_are_read_by_macos_when_switched_on_and_the_ai_only_fills_the_g
     before = model.calls
     assistant.ask("What did I promise Sam?")  # the first question has no picture left to read
     assert all("Transcribe" not in p for p in model.prompts[before:])
+
+
+def _prepared(demo_laptop: Path, reads_pictures: bool = True):  # type: ignore[no-untyped-def]
+    model = _model(demo_laptop)
+    model.reads_pictures = reads_pictures  # type: ignore[attr-defined]
+    session, assistant = open_work(demo_laptop, model)
+    session.store.refresh()
+    assistant.begin_preparing()
+    assistant.read_pictures_now()
+    return model, session, assistant
+
+
+def test_both_stages_of_picture_reading_are_logged_with_counts_only(
+    demo_laptop: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    pytest.importorskip("Vision")
+    monkeypatch.delenv("DESKTHREAD_OCR", raising=False)
+    _, _, assistant = _prepared(demo_laptop)
+    lines = [
+        (line.action.value, line.count, line.of)
+        for line in assistant._broker.audit()
+        if line.action.value.startswith("pictures_")
+    ]
+    assert lines == [("pictures_text", 3, 5), ("pictures_look", 2, 0)]
+    done = assistant.preparing_now()
+    assert done.active is False and done.what == "Text read from pictures"
+    assert (done.text.state, done.text.total) == ("done", 5)
+    assert (done.look.state, done.look.total) == ("done", 2)
+    assert done.by_macos == 3 and len(done.pictures) == done.by_macos + done.by_ai
+    assert done.by_macos + done.by_ai + done.no_text == 5
+
+
+def test_a_model_that_cannot_read_pictures_skips_stage_two_and_the_log_says_so(
+    demo_laptop: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    pytest.importorskip("Vision")
+    monkeypatch.delenv("DESKTHREAD_OCR", raising=False)
+    model, _session, assistant = _prepared(demo_laptop, reads_pictures=False)
+    assert all("Transcribe" not in p for p in model.prompts)  # no picture went to the model
+    done = assistant.preparing_now()
+    assert done.text.state == "done" and done.look.state == "skipped" and done.look.total == 2
+    assert done.by_macos == 3 and done.by_ai == 0 and done.no_text == 2
+    lines = [
+        (line.action.value, line.count)
+        for line in assistant._broker.audit()
+        if line.action.value.startswith("pictures_")
+    ]
+    assert lines == [("pictures_text", 3), ("pictures_skipped", 2)]

@@ -23,7 +23,7 @@ from app.gate import (
     parse_points,
     summarise,
 )
-from app.images import ImageReader
+from app.images import AI_NAME, OCR_NAME, ImageReader
 from app.meaning import Meaning, likeness
 from app.model import Model, complete_json
 from app.policy import AccessPolicy
@@ -47,18 +47,20 @@ from contracts.api import (
     DroppedQuote,
     ItemRef,
     Meeting,
+    PictureRead,
+    PictureStage,
     PointStatus,
     Preparing,
     Progress,
     RelatedRef,
     Unread,
 )
-from contracts.broker import SourceStatus
+from contracts.broker import AuditAction, SourceStatus
 from contracts.errors import DeskThreadError, ErrorCode
 from contracts.gates import Gate, GateResult, Outcome
 from contracts.items import Item, ItemKind, Unit
 
-READY_SECONDS = 4.0  # how long "Pictures ready" stays on the screen
+READY_SECONDS = 8.0  # how long the finished picture card stays when the page asks again
 NOT_FOUND = "I could not find this in the notes you shared."
 
 
@@ -89,6 +91,7 @@ class Assistant:
         self._prep_lock = threading.Lock()
         self._prep_jobs = 0
         self._ready_until = 0.0
+        self._job = 0  # grows with each finished picture job (contract 1.21)
         self._stop = threading.Event()  # set when the user stops the running question
 
     def forget(self) -> None:
@@ -322,7 +325,12 @@ class Assistant:
         with self._prep_lock:
             self._prep_jobs += 1
             if not self.preparing.active:
-                self.preparing = Preparing(active=True, what="Reading pictures")
+                self.preparing = Preparing(
+                    active=True,
+                    what="Reading pictures",
+                    text=PictureStage(state="running"),
+                    job=self._job,
+                )
 
     def read_pictures_now(self) -> None:
         """Read the text of the pictures that have no reading yet (macOS first, the AI only for
@@ -331,33 +339,89 @@ class Assistant:
         it is done."""
 
         pictures = 0
+        text_total = 0
 
         def show(done: int, total: int, phase: str) -> None:
-            nonlocal pictures
+            nonlocal pictures, text_total
             if phase == "text":
                 pictures = max(pictures, total)
-            what = "Reading pictures" if phase == "text" else "Looking at pictures without text"
-            self.preparing = Preparing(active=True, done=done, total=total, what=what)
+                text_total = total
+                text = PictureStage(state="running", done=done, total=total)
+                look = PictureStage()
+                what = "Reading pictures"
+            else:
+                text = PictureStage(state="done", done=text_total, total=text_total)
+                look = PictureStage(state="running", done=done, total=total)
+                what = "Looking at pictures without text"
+            self.preparing = Preparing(
+                active=True, done=done, total=total, what=what, text=text, look=look, job=self._job
+            )
 
+        completed = False
         try:
             self._images.read_pending(show, None, use_model=True)
+            completed = True
         finally:
             with self._prep_lock:
                 self._prep_jobs = max(0, self._prep_jobs - 1)
+                if completed and pictures:
+                    self._log_pictures()
                 if self._prep_jobs == 0:
                     # macOS reads a picture in a tenth of a second, so the whole job can be
-                    # over before anyone looks: "ready" stays visible for a few seconds.
+                    # over before anyone looks: the finished card stays until the user presses
+                    # OK, and for a few seconds when the page asks again.
                     self._ready_until = time.monotonic() + READY_SECONDS
-                    self.preparing = (
-                        Preparing(
-                            active=False, done=pictures, total=pictures, what="Pictures ready"
-                        )
-                        if pictures
-                        else Preparing()
-                    )
+                    self._job += 1
+                    self.preparing = self._finished(pictures) if pictures else Preparing()
+
+    def _log_pictures(self) -> None:
+        """One line in the log for each stage of the job that just ended. Counts only."""
+        last = self._images.last
+        self._broker.note_pictures(AuditAction.PICTURES_TEXT, last.text_found, last.text_tried)
+        if last.look_state == "done":
+            self._broker.note_pictures(AuditAction.PICTURES_LOOK, last.look_tried)
+        elif last.look_state == "not_needed":
+            self._broker.note_pictures(AuditAction.PICTURES_LOOK, 0)
+        elif last.look_state == "skipped":
+            self._broker.note_pictures(AuditAction.PICTURES_SKIPPED, last.look_tried)
+
+    def _finished(self, pictures: int) -> Preparing:
+        """The card shown when the job is over: both stages, and what was read, by whom."""
+        last = self._images.last
+        labels = {s.source_id: s.label for s in self._broker.states()}
+        images = [i for i in self._store.items() if i.kind is ItemKind.IMAGE]
+        read = [i for i in images if i.meta.get("reading") == "done"]
+        text = PictureStage(state="done", done=last.text_tried, total=last.text_tried)
+        look = PictureStage(
+            state=last.look_state,
+            done=last.look_tried if last.look_state == "done" else 0,
+            total=last.look_tried,
+        )
+        return Preparing(
+            active=False,
+            done=pictures,
+            total=pictures,
+            what="Text read from pictures",
+            text=text,
+            look=look,
+            job=self._job,
+            by_macos=sum(1 for i in read if i.meta.get("read_with") == OCR_NAME),
+            by_ai=sum(1 for i in read if i.meta.get("read_with") == AI_NAME),
+            no_text=sum(1 for i in images if i.meta.get("reading") == "no text found"),
+            pictures=tuple(
+                PictureRead(
+                    item_id=i.item_id,
+                    title=i.title,
+                    source_label=labels.get(i.source_id, i.source_id),
+                    date=i.date,
+                    read_with=i.meta.get("read_with", ""),
+                )
+                for i in read
+            ),
+        )
 
     def preparing_now(self) -> Preparing:
-        """What the screen shows: the running job, or "Pictures ready" for a few seconds."""
+        """What the screen shows: the running job, or the finished card for a few seconds."""
         with self._prep_lock:
             if not self.preparing.active and time.monotonic() > self._ready_until:
                 self.preparing = Preparing()

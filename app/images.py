@@ -10,6 +10,7 @@ says so and shows the picture beside the reading.
 
 import hashlib
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 
 from app import ocr, prompts
@@ -21,6 +22,22 @@ from contracts.items import Item, ItemKind, Unit
 
 OCR_NAME = "macOS text recognition"
 AI_NAME = "the AI on this Mac"
+
+
+@dataclass(frozen=True)
+class LastRead:
+    """What the latest `read_pending` did, as counts, for the progress card and the log.
+
+    Stage 1 is macOS text recognition; stage 2 is the AI looking at the pictures where macOS
+    found no text. `look_state` is "done", "not_needed" (nothing was left for it), "skipped"
+    (the AI model cannot read pictures; `look_tried` pictures were left unread by it) or
+    "waiting" (not asked for in this call)."""
+
+    text_tried: int = 0
+    text_found: int = 0
+    look_state: str = "not_needed"
+    look_tried: int = 0
+    look_found: int = 0
 
 
 class ImageReader:
@@ -36,6 +53,7 @@ class ImageReader:
         self._readings: dict[str, tuple[str, ...] | None] = {}  # None: the AI failed on it
         self._by: dict[str, str] = {}  # key -> who read it
         self._empty: set[str] = set()  # macOS read the picture and found no text
+        self.last = LastRead()
 
     @property
     def held(self) -> int:
@@ -81,16 +99,23 @@ class ImageReader:
         unique = {key: data for _, key, data in found}
         todo = [k for k in unique if k not in self._readings and k not in self._empty]
         total = len(todo)
+        text_found = 0
         for done, key in enumerate(todo, 1):  # the first look: macOS text recognition
             if progress:
                 progress(done, total, "text")
             lines = self._recognise(unique[key])
             if lines:
                 self._readings[key], self._by[key] = tuple(lines), OCR_NAME
+                text_found += 1
             elif lines is not None:
                 self._empty.add(key)
+        look_state, look_tried, look_found = "waiting", 0, 0
+        if not self._can_use_model():
+            left = [k for k in unique if k in self._empty]  # nothing else will look at these
+            look_state, look_tried = ("skipped" if left else "not_needed"), len(left)
         if use_model and self._can_use_model():
             second = [k for k in unique if k not in self._readings]
+            look_state, look_tried = ("done" if second else "not_needed"), len(second)
             for number, key in enumerate(second, 1):  # the second look: the answering AI
                 if progress:
                     progress(number, len(second), "look")
@@ -104,6 +129,8 @@ class ImageReader:
                     lines2 = [] if text.upper().strip(". ") == "NONE" else text.splitlines()
                     self._readings[key] = tuple(x.strip() for x in lines2 if x.strip())
                     self._by[key] = AI_NAME
+                    look_found += 1 if self._readings[key] else 0
+        self.last = LastRead(total, text_found, look_state, look_tried, look_found)
         final = use_model or not self._can_use_model()
         for item, key, _data in found:
             if key in self._readings:

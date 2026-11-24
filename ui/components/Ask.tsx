@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, clock, day, plain, type Answer, type BriefPoint, type Citation, type ItemRef, type Meeting, type Preparing, type Progress } from "../lib/api";
+import { api, clock, day, plain, type Answer, type BriefPoint, type Citation, type ItemRef, type Meeting, type PictureStage, type Preparing, type Progress } from "../lib/api";
 
 // Plain words for the status of something promised or to do.
 const STATUS_TEXT = { done: "Done", open: "Still to do", changed: "Changed", superseded: "No longer valid" } as const;
@@ -22,6 +22,69 @@ const refCite = (ref: ItemRef): Citation => ({
   item_id: ref.item_id, unit: 0, quote: "", source_id: "", source_label: ref.source_label, title: ref.title,
   date: ref.date, undated: false, read_by_model: false,
 });
+
+const IDLE: Preparing = {
+  active: false, done: 0, total: 0, what: "",
+  text: { state: "waiting", done: 0, total: 0 }, look: { state: "waiting", done: 0, total: 0 },
+  job: 0, by_macos: 0, by_ai: 0, no_text: 0, pictures: [],
+};
+
+// One of the two stages of reading pictures: its own bar, in its own blue.
+function PictureStep({ n, label, stage, active }: { n: 1 | 2; label: string; stage: PictureStage; active: boolean }) {
+  const status =
+    stage.state === "running" ? `${stage.done} of ${stage.total}`
+    : stage.state === "done" ? `${stage.total} of ${stage.total}`
+    : stage.state === "not_needed" ? (n === 2 ? "Not needed, macOS found text in every picture" : "Not needed")
+    : stage.state === "skipped" ? "Skipped, this AI model does not read pictures"
+    : active ? "Waiting" : "";
+  const width = stage.state === "done" ? 100 : stage.state === "running" ? (stage.total ? Math.max(4, Math.round((100 * stage.done) / stage.total)) : 4) : 0;
+  return (
+    <div className="prepstep">
+      <div className="row between"><span className="steplabel"><i className={n === 1 ? "dot one" : "dot two"} />{label}</span><span className="stepstatus">{status}</span></div>
+      <div className="prepbar" aria-hidden="true"><i className={n === 1 ? "one" : "two"} style={{ width: `${width}%` }} /></div>
+    </div>
+  );
+}
+
+// The card for picture reading: two bars while it runs, then what was read until OK is pressed.
+function PictureCard({ prep, onOk, onCite }: { prep: Preparing; onOk: () => void; onCite: (cite: Citation) => void }) {
+  const [open, setOpen] = useState(false);
+  const total = prep.by_macos + prep.by_ai + prep.no_text;
+  const read = prep.by_macos + prep.by_ai;
+  const parts = [
+    prep.by_macos ? `${prep.by_macos} read by macOS` : "",
+    prep.by_ai ? `${prep.by_ai} by the AI` : "",
+    prep.no_text ? `${prep.no_text} had no text` : "",
+  ].filter(Boolean).join(", ");
+  return (
+    <div className={prep.active ? "card prepare" : "card prepare ready"} role="status" aria-live="polite">
+      <div className="row between">
+        <b>{prep.active ? "Reading the text of your pictures" : `Text read from ${read} of ${total} pictures`}</b>
+        {!prep.active && <button type="button" className="primary small" onClick={onOk}>OK</button>}
+      </div>
+      {!prep.active && parts && <p className="prepsum">{parts}</p>}
+      <PictureStep n={1} label="Step 1 of 2: macOS reads the text" stage={prep.text} active={prep.active} />
+      <PictureStep n={2} label="Step 2 of 2: the AI looks at pictures without text" stage={prep.look} active={prep.active} />
+      {!prep.active && prep.pictures.length > 0 && (
+        <div>
+          <button type="button" className="ghost small" onClick={() => setOpen(!open)}>{open ? "Hide the text" : "See the text"}</button>
+          {open && (
+            <ul className="stagelist">
+              {prep.pictures.map((pic) => (
+                <li key={pic.item_id}>
+                  <button type="button" className="stagerow" onClick={() => onCite({ item_id: pic.item_id, unit: 0, quote: "", source_id: "", source_label: pic.source_label, title: pic.title, date: pic.date, undated: false, read_by_model: true })} title="Open this picture and its text">
+                    <b>{pic.title}</b>
+                    <span className="origin"><em className="tag">{pic.read_with.startsWith("macOS") ? "macOS" : "The AI"}</em><span>{pic.date ? day(pic.date) : "No date"}</span></span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
 
 type Stage = "read" | "related" | "quoted" | "dropped" | "unread" | "off" | "instructions";
 
@@ -273,7 +336,9 @@ export default function Ask({ now, anyOn, visible, thread, onAnswer, onCite, onE
   const [question, setQuestion] = useState("");
   const [asking, setAsking] = useState("");
   const [progress, setProgress] = useState<Progress | null>(null);
-  const [prep, setPrep] = useState<Preparing>({ active: false, done: 0, total: 0, what: "" });
+  const [prep, setPrep] = useState<Preparing>(IDLE);
+  const [finished, setFinished] = useState<Preparing | null>(null);  // the card that stays until OK
+  const [closed, setClosed] = useState(0);  // the job whose card was closed with OK
   const [stopping, setStopping] = useState(false);  // Stop was pressed; the question is ending
 
   useEffect(() => {
@@ -283,7 +348,10 @@ export default function Ask({ now, anyOn, visible, thread, onAnswer, onCite, onE
   // The pictures of a source that was just switched on are read in the background; until
   // that is done the chat stays closed.
   useEffect(() => {
-    const look = () => api.preparing().then(setPrep).catch(() => undefined);
+    const look = () => api.preparing().then((next) => {
+      setPrep(next);
+      if (!next.active && next.what !== "") setFinished((held) => (held && held.job === next.job ? held : next));
+    }).catch(() => undefined);
     look();
     const timer = setInterval(look, 250);
     return () => clearInterval(timer);
@@ -348,12 +416,9 @@ export default function Ask({ now, anyOn, visible, thread, onAnswer, onCite, onE
         </div>
       )}
 
-      {(prep.active || prep.what !== "") && (
-        <div className={prep.active ? "card prepare" : "card prepare ready"} role="status" aria-live="polite">
-          <div className="row between"><b>{prep.what || "Reading pictures"}</b><span>{prep.total ? `${prep.active ? prep.done : prep.total} of ${prep.total}` : "Starting"}</span></div>
-          <div className="prepbar" aria-hidden="true"><i style={{ width: `${prep.active ? (prep.total ? Math.max(4, Math.round((100 * prep.done) / prep.total)) : 4) : 100}%` }} /></div>
-        </div>
-      )}
+      {prep.active
+        ? <PictureCard prep={prep} onOk={() => undefined} onCite={onCite} />
+        : finished && finished.job !== closed && <PictureCard key={finished.job} prep={finished} onOk={() => { setClosed(finished.job); setFinished(null); }} onCite={onCite} />}
 
       <form className="card row ask" onSubmit={(e) => { e.preventDefault(); if (question.trim()) void ask(question.trim()); }}>
         <input aria-label="Your question" placeholder={prep.active ? "Getting your pictures ready…" : "Ask in your own words"} value={question} maxLength={500} disabled={asking !== "" || prep.active} onChange={(e) => setQuestion(e.target.value)} />

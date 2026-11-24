@@ -119,8 +119,15 @@ class Broker:
         except KeyError:
             raise DeskThreadError(ErrorCode.SOURCE_UNKNOWN) from None
 
-    def _note(self, action: AuditAction, source_id: str, count: int = 0) -> None:
-        self._audit.append(AuditLine(at=now(), action=action, source_id=source_id, count=count))
+    def _note(self, action: AuditAction, source_id: str, count: int = 0, of: int = 0) -> None:
+        self._audit.append(
+            AuditLine(at=now(), action=action, source_id=source_id, count=count, of=of)
+        )
+
+    def note_pictures(self, action: AuditAction, count: int, of: int = 0) -> None:
+        """One line for a stage of picture reading (contract 1.21). Counts only."""
+        with self._lock:
+            self._note(action, "pictures", count, of)
 
     def note_folder(self, added: bool, name: str) -> None:
         """The user chose or removed a folder. Only its name is recorded, never its content."""

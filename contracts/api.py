@@ -136,6 +136,26 @@ class AskBody(_Frozen):
     question: str = Field(min_length=1, max_length=500)
 
 
+class PictureStage(_Frozen):
+    """One of the two stages of reading pictures (contract 1.21)."""
+
+    # waiting, running, done, not_needed (nothing for this stage to do), or skipped (the AI
+    # model in use cannot read pictures)
+    state: str = "waiting"
+    done: int = 0
+    total: int = 0
+
+
+class PictureRead(_Frozen):
+    """A picture whose text was read, for the "See the text" list (contract 1.21)."""
+
+    item_id: str
+    title: str
+    source_label: str
+    date: datetime | None
+    read_with: str  # "macOS text recognition" or "the AI on this Mac"
+
+
 class Preparing(_Frozen):
     """Work done after a source is switched on and before the first question: reading the text
     of pictures. While `active`, a question would have to wait (contract 1.20)."""
@@ -144,6 +164,15 @@ class Preparing(_Frozen):
     done: int = 0
     total: int = 0
     what: str = ""  # "Reading pictures", or "Looking at pictures without text"
+    # Contract 1.21: the two stages on their own, a number that grows with each finished job,
+    # and, once a job is over, what it read.
+    text: PictureStage = PictureStage()  # stage 1: macOS text recognition
+    look: PictureStage = PictureStage()  # stage 2: the AI looks at pictures without text
+    job: int = 0
+    by_macos: int = 0
+    by_ai: int = 0
+    no_text: int = 0
+    pictures: tuple[PictureRead, ...] = ()
 
 
 class Progress(_Frozen):

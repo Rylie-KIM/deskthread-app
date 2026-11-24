@@ -4,6 +4,14 @@ import Help from "./Help";
 
 const WORDS: Record<string, string> = { grant: "You allowed reading", revoke: "You stopped", revoke_all: "You stopped", read: "Read", denied: "Refused", folder_added: "You added the folder", folder_removed: "You removed the folder" };
 
+// The two stages of reading pictures are logged as whole sentences, counts only.
+function pictureLine(line: AuditLine): string | null {
+  if (line.action === "pictures_text") return `Step 1 of 2: macOS read the text of ${line.count} of ${line.of} pictures`;
+  if (line.action === "pictures_look") return line.count === 0 ? "Step 2 of 2: not needed, macOS found text in every picture" : `Step 2 of 2: the AI looked at ${line.count} ${line.count === 1 ? "picture" : "pictures"} without text`;
+  if (line.action === "pictures_skipped") return `Step 2 of 2: skipped, this AI model does not read pictures (${line.count} left without text)`;
+  return null;
+}
+
 function Details({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <details>
@@ -19,7 +27,7 @@ function grouped(lines: AuditLine[]): (AuditLine & { times: number; key: string 
   const out: (AuditLine & { times: number; key: string })[] = [];
   lines.forEach((line, index) => {
     const last = out[out.length - 1];
-    if (last && last.action === line.action && last.source_id === line.source_id && last.count === line.count) {
+    if (last && last.action === line.action && last.source_id === line.source_id && last.count === line.count && last.of === line.of) {
       last.times += 1;
       last.at = line.at;  // the time of the latest one
     } else out.push({ ...line, times: 1, key: `${index}-${line.at}` });
@@ -220,7 +228,7 @@ export function MyData({ onError, onClear, onEnd }: { onError: (message: string)
           {grouped(proof.audit).map((line) => (
             <li key={line.key}>
               <span>{clock(line.at)}</span>
-              <b>{WORDS[line.action] ?? line.action} {line.source_id === "*" ? "everything" : line.source_id.replace(/^(mac|folder|dir):/, "")}</b>
+              <b>{pictureLine(line) ?? `${WORDS[line.action] ?? line.action} ${line.source_id === "*" ? "everything" : line.source_id.replace(/^(mac|folder|dir):/, "")}`}</b>
               {line.action === "read" ? <em>{line.count} items{line.times > 1 ? `, checked again ${line.times - 1} times` : ""}</em> : line.times > 1 ? <em>{line.times} times</em> : <em />}
             </li>
           ))}

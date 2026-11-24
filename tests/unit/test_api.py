@@ -357,12 +357,9 @@ def test_the_pictures_are_prepared_in_the_background_and_say_how_far_they_are(
         return original(prompt, images)
 
     model.complete = watching  # type: ignore[method-assign]
-    assert client.get("/api/preparing").json() == {
-        "active": False,
-        "done": 0,
-        "total": 0,
-        "what": "",
-    }
+    idle = client.get("/api/preparing").json()
+    assert idle["active"] is False and idle["what"] == "" and idle["total"] == 0
+    assert idle["text"]["state"] == "waiting" and idle["look"]["state"] == "waiting"
     for source in client.post("/api/folder", json={"path": str(demo_laptop)}).json():
         if source["source_id"] == "folder:images":
             client.post("/api/sources/folder:images/grant", json={})  # returns at once
@@ -371,7 +368,7 @@ def test_the_pictures_are_prepared_in_the_background_and_say_how_far_they_are(
     assert all(s["active"] is True for s in seen)
     ready = client.get("/api/preparing").json()
     assert ready["active"] is False  # the chat opens
-    assert ready["what"] == "Pictures ready" and ready["done"] == ready["total"] == 5
+    assert ready["what"] == "Text read from pictures" and ready["done"] == ready["total"] == 5
     assert runtime.session.assistant.readings_held == 5
 
 
