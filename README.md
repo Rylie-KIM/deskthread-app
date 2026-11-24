@@ -9,9 +9,11 @@
 
 <p align="center"><img src="docs/images/access.png" alt="DeskThread: choose what it can read" width="760"></p>
 
-## What it is
+## Problem
 
-A native **Mac app** that finds what you wrote down in Notes, Calendar, Mail, Reminders and your folders.
+Managers keep their work notes in many places: Notes, Calendar, Mail, Reminders and folders. Before a meeting, finding what was promised or decided means searching each one. Cloud assistants could help, but sending work notes outside the laptop is often not allowed.
+
+DeskThread is a native **Mac app** that finds what you wrote down in Notes, Calendar, Mail, Reminders and your folders.
 Every answer shows the exact quote, the date and where it came from. If the answer is not there, it says "not found".
 
 - **Local:** the AI runs on your Mac. No accounts, no telemetry.
@@ -20,7 +22,21 @@ Every answer shows the exact quote, the date and where it came from. If the answ
 
 Prototype for macOS on Apple silicon. All sample data is invented. Windows is not tested.
 
-## How it is built
+## Main user needs and features
+
+| User need | Main features |
+|---|---|
+| Recall what I promised before a one-to-one, and prepare for the next meeting | Brief, "Prepare my next meeting" |
+| See the exact words, the note and the date behind every answer | Quote and source viewer, coverage view (which files were read) |
+| Get an honest "not found" instead of an invented answer | Answer gate, closest notes after "not found" |
+| Choose what it can read, and take it back at once | Sources Off by default, one-click access, instant revoke, off-limits list |
+| Cover where I keep work information | Notes, Calendar, Mail, Reminders, folders and image readers |
+| Be sure my notes stay on my laptop, and check it myself | Local model, no files written, Memory panel with Forget now, Proof panel and `verify` script |
+| Use it like any app | One-click launcher, native Mac window, "Choose folder..." button |
+
+Every need, feature and test is linked in [Traceability: user need → feature → test](docs/traceability.md).
+
+## Structure of the app
 
 ```
 Mac window (WebKit)  ->  Page (React, static)  ->  Backend (Python, 127.0.0.1)  ->  Model server (Ollama, 127.0.0.1)
@@ -61,7 +77,6 @@ Then click **Try the demo** and **Prepare**. Full steps: [Install and run](docs/
 | [Tests](docs/tests.md) | What the tests prove |
 | [Test report](docs/test-report.md) | The run of 23 Nov 2026, with results |
 | [Model comparison](docs/model-comparison.md) | Three models and a no-model baseline, measured |
-| [Traceability](docs/traceability.md) | User need → feature → test |
 | [Demo data and limits](docs/data-and-limits.md) | The invented data, known limits |
 | [Dependencies](docs/dependencies.md) | Every dependency and its licence |
 
