@@ -81,7 +81,7 @@ The answer quality is still being worked on. Not yet done: a canary leak test on
 
 ## Demo
 
-Watch the [demo video](https://youtu.be/0CBEZsb4PlA), or click **Try the demo** in the app. It opens an invented laptop: a fictional company, a manager and a team of four. No real notes are used, and the expected answers are kept outside the folder the app can read.
+In the app, click **Try the demo**. It opens an invented laptop: a fictional company, a manager and a team of four. No real notes are used, and the expected answers are kept outside the folder the app can read.
 
 | | |
 |---|---|
